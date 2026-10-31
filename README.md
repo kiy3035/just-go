@@ -4,6 +4,16 @@
 
 현재 구성 범위는 `INITIAL_SETUP.md`의 0~3단계입니다. 백엔드와 로컬 PostgreSQL 개발 환경만 만들었으며 Android 프로젝트, Pleos SDK, 추천 엔진, 외부 경로 API는 아직 구현하지 않았습니다.
 
+## 역할 분담
+
+| 담당자 | 담당 영역 |
+|---|---|
+| 김인영 | 프로젝트 전체 툴 설치·개발환경 세팅, 서버/백엔드, DB, 외부 경로 API, 추천 로직, 인프라 |
+| 정도혜 | UI/UX, 프론트엔드, Android Java/XML 앱 기능, 준비된 환경에서의 Pleos 연동·에뮬레이터 활용·앱 빌드 |
+| 공동 | 기능 기획, API 계약, 통합 테스트, 경관 코스 검수, 공모전 제출물 |
+
+Android Studio, Android SDK, Pleos Emulator를 포함한 도구 설치와 공통 개발환경 구성은 김인영이 담당합니다. 정도혜는 구성된 Android 환경에서 UI/UX와 프론트·Android 구현에 집중합니다. Codex는 별도 지시가 없으면 김인영 담당 영역만 작업합니다.
+
 ## 기술 구성
 
 - Backend: Java 21, Spring Boot 3.5.16, Gradle 8.14.6 Wrapper

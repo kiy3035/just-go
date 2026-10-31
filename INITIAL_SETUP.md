@@ -2,9 +2,10 @@
 
 > 실행 대상: 프로젝트 저장소 루트. 실행 전 `AGENTS.md`, `docs/requirements.md`, `docs/architecture.md`를 순서대로 읽는다.
 > 목적: 두 개발자(김인영 / 정도혜)가 각자의 Windows PC에서 **로컬로 실행 가능한 개발 골격**을 구축한다.
+> 역할 기준: 프로젝트 전체 툴 설치와 개발환경 세팅은 김인영이 담당하고, 정도혜는 준비된 환경에서 UI/UX·프론트엔드·Android 앱 구현을 담당한다.
 > **주의: 이 작업은 초기 세팅용이다. 코스 추천 등 비즈니스 기능을 개발하지 않는다.**
 
-## 0. 사전 점검 (실행 전 보고)
+## 0. 사전 점검 — 담당 김인영 (실행 전 보고)
 
 1. 현재 저장소의 모든 파일·기존 Git 상태를 확인하고, 이미 존재하는 코드나 설정을 덮어쓰지 않는다.
 2. 환경에서 Java 21, Android Studio/Android SDK, Gradle, Docker Desktop, Git 사용 가능 여부를 확인한다. `gradlew`는 Gradle 전역 설치를 전제로 하지 않는다.
@@ -59,7 +60,10 @@ repo-root/
 - 초기 단계에서는 AWS, EC2, Nginx, Caddy, Redis, Kafka, Kubernetes를 구축하지 않는다.
 - 로컬 실행 명령과 DB 초기화/정리 시 데이터 삭제 위험을 명확히 문서화한다.
 
-## 4. Android 골격 — 담당 정도혜
+## 4. Android 골격 — 환경 세팅 김인영 / UI·UX·프론트 구현 정도혜
+
+- **김인영:** Android Studio, Android SDK, JDK/Gradle 조합, Pleos Emulator/AVD 등 Android 개발 도구를 설치·구성하고 공통 프로젝트 빌드 환경을 준비한다. UI나 앱 기능 구현은 맡지 않는다.
+- **정도혜:** 준비된 Android 환경에서 Java/XML 화면, ViewBinding, UI/UX, 프론트 로직, API 클라이언트와 Pleos 앱 기능을 구현한다.
 
 - Android Studio 프로젝트는 **Java** 언어로 생성한다. XML/ViewBinding 우선, `minSdk >= 28`, `compileSdk=34`를 초기 기준으로 공식 Pleos 환경 호환성을 확인한다. 공식 퀵스타트는 Kotlin 예시이지만 개발 환경 안내는 Java도 허용한다.
 - 앱 표시명은 **`just go`로 확정**한다(`strings.xml`의 `app_name`, README에 동일 표기). Android applicationId/namespace는 미정이므로 `com.example.justgo`를 **임시값**으로 허용한다. `docs/setup-report.md`와 README에 패키지 ID만 `PROVISIONAL` 표시하고 실제 Release 제출 전 고유 ID를 확정할 일로 남긴다.
@@ -69,13 +73,13 @@ repo-root/
 - `ApiClient`/`RouteRepository`, `NavigationGateway` 추상화의 최소 인터페이스 또는 패키지 구조만 준비한다.
 - Android 앱의 `local`, `mock` API URL 설정 방법을 문서화하고, 민감값 및 개인 LAN IP 하드코딩을 금지한다. **Android cleartext 차단 정책**을 준수: 로컬 HTTP를 위해서는 debug 빌드 전용 명시적 허용만 사용하고 Release에는 HTTPS를 기본으로 한다.
 - **NaviHelper 실제 호출 코드는 공식 SDK 좌표·메서드·권한이 확인되고 동작 검증될 때까지 넣지 않는다.** 별도의 PoC 체크리스트만 작성한다.
-- Pleos Emulator 설치는 사용자 Android Studio에서 수행할 수 있도록 설치 절차를 README에 안내한다. 설치를 실행하지 못한 경우 미검증으로 명시한다.
-- 실제 Emulator 실행 가능 시 설치 및 정적 화면 실행 결과를 기록한다. 불가능하면 단순 Android 빌드 결과와 Pleos 미검증을 구분한다.
+- **김인영:** Pleos Emulator 설치 절차와 환경 요구사항을 README에 안내하고 가능한 환경에서는 설치·기동을 검증한다. 설치를 실행하지 못한 경우 미검증으로 명시한다.
+- **정도혜:** 기동이 확인된 Emulator에서 Android 화면과 프론트 기능의 실행 결과를 검증한다. 불가능하면 단순 Android 빌드 결과와 Pleos 미검증을 구분한다.
 
 ## 5. 개발자 간 독립 실행 전략
 
-- **김인영 PC:** `infra` PostgreSQL + `backend` Spring Boot를 로컬 실행.
-- **정도혜 PC:** Android Studio + Pleos Emulator에서 개발하고, 필요시 같은 Git 저장소의 `backend`와 PostgreSQL을 독립 실행.
+- **김인영:** 두 개발자에게 필요한 전체 툴 설치와 공통 개발환경 기준을 관리한다. 김인영 PC에서는 `infra` PostgreSQL + `backend` Spring Boot를 로컬 실행한다.
+- **정도혜 PC:** 김인영이 준비한 Android Studio + Pleos Emulator 환경에서 UI/UX·프론트·Android 앱을 개발한다. 필요시 통합 확인 목적으로 같은 Git 저장소의 `backend`와 PostgreSQL을 실행할 수 있지만 서버·DB의 구현 및 소유 담당은 김인영이다.
 - 통신은 기본적으로 **에뮬레이터 ↔ 해당 PC의 로컬 서버**. Android Emulator 일반 호스트 접근 주소 `10.0.2.2`는 Pleos Emulator에서 실제 확인 전까지 보장된 사실로 쓰지 않는다.
 - 두 사람이 다른 네트워크에 있어도 각자의 로컬 서버와 샘플 데이터로 개발할 수 있어야 한다.
 - 통합 테스트 시에는 같은 LAN, 승인된 VPN, 또는 추후 HTTPS 배포 중 하나를 선택한다. 공용 DB는 필요하지 않다.

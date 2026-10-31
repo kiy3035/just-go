@@ -38,6 +38,9 @@ flowchart TB
 
 ## 3. 두 사람의 로컬 환경
 
+- **김인영:** 두 PC에 필요한 전체 툴 설치와 공통 개발환경 세팅을 총괄하고, 서버/백엔드·DB·인프라를 소유한다.
+- **정도혜:** 구성된 Android 환경에서 UI/UX·프론트엔드·Android 앱 구현을 소유한다.
+
 ```text
 GitHub (하나의 저장소)
   ├─ 김인영 PC
@@ -45,9 +48,10 @@ GitHub (하나의 저장소)
   │   └─ Docker Compose + PostgreSQL
   └─ 정도혜 PC
       ├─ Android Studio + Pleos Emulator
-      └─ 필요 시 같은 Git 저장소의 Spring Boot + PostgreSQL을 로컬로 실행
+      └─ 통합 확인 시 같은 Git 저장소의 Spring Boot + PostgreSQL을 로컬로 실행
 ```
 
+- 정도혜 PC에서 백엔드와 DB를 실행하는 것은 앱 통합 확인을 위한 로컬 실행일 뿐이며, 서버·DB 구현 담당은 김인영에게 있다.
 - 개발 중 Android API URL은 로컬 구성에 맞게 선택. `10.0.2.2` 접근은 Pleos Emulator에서 확인한 뒤 문서화.
 - 두 PC는 각각 독립 DB 데이터를 가진다. Flyway 마이그레이션과 테스트 시드로 동일한 스키마를 유지한다.
 - 네트워크가 서로 달라도 각자 Mock API 또는 로컬 백엔드로 작업할 수 있다.

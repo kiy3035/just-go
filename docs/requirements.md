@@ -62,8 +62,8 @@
 
 ## 7. 2인 역할
 
-- **김인영 (백엔드 리드):** Spring Boot, MyBatis, PostgreSQL, 추천 엔진, 외부 API, 인프라, 관측.
-- **정도혜 (Android 리드):** Android Java, XML UI, API 연동, Pleos NaviHelper/에뮬레이터, 앱 빌드.
+- **김인영 (개발환경·서버 리드):** 프로젝트 전체 툴 설치와 개발환경 세팅, Spring Boot, MyBatis, PostgreSQL, 추천 엔진, 외부 API, 인프라, 관측. Android Studio, Android SDK, Pleos Emulator 등 Android 측 개발 도구의 설치·공통 환경 구성도 담당한다.
+- **정도혜 (UI/UX·프론트·Android 리드):** 준비된 개발환경에서 UI/UX, Android Java, XML 화면, 프론트 로직, 앱 측 API 연동, Pleos 앱 기능, 에뮬레이터 화면 검증과 앱 빌드.
 - **공동:** API 계약, 코스·경관 검수, 보안·시연 정책, 통합 테스트, 제출물.
 
 ## 8. 마일스톤 제안
