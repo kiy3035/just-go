@@ -1,0 +1,21 @@
+#!/bin/sh
+
+# Gradle 시작 스크립트: 프로젝트에 고정된 Wrapper 버전을 사용합니다.
+APP_HOME=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P) || exit 1
+CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
+
+if [ -n "$JAVA_HOME" ]; then
+    JAVACMD=$JAVA_HOME/bin/java
+else
+    JAVACMD=java
+fi
+
+if [ ! -x "$JAVACMD" ]; then
+    echo "ERROR: JAVA_HOME is invalid or java is not available in PATH." >&2
+    exit 1
+fi
+
+exec "$JAVACMD" -Xmx64m -Xms64m $JAVA_OPTS $GRADLE_OPTS \
+    "-Dorg.gradle.appname=gradlew" \
+    -classpath "$CLASSPATH" \
+    org.gradle.wrapper.GradleWrapperMain "$@"

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.justgo.backend.spot.SpotMapper">
+    <resultMap id="spotRecordMap" type="com.example.justgo.backend.spot.SpotRecord">
+        <constructor>
+            <idArg column="id" javaType="java.lang.Long"/>
+            <arg column="name" javaType="java.lang.String"/>
+            <arg column="theme" javaType="com.example.justgo.backend.spot.ScenicTheme"/>
+        </constructor>
+    </resultMap>
+
+    <insert id="insert">
+        INSERT INTO spot (name, theme)
+        VALUES (#{name}, #{theme}::varchar)
+    </insert>
+
+    <select id="findById" resultMap="spotRecordMap">
+        SELECT id, name, theme
+        FROM spot
+        WHERE id = #{id}
+    </select>
+
+    <select id="findLatestIdByName" resultType="java.lang.Long">
+        SELECT id
+        FROM spot
+        WHERE name = #{name}
+        ORDER BY id DESC
+        LIMIT 1
+    </select>
+</mapper>

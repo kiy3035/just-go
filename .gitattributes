@@ -1,2 +1,5 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# 텍스트 파일은 운영체제와 관계없이 저장소와 작업 트리에서 LF를 사용합니다.
+* text=auto eol=lf
+
+# Windows 실행 스크립트만 CRLF를 유지합니다.
+*.bat text eol=crlf
