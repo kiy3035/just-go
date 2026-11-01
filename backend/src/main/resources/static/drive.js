@@ -13,9 +13,18 @@ const buttonLabel = searchButton.querySelector('.button-label');
 const buttonSummary = searchButton.querySelector('.button-summary');
 const originalLabel = buttonLabel.textContent;
 let searchTimer;
+const selectedTrip = document.querySelector('#selected-trip');
+const selectedTime = document.querySelector('#selected-time');
+const selectedPlace = document.querySelector('#selected-place');
+
 
 function syncForm() {
-    scene.dataset.theme = form.querySelector('input[name="theme"]:checked').id;
+    const theme = form.querySelector('input[name="theme"]:checked');
+    scene.dataset.theme = theme.id;
+    selectedTrip.textContent = form.elements.tripType.value;
+    const minutes = form.elements.duration.value === 'custom' ? customMinutes.value : form.elements.duration.value;
+    selectedTime.textContent = minutes ? minutes + '분' : '시간 입력';
+    selectedPlace.textContent = theme.value;
     const custom = form.elements.duration.value === 'custom';
     customTime.classList.toggle('is-visible', custom);
     customMinutes.disabled = !custom;
@@ -57,3 +66,6 @@ function showSelection(event) {
 
 form.addEventListener('change', syncForm);
 form.addEventListener('submit', showSelection);
+customMinutes.addEventListener('input', syncForm);
+syncForm();
+

@@ -1,7 +1,7 @@
 <resources>
 <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
 <item name="android:fontFamily">sans</item><item name="android:colorAccent">#216ADB</item>
-<item name="android:windowBackground">#FFFFFF</item><item name="android:statusBarColor">#FFFFFF</item>
+<item name="android:windowBackground">#EAF1F9</item><item name="android:statusBarColor">#FFFFFF</item>
 <item name="android:navigationBarColor">#FFFFFF</item><item name="android:windowLightStatusBar">true</item><item name="android:windowLightNavigationBar">true</item>
 </style>
 <style name="Choice">
@@ -9,11 +9,14 @@
 <item name="android:layout_weight">1</item><item name="android:layout_margin">6dp</item>
 <item name="android:button">@null</item><item name="android:background">@drawable/choice_background</item>
 <item name="android:backgroundTint">@null</item><item name="android:textColor">@color/choice_text</item>
-<item name="android:gravity">center</item><item name="android:padding">16dp</item>
-<item name="android:minHeight">120dp</item><item name="android:textSize">32sp</item><item name="android:textStyle">bold</item>
+<item name="android:gravity">center</item><item name="android:padding">12dp</item>
+<item name="android:minHeight">108dp</item><item name="android:textSize">28sp</item><item name="android:textStyle">bold</item>
 </style>
 <style name="TimeChoice" parent="Choice">
-<item name="android:background">@drawable/time_choice</item>
-<item name="android:minHeight">96dp</item>
-<item name="android:layout_margin">4dp</item>
-</style></resources>
+<item name="android:background">@drawable/time_choice</item><item name="android:minHeight">80dp</item><item name="android:layout_margin">6dp</item>
+</style>
+<style name="ThemeChoice" parent="Choice">
+<item name="android:minHeight">140dp</item><item name="android:textSize">26sp</item>
+<item name="android:paddingLeft">8dp</item><item name="android:paddingRight">8dp</item>
+</style>
+</resources>

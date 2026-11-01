@@ -6,8 +6,12 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.SpannableString;
 import android.text.Spanned;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.RelativeSizeSpan;
+import android.text.style.StyleSpan;
+import android.graphics.Typeface;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import com.example.justgo.R;
@@ -16,7 +20,7 @@ import com.example.justgo.databinding.ActivityDriveBinding;
 
 public final class DriveActivity extends Activity {
     private static final long PREVIEW_DURATION_MS = 1_800L;
-    private static final String SEARCH_PROMPT = "이 조건으로 코스 찾기  →";
+    private static final String SEARCH_PROMPT = "이 조건으로 코스 찾기 →";
     private ActivityDriveBinding binding;
     private String lastSummary;
     private final Handler uiHandler = new Handler(Looper.getMainLooper());
@@ -30,9 +34,14 @@ public final class DriveActivity extends Activity {
         binding = ActivityDriveBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         binding.findRoute.setOnClickListener(v -> showSelection());
-        binding.theme.setOnCheckedChangeListener((group, id) -> syncScenery());
-        binding.duration.setOnCheckedChangeListener((g, id) -> syncCustomInput());
-        binding.tripMode.setOnCheckedChangeListener((g, id) -> updateTimeHint());
+        binding.theme.setOnCheckedChangeListener((group, id) -> { syncScenery(); syncConditions(); });
+        binding.duration.setOnCheckedChangeListener((g, id) -> { syncCustomInput(); syncConditions(); });
+        binding.tripMode.setOnCheckedChangeListener((g, id) -> { updateTimeHint(); syncConditions(); });
+        binding.customMinutes.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { syncConditions(); }
+            @Override public void afterTextChanged(Editable s) { }
+        });
         if (saved != null) {
             binding.tripMode.check(saved.getInt("trip", R.id.roundTrip));
             binding.duration.check(saved.getInt("duration", R.id.time60));
@@ -44,6 +53,7 @@ public final class DriveActivity extends Activity {
         syncCustomInput();
         updateTimeHint();
         syncScenery();
+        syncConditions();
     }
     private RiversideSceneView.Theme selectedTheme() {
         if (binding.city.isChecked()) return RiversideSceneView.Theme.CITY;
@@ -57,6 +67,15 @@ public final class DriveActivity extends Activity {
     private void syncScenery() {
         binding.scenery.setTheme(selectedTheme());
     }
+    // 클릭 전 요약과 결과 요약은 구분한다. 조건 변경은 화면 표시만 갱신하며 API를 호출하지 않는다.
+    private void syncConditions() {
+        binding.selectedTrip.setText(binding.roundTrip.isChecked() ? "왕복" : "편도");
+        String minutes = binding.timeCustom.isChecked() ? binding.customMinutes.getText().toString()
+            : binding.time30.isChecked() ? "30" : binding.time120.isChecked() ? "120" : "60";
+        binding.selectedTime.setText(minutes.isEmpty() ? "시간 입력" : minutes + "분");
+        binding.selectedPlace.setText(selectedTheme().getLabel());
+    }
+
     private void syncCustomInput() {
         boolean custom = binding.timeCustom.isChecked();
         binding.customTime.setVisibility(custom ? View.VISIBLE : View.GONE);
@@ -87,6 +106,8 @@ public final class DriveActivity extends Activity {
         binding.findRoute.setEnabled(false);
         String prefix = "좋은 길을 찾고 있어요…   ";
         SpannableString label = new SpannableString(prefix + lastSummary);
+        // 로딩 중에도 선택 조건의 굵기를 유지하고 크기와 색상만 낮춘다.
+        label.setSpan(new StyleSpan(Typeface.BOLD), prefix.length(), label.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         label.setSpan(new RelativeSizeSpan(.65f), prefix.length(), label.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         label.setSpan(new ForegroundColorSpan(0xFFD8E8FF), prefix.length(), label.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         binding.findRoute.setText(label);

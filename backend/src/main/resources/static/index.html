@@ -15,8 +15,8 @@
 <svg class="drive-scene" data-theme="anywhere" viewBox="0 0 600 1000" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
 <defs>
 <linearGradient id="scene-sky" x2="0%" y2="100%">
-<stop stop-color="#82B8E2"/>
-<stop offset="1" stop-color="#EBF5F5"/>
+<stop stop-color="#76ADE0"/>
+<stop offset="1" stop-color="#EDF6F8"/>
 </linearGradient>
 <radialGradient id="scene-sun">
 <stop stop-color="#FFF9DB"/>
@@ -38,7 +38,7 @@
 </defs>
 <rect x="0" y="0" width="600" height="1000" fill="url(#scene-sky)"/>
 <circle cx="450" cy="255" r="65" fill="url(#scene-sun)"/>
-<g fill="#F6FBFF" opacity=".96">
+<g class="scene-clouds" fill="#F6FBFF" opacity=".96">
 <g transform="translate(-40 355) scale(.75)">
 <ellipse cx="75" cy="37" rx="75" ry="15"/>
 <ellipse cx="55" cy="26" rx="32" ry="20"/>
@@ -766,14 +766,15 @@
 <defs>
 <linearGradient id="car-body" x2="0%" y2="100%">
 <stop stop-color="#F8FCFD"/>
-<stop offset="1" stop-color="#AFC0CC"/>
+<stop offset="1" stop-color="#91A8BA"/>
 </linearGradient>
 </defs>
-<ellipse cx="105" cy="26" rx="104" ry="6" fill="#304036" opacity=".28"/>
-<path d="M10-10L30-13L58-39Q65-44 78-43L110-42Q117-40 142-16L184-12Q199-10 202 0L201 16L187 21H16Q3 20 2 10L3-3Q4-8 10-10Z" fill="url(#car-body)"/>
-<path d="M43-15L65-36H85V-15ZM92-36H106L132-15H92Z" fill="#648AA3"/>
+<ellipse cx="104" cy="29" rx="112" ry="6" fill="#304036" opacity=".13"/><ellipse cx="104" cy="28" rx="92" ry="4" fill="#304036" opacity=".27"/>
+<path d="M8-7Q12-13 32-15C50-27 57-42 79-43L106-42C121-40 132-24 145-16L184-12Q201-10 204 0L203 15Q198 22 185 22H19Q3 21 2 10L3-1Q3-5 8-7Z" fill="url(#car-body)"/>
+<path d="M43-15L65-36H85V-15ZM92-36H106L132-15H92Z" fill="#37556D"/>
 <path d="M48-17L70-33M96-33L119-20" stroke="#9EB9CA" stroke-width="1.4"/>
 <path d="M28 1L178-1M28 13H184M91-10L89 12M139-8V13" stroke="#8EA4B4" stroke-width="1.2"/>
+<path d="M30-11L54-26M148-11L184-8" stroke="#EAF5FF" stroke-width="2"/><path d="M28 18H183" stroke="#718C9E" stroke-width="3"/>
 <path d="M101-5H114M45-5H57" stroke="#708A9D" stroke-width="2"/>
 <rect x="131" y="-19" width="15" height="7" rx="3" fill="#36576D"/>
 <path d="M177-6H201" stroke="#F7FCFF" stroke-width="4"/>
@@ -812,14 +813,15 @@
 <div class="scene-copy">
 <h1>정하지 않아도<br>좋은 길로</h1>
 </div>
-<p class="scene-subtitle">시간과 가고싶은 곳만 고르면<br>가볍게 떠날 수 있어요.</p>
+<p class="scene-subtitle">시간과 목적지 고민 없이<br>가볍게 떠날 수 있어요</p>
 </section>
 <section class="controls" aria-labelledby="form-title">
+
 <div class="panel">
 <h2 id="form-title">오늘은 어떻게 달릴까요?</h2>
 <form class="drive-form" id="drive-form">
 <fieldset>
-<legend>① 주행 방식</legend>
+<legend>↻ &nbsp;주행 방식</legend>
 <div class="choice-grid two">
 <div class="choice">
 <input type="radio" name="tripType" id="roundTrip" value="왕복" checked>
@@ -848,7 +850,7 @@
 </div>
 </fieldset>
 <fieldset>
-<legend>② 드라이브 시간</legend>
+<legend>◷ &nbsp;드라이브 시간</legend>
 <div class="choice-grid four">
 <div class="choice">
 <input type="radio" name="duration" id="duration30" value="30">
@@ -875,61 +877,48 @@
 <p class="time-hint" id="time-hint">출발지 복귀까지 · 체류 시간 제외</p>
 </fieldset>
 <fieldset>
-<legend>③ 가고 싶은 곳</legend>
+<legend>⌖ &nbsp;가고 싶은 곳</legend>
 <div class="choice-grid theme-grid">
 <div class="choice">
-<input type="radio" name="theme" id="anywhere" value="어디든 좋아" checked>
+<input type="radio" name="theme" id="anywhere" value="어디든" checked>
 <label for="anywhere">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-<path d="M12,2 A10,10 0,1 0,12 22 A10,10 0,1 0,12 2 M16,8 L14,14 L8,16 L10,10 Z"/>
-</svg>어디든 좋아</label>
+<svg class="theme-art" viewBox="0 0 64 50" fill="none" aria-hidden="true"><path fill="#DAEAFB" d="M2,43 Q18,34 32,43 T62,43 L62,48 L2,48Z"/><path fill="#216ADB" d="M32,6 C21,6 16,18 22,26 L32,38 L42,26 C48,18 43,6 32,6Z"/><path fill="#F3FAFF" d="M32,9 A8,8 0,1 0,32 25 A8,8 0,1 0,32 9"/><path fill="#77B5F7" d="M32,13 A4,4 0,1 0,32 21 A4,4 0,1 0,32 13"/></svg>어디든</label>
 </div>
 <div class="choice">
 <input type="radio" name="theme" id="city" value="도시">
 <label for="city">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-<path d="M3,21 L3,8 L10,8 L10,21 M10,21 L10,3 L21,3 L21,21 M1,21 L23,21 M6,11 L7,11 M6,15 L7,15 M14,7 L17,7 M14,11 L17,11 M14,15 L17,15"/>
-</svg>도시</label>
+<svg class="theme-art" viewBox="0 0 64 50" fill="none" aria-hidden="true"><path fill="#D9E8EE" d="M2,44 Q32,36 62,44 L62,48 L2,48Z"/><path fill="#ADC9DC" d="M9,24 H24 V44 H9Z"/><path fill="#7EA8C9" d="M27,9 H45 V44 H27Z"/><path fill="#C2D9E5" d="M48,29 H57 V44 H48Z"/><path stroke="#F7FCFF" stroke-width="3" d="M14,29 H18 M14,35 H18 M32,15 H35 M38,15 H41 M32,23 H35 M38,23 H41 M32,31 H35 M38,31 H41 M32,39 H35 M38,39 H41"/></svg>도시</label>
 </div>
 <div class="choice">
 <input type="radio" name="theme" id="mountain" value="산">
 <label for="mountain">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-<path d="M2,21 L10,4 L14,12 L17,8 L23,21 Z M7,10 L10,13 L12,10"/>
-</svg>산</label>
+<svg class="theme-art" viewBox="0 0 64 50" fill="none" aria-hidden="true"><path fill="#DBEBE7" d="M1,44 Q32,35 63,44 L63,48 L1,48Z"/><path fill="#94BDBF" d="M4,43 L20,22 Q23,18 27,23 L32,29 L40,14 Q43,10 47,16 L63,43Z"/><path fill="#B2D1CF" d="M4,43 L20,22 Q23,18 27,23 L39,43Z"/><path fill="#7BA8AD" d="M25,43 L40,14 Q43,10 47,16 L63,43Z"/></svg>산</label>
 </div>
 <div class="choice">
 <input type="radio" name="theme" id="sea" value="바다">
 <label for="sea">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-<path d="M2,8 C5,4 7,12 11,8 C15,4 18,12 22,8 M2,13 C5,9 7,17 11,13 C15,9 18,17 22,13 M2,18 C5,14 7,22 11,18 C15,14 18,22 22,18"/>
-</svg>바다</label>
+<svg class="theme-art" viewBox="0 0 64 50" fill="none" aria-hidden="true"><path fill="#D4E8FC" d="M2,41 Q13,32 25,40 T48,39 T62,37 L62,46 H2Z"/><path fill="#77ABEE" d="M2,26 Q12,14 24,24 T46,22 T62,20 L57,27 Q48,35 36,28 T14,30Z"/><path fill="#A0C9F6" d="M2,35 Q12,23 24,33 T46,31 T62,29 L57,36 Q48,44 36,37 T14,39Z"/></svg>바다</label>
 </div>
 <div class="choice">
 <input type="radio" name="theme" id="water" value="강/호수">
 <label for="water">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-<path d="M8,2 C1,7 17,9 9,14 C3,18 18,18 16,22 M14,2 C7,7 23,9 15,14 C9,18 24,18 22,22 M2,4 L4,4 M1,20 L5,20"/>
-</svg>강/호수</label>
+<svg class="theme-art" viewBox="0 0 64 50" fill="none" aria-hidden="true"><path fill="#D0E8ED" d="M2,26 Q16,21 30,27 L25,31 H2Z M2,36 Q13,31 28,35 L24,40 H2Z"/><path fill="#A9D3DB" d="M24,31 Q42,28 61,34 L55,39 H27Z M12,43 Q35,38 59,43 L62,48 H8Z"/><path fill="#8DBCB2" d="M39,12 L29,33 H49Z M52,19 L44,37 H60Z"/><path stroke="#709E94" stroke-width="2" d="M39,30 V42 M52,34 V43"/></svg>강/호수</label>
 </div>
 <div class="choice">
 <input type="radio" name="theme" id="park" value="공원">
 <label for="park">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-<path d="M12,2 L5,10 L8,10 L3,16 L10,16 L10,21 M12,2 L19,10 L16,10 L21,16 L14,16 L14,21 M7,22 L17,22"/>
-</svg>공원</label>
+<svg class="theme-art" viewBox="0 0 64 50" fill="none" aria-hidden="true"><path fill="#DEECD5" d="M2,44 Q32,33 62,44 L62,48 H2Z"/><path stroke="#8B9D7E" stroke-width="3" d="M22,26 V44 M46,24 V44"/><path fill="#92B798" d="M22,15 C7,15 7,34 19,34 C33,38 37,20 22,15Z"/><path fill="#A6C6A2" d="M46,10 C31,10 31,30 43,30 C58,35 62,16 46,10Z"/><path fill="#BED5AF" d="M10,26 Q14,16 22,19 Q14,21 17,32 Q10,31 10,26"/></svg>공원</label>
 </div>
 </div>
 </fieldset>
+<div class="selected-conditions" aria-label="현재 선택한 조건"><span>선택한 조건</span><span class="condition-divider"></span><span id="selected-trip" class="condition-chip">왕복</span><span id="selected-time" class="condition-chip">60분</span><span id="selected-place" class="condition-chip">어디든</span></div>
+<!-- 문구와 화살표를 함께 중앙 정렬하며, 로딩 때만 선택 조건을 아래 줄에 표시한다. -->
 <button type="submit" class="submit-button">
-<span class="button-label">이 조건으로 코스 찾기</span>
-<span class="button-summary" hidden>
-</span>
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-<path d="M3,12 L21,12 M15,6 L21,12 L15,18"/>
-</svg>
+<span class="button-label">이 조건으로 코스 찾기 →</span>
+<span class="button-summary" hidden></span>
 </button>
 </form>
+
 <section class="selection-result" id="selection-result" aria-live="polite">
 <strong>선택한 조건</strong>
 <p id="selection-summary">

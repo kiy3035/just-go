@@ -17,7 +17,7 @@ import android.view.animation.LinearInterpolator;
 /** Decorative, theme-specific illustrations, independent of real vehicle/location data. */
 public final class RiversideSceneView extends View {
     public enum Theme {
-        ANYWHERE("어디든 좋아"), CITY("도시"), MOUNTAIN("산"),
+        ANYWHERE("어디든"), CITY("도시"), MOUNTAIN("산"),
         SEA("바다"), WATER("강/호수"), PARK("공원");
 
         private final String label;
@@ -34,7 +34,7 @@ public final class RiversideSceneView extends View {
     private final Path path = new Path();
     private final RectF rect = new RectF();
     private final ValueAnimator animator;
-    private final LinearGradient carBody = new LinearGradient(0, -43, 0, 28, 0xFFF8FCFD, 0xFFAFC0CC, Shader.TileMode.CLAMP);
+    private final LinearGradient carBody = new LinearGradient(0, -43, 0, 28, 0xFFFFFFFF, 0xFF91A8BA, Shader.TileMode.CLAMP);
     private Bitmap background;
     private Theme theme = Theme.ANYWHERE;
     private float phase;
@@ -101,11 +101,10 @@ public final class RiversideSceneView extends View {
     private void buildBackground() {
         background = Bitmap.createBitmap(SCENE_WIDTH, SCENE_HEIGHT, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(background);
-        paint.setShader(new LinearGradient(0, 0, 0, 650, 0xFF82B8E2, 0xFFEBF5F5, Shader.TileMode.CLAMP));
+        paint.setShader(new LinearGradient(0, 0, 0, 650, 0xFF76ADE0, 0xFFEDF6F8, Shader.TileMode.CLAMP));
         c.drawRect(0, 0, 600, 1000, paint); paint.setShader(null);
         paint.setShader(new RadialGradient(450, 255, 65, new int[]{0xFFFFF9DB, 0xCCFFF9DB, 0x00FFF9DB}, new float[]{0, .55f, 1}, Shader.TileMode.CLAMP));
         c.drawCircle(450, 255, 65, paint); paint.setShader(null);
-        clouds(c);
         switch (theme) {
             case CITY: drawCity(c); break;
             case MOUNTAIN: drawMountains(c); break;
@@ -227,6 +226,16 @@ public final class RiversideSceneView extends View {
         if (background == null) buildBackground();
         rect.set(0, 0, getWidth(), getHeight()); c.drawBitmap(background, null, rect, paint);
         c.save(); c.scale(getWidth() / (float) SCENE_WIDTH, getHeight() / (float) SCENE_HEIGHT);
+        c.save();
+        c.translate((float) Math.sin(phase * Math.PI * 2) * 18, 0);
+        clouds(c);
+        c.restore();
+        // Near objects travel faster than the clouds, giving a quiet sense of depth.
+        paint.setColor(0x5588A5B7);
+        for (int i = 0; i < 7; i++) {
+            float x = i * 110 - (phase * 1320 % 110);
+            rect.set(x, 789, x + 25, 791); c.drawRoundRect(rect, 1, 1, paint);
+        }
         float offset = phase * 720 % 60;
         for (int i = 0; i < 12; i++) box(c, i * 60 - offset, 753, 29, 3, 0xFFAFBFB7);
         drawCar(c);
@@ -236,18 +245,20 @@ public final class RiversideSceneView extends View {
     private void drawCar(Canvas c) {
         c.save();
         // Modern fastback silhouette: rear at left, long hood and grille at right.
-        c.translate(185 + (float)Math.sin(phase * Math.PI * 2) * 28,
+        c.translate(185 + (float)Math.sin(phase * Math.PI * 2) * 12,
             728 + (float)Math.sin(phase * Math.PI * 16) * .65f);
-        oval(c, 1, 21, 208, 11, 0x49304036);
+        oval(c, -8, 23, 224, 12, 0x22304036);
+        oval(c, 12, 25, 184, 7, 0x44304036);
         paint.setColor(0xFFFFFFFF);
         paint.setShader(carBody);
-        path.reset(); path.moveTo(10, -10); path.lineTo(30, -13); path.lineTo(58, -39);
-        path.quadTo(65, -44, 78, -43); path.lineTo(110, -42); path.quadTo(117, -40, 142, -16);
-        path.lineTo(184, -12); path.quadTo(199, -10, 202, 0); path.lineTo(201, 16);
-        path.lineTo(187, 21); path.lineTo(16, 21); path.quadTo(3, 20, 2, 10);
-        path.lineTo(3, -3); path.quadTo(4, -8, 10, -10); path.close(); c.drawPath(path, paint);
+        path.reset(); path.moveTo(8, -7); path.quadTo(12, -13, 32, -15);
+        path.cubicTo(50, -27, 57, -42, 79, -43); path.lineTo(106, -42);
+        path.cubicTo(121, -40, 132, -24, 145, -16); path.lineTo(184, -12);
+        path.quadTo(201, -10, 204, 0); path.lineTo(203, 15); path.quadTo(198, 22, 185, 22);
+        path.lineTo(19, 22); path.quadTo(3, 21, 2, 10); path.lineTo(3, -1);
+        path.quadTo(3, -5, 8, -7); path.close(); c.drawPath(path, paint);
         paint.setShader(null);
-        paint.setColor(0xFF648AA3);
+        paint.setColor(0xFF37556D);
         path.reset(); path.moveTo(43, -15); path.lineTo(65, -36); path.lineTo(85, -36);
         path.lineTo(85, -15); path.close(); c.drawPath(path, paint);
         path.reset(); path.moveTo(92, -36); path.lineTo(106, -36); path.lineTo(132, -15);
@@ -257,6 +268,9 @@ public final class RiversideSceneView extends View {
         paint.setColor(0xFF8EA4B4); paint.setStrokeWidth(1.2f);
         c.drawLine(28, 1, 178, -1, paint); c.drawLine(28, 13, 184, 13, paint);
         c.drawLine(91, -10, 89, 12, paint); c.drawLine(139, -8, 139, 13, paint);
+        paint.setColor(0xDDEAF5FF); paint.setStrokeWidth(2);
+        c.drawLine(30, -11, 54, -26, paint); c.drawLine(148, -11, 184, -8, paint);
+        box(c, 28, 17, 155, 3, 0xFF718C9E);
         box(c, 101, -6, 13, 2, 0xFF708A9D); box(c, 45, -6, 12, 2, 0xFF708A9D);
         rect.set(131, -19, 146, -12); paint.setColor(0xFF36576D); c.drawRoundRect(rect, 3, 3, paint);
         // Distinctive front running light, lower dark grille and red rear light.
