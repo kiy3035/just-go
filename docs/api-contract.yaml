@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: just go backend API
-  version: 0.1.0-draft
+  version: 0.2.0-draft
   description: >-
     브라우저와 백엔드 연결 검증을 위한 추천 요청 초안입니다. mock=true 또는
     mode=MOCK인 응답은 실제 도로·시간·거리 데이터가 아닙니다. 첫 외부 경로
@@ -45,9 +45,9 @@ paths:
     post:
       summary: 주행 조건으로 코스 추천 요청
       description: >-
-        WGS84 출발 좌표, 희망 주행 시간, 풍경 테마를 받습니다. mock 프로필에서는
-        UI/API 연결 검증용 예시를 반환하고 일반 프로필에서는 빈 결과와
-        UNAVAILABLE 상태를 반환합니다.
+        WGS84 출발 좌표, 희망 주행 시간, 왕복·편도 방식, 풍경 테마를 받습니다.
+        mock 프로필에서는 UI/API 연결 검증용 예시를 반환하고 일반 프로필에서는
+        빈 결과와 UNAVAILABLE 상태를 반환합니다.
       operationId: recommendRoutes
       requestBody:
         required: true
@@ -106,7 +106,7 @@ components:
           description: WGS84 경도
     RouteRecommendationRequest:
       type: object
-      required: [latitude, longitude, desiredMinutes, theme]
+      required: [latitude, longitude, desiredMinutes, tripType, theme]
       properties:
         latitude:
           type: number
@@ -120,8 +120,12 @@ components:
           description: WGS84 경도. 개발 시 실제 개인 위치 대신 테스트 좌표를 사용합니다.
         desiredMinutes:
           type: integer
-          enum: [30, 60, 90, 120]
-          description: 희망 주행 시간(분)
+          minimum: 10
+          maximum: 240
+          multipleOf: 5
+          description: 희망 주행 시간(분). 10~240분·5분 단위는 임시 개발 기준입니다.
+        tripType:
+          $ref: '#/components/schemas/TripType'
         theme:
           $ref: '#/components/schemas/ScenicTheme'
     RouteRecommendationResponse:
@@ -162,6 +166,10 @@ components:
     ScenicTheme:
       type: string
       enum: [CITY, MOUNTAIN, RIVER, LAKE, SEA]
+    TripType:
+      type: string
+      enum: [ROUND_TRIP, ONE_WAY]
+      description: ROUND_TRIP은 출발지 복귀, ONE_WAY는 다른 지점에서 종료합니다.
     ApiErrorResponse:
       type: object
       required: [code, message, fieldErrors]

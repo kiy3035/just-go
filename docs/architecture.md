@@ -60,7 +60,7 @@ GitHub (하나의 저장소)
 
 ## 4. 핵심 데이터 흐름
 
-1. Android: 출발지(`lat`, `lon`), 시간(분), 테마, 왕복 여부 입력.
+1. Android: 출발지(`lat`, `lon`), 시간(분), 테마, 주행 방식(`ROUND_TRIP`/`ONE_WAY`) 입력.
 2. Backend: 검수된 `SPOT` 및 `SCENIC_SEGMENT`에서 후보 조회. 현재는 `SPOT`의 VERIFIED·활성·좌표 보유 후보를 Provider 요청 경계까지 전달하는 단계까지 구현.
 3. Backend: 1~2개 경유지 조합과 실제 자동차 경로 API 조회.
 4. Backend: 예상 주행시간, 경관 적합성, 중복 구간을 기준으로 점수화. 과거 방문 이력 활용은 P1 검토.
@@ -121,7 +121,7 @@ public interface DrivingRouteProvider {
 - `MockDrivingRouteProvider`는 `mock` 프로파일에서만 사용하고 UI에 `MOCK` 표시.
 - 현재 구현은 같은 테마의 검수 완료 `SPOT`을 최대 20건 Provider 요청에 전달합니다.
 - TMAP 다중 경유지 30 HTTP 클라이언트는 WGS84 출발·도착·경유지, timeout, 일일 로컬 상한, 오류 분류, 거리·시간 응답 검증까지 구현했습니다. 실제 추천 Provider 연결과 외부 호출은 아직 미검증입니다.
-- 희망 시간에 출발지 복귀를 포함할지는 아직 제안 상태이므로, TMAP 클라이언트가 왕복을 자동 결정하지 않고 상위 추천 정책이 명시적인 출발·도착 좌표를 구성합니다.
+- API와 Provider 요청 경계에는 `ROUND_TRIP`/`ONE_WAY`가 전달됩니다. TMAP 클라이언트가 왕복을 자동 결정하지 않고, 후속 추천 정책이 주행 방식에 맞는 명시적인 출발·도착 좌표를 구성합니다.
 
 ## 8. 외부 및 차량 SDK PoC (구현 우선순위)
 

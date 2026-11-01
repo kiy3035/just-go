@@ -66,6 +66,7 @@ class RouteRecommendationControllerTest {
                                   "latitude": 0,
                                   "longitude": 0,
                                   "desiredMinutes": 60,
+                                  "tripType": "ROUND_TRIP",
                                   "theme": "SEA"
                                 }
                                 """))
@@ -87,7 +88,8 @@ class RouteRecommendationControllerTest {
                                 {
                                   "latitude": 0,
                                   "longitude": 0,
-                                  "desiredMinutes": 45,
+                                  "desiredMinutes": 44,
+                                  "tripType": "ONE_WAY",
                                   "theme": "CITY"
                                 }
                                 """))
@@ -107,11 +109,53 @@ class RouteRecommendationControllerTest {
                                   "latitude": 91,
                                   "longitude": 0,
                                   "desiredMinutes": 30,
+                                  "tripType": "ROUND_TRIP",
                                   "theme": "CITY"
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
                 .andExpect(jsonPath("$.fieldErrors.latitude").exists());
+    }
+
+    /**
+     * 직접 입력한 5분 단위 시간이 왕복·편도 조건과 함께 정상 처리되는지 확인합니다.
+     */
+    @Test
+    void acceptsCustomDurationAndTripType() throws Exception {
+        mockMvc.perform(post("/api/v1/routes/recommendations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "latitude": 0,
+                                  "longitude": 0,
+                                  "desiredMinutes": 75,
+                                  "tripType": "ONE_WAY",
+                                  "theme": "RIVER"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mode").value("MOCK"))
+                .andExpect(jsonPath("$.routes[0].estimatedMinutes").value(75));
+    }
+
+    /**
+     * 주행 방식이 누락되면 필드 오류로 반환하는지 확인합니다.
+     */
+    @Test
+    void rejectsMissingTripType() throws Exception {
+        mockMvc.perform(post("/api/v1/routes/recommendations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "latitude": 0,
+                                  "longitude": 0,
+                                  "desiredMinutes": 60,
+                                  "theme": "CITY"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.fieldErrors.tripType").exists());
     }
 }

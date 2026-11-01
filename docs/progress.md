@@ -19,7 +19,7 @@
 | 저장소 구조 | 완료 | `backend`, `infra`, `docs`, Android 자리 구성 | `main` 및 기존 `origin` 사용 |
 | 백엔드 골격 | 완료 | Spring Boot 3.5.16, Gradle 8.14.6, MyBatis XML, Flyway, Actuator | 전체 자동 테스트 통과 |
 | 로컬 DB·인프라 | 완료 | PostgreSQL 17.11 Compose, 볼륨, healthcheck, loopback 바인딩 | 실제 컨테이너·Flyway V1/V2 검증 완료 |
-| 추천 REST 골격 | 완료 | 추천 요청 API, 교체 가능한 `DrivingRouteProvider`, `MOCK`/`UNAVAILABLE` 구분 | 실제 외부 자동차 경로는 아직 미연동 |
+| 추천 REST 골격 | 완료 | 왕복·편도, 직접 시간, 테마 요청과 교체 가능한 Provider, `MOCK`/`UNAVAILABLE` 구분 | 직접 시간 범위는 임시 기준, 실제 외부 자동차 경로는 아직 미연동 |
 | 경관 장소 후보 | 완료 | VERIFIED·활성·좌표 보유 후보만 MyBatis XML로 조회 | 실제 장소 데이터는 사용권·수동 검수 전이라 없음 |
 | 추천 후보 연결 | 완료 | 검수 완료 장소를 최대 20건 조회해 경로 제공자 요청 경계로 전달 | 외부 제공자 호출 없이 단위 테스트로 전달 구조 검증 |
 | 웹 입력 화면 시안 | 완료 | `/`에서 왕복·편도, 시간, 다섯 풍경 테마 선택과 요약 가능 | 화면 시안이며 Android 대체물·실제 추천 결과가 아님 |
@@ -58,7 +58,7 @@
 
 ## 바로 이어갈 다음 작업
 
-1. 왕복·편도와 직접 시간 입력 범위·단위를 공용 API 계약에 어떻게 반영할지 확정한다. 현재 화면의 직접 입력 10~240분은 임시값이다.
+1. `ROUND_TRIP`/`ONE_WAY`별 출발·도착·경유지 구성 정책과 직접 입력 시간 범위의 최종값을 확정한다.
 2. 사용자가 SK open API Free 프로젝트·앱 키를 발급하고 로컬 `TMAP_APP_KEY` 환경변수로만 설정한다.
 3. 확정된 주행 정책으로 TMAP 클라이언트를 추천 Provider에 연결하고 가짜가 아닌 실제 테스트 응답을 검증한다.
 

@@ -1,7 +1,5 @@
 package com.example.justgo.backend.route;
 
-import java.util.Set;
-
 import com.example.justgo.backend.integration.routing.DrivingRouteCandidate;
 import com.example.justgo.backend.integration.routing.DrivingRouteProvider;
 import com.example.justgo.backend.integration.routing.DrivingRouteRequest;
@@ -18,7 +16,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class RouteRecommendationService {
 
-    private static final Set<Integer> SUPPORTED_DURATIONS = Set.of(30, 60, 90, 120);
+    private static final int MIN_DURATION_MINUTES = 10;
+    private static final int MAX_DURATION_MINUTES = 240;
+    private static final int DURATION_STEP_MINUTES = 5;
     private static final int MAX_WAYPOINT_CANDIDATES = 20;
 
     private final DrivingRouteProvider drivingRouteProvider;
@@ -32,13 +32,15 @@ public class RouteRecommendationService {
     }
 
     /**
-     * 제품에서 허용한 시간 단위를 확인한 후 제공자 결과를 API 응답으로 변환합니다.
+     * 임시 개발 범위와 5분 단위를 확인한 후 제공자 결과를 API 응답으로 변환합니다.
      *
      * @param request 검증된 외부 요청
      * @return MOCK 또는 미연동 상태가 명시된 추천 응답
      */
     public RouteRecommendationResponse recommend(RouteRecommendationRequest request) {
-        if (!SUPPORTED_DURATIONS.contains(request.desiredMinutes())) {
+        if (request.desiredMinutes() < MIN_DURATION_MINUTES
+                || request.desiredMinutes() > MAX_DURATION_MINUTES
+                || request.desiredMinutes() % DURATION_STEP_MINUTES != 0) {
             throw new UnsupportedDrivingDurationException(request.desiredMinutes());
         }
 
@@ -51,6 +53,7 @@ public class RouteRecommendationService {
                 request.latitude(),
                 request.longitude(),
                 request.desiredMinutes(),
+                request.tripType(),
                 request.theme(),
                 waypointCandidates);
         DrivingRouteResult result = drivingRouteProvider.calculate(providerRequest);

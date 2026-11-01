@@ -206,3 +206,12 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - 색상 비교 후 최종 선택에 따라 전체 배경은 검정에 가까운 포레스트 차콜로 유지하고, 선택 상태는 편안한 세이지 그린(`#b9d97d`), 주요 버튼과 도착 핀은 물빛 청록(`#80b9aa`)으로 조정했습니다. 비교용 A~D 색상표는 제거했습니다.
 - 최종 상태에서 `.\gradlew.bat clean test --no-daemon`을 실행해 전체 20개 테스트가 실패·오류·건너뜀 없이 통과했습니다.
 - `.\gradlew.bat build --no-daemon`도 성공해 최종 정적 화면과 테스트가 실행 JAR에 포함되는 것을 확인했습니다.
+
+## 14. 2026-11-01 왕복·편도 및 직접 시간 API 계약
+
+- 추천 요청에 필수 `tripType`을 추가하고 `ROUND_TRIP`, `ONE_WAY` 두 값만 허용했습니다.
+- 희망 시간은 웹 시안과 맞춘 임시 개발 기준으로 10~240분 범위의 5분 단위만 허용하도록 변경했습니다.
+- 주행 방식은 Controller → Service → `DrivingRouteRequest` Provider 경계까지 전달하지만, 실제 출발·도착 좌표 구성과 TMAP 호출은 아직 수행하지 않습니다.
+- `docs/api-contract.yaml`을 0.2.0 초안으로 갱신하고 요구사항·아키텍처·README·진척 현황을 함께 맞췄습니다.
+- `.\gradlew.bat clean test --no-daemon`: 전체 23개 테스트 통과, 실패·오류·건너뜀 0개. 75분 편도 성공, 44분 거부, 주행 방식 누락 거부와 Provider 전달을 포함합니다.
+- `.\gradlew.bat build --no-daemon`: 성공. 변경된 API DTO·Provider 요청 모델·정적 화면·계약 문서가 있는 상태에서 실행 JAR을 생성했습니다.

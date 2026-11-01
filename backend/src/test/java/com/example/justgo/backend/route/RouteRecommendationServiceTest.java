@@ -35,6 +35,7 @@ class RouteRecommendationServiceTest {
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
                 60,
+                TripType.ROUND_TRIP,
                 ScenicTheme.RIVER));
 
         assertThat(response.mode()).isEqualTo("MOCK");
@@ -45,19 +46,20 @@ class RouteRecommendationServiceTest {
     }
 
     /**
-     * 범위 안의 임의 숫자가 아니라 제품에서 확정한 네 가지 시간만 허용하는지 확인합니다.
+     * 5분 단위가 아닌 직접 입력 시간을 거부하는지 확인합니다.
      */
     @Test
     void rejectsUnsupportedDuration() {
         RouteRecommendationRequest request = new RouteRecommendationRequest(
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
-                45,
+                44,
+                TripType.ONE_WAY,
                 ScenicTheme.CITY);
 
         assertThatThrownBy(() -> service.recommend(request))
                 .isInstanceOf(UnsupportedDrivingDurationException.class)
-                .hasMessageContaining("30, 60, 90, 120");
+                .hasMessageContaining("10~240분");
     }
 
     /**
@@ -74,6 +76,7 @@ class RouteRecommendationServiceTest {
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
                 30,
+                TripType.ROUND_TRIP,
                 ScenicTheme.MOUNTAIN));
 
         assertThat(response.mode()).isEqualTo("UNAVAILABLE");
@@ -106,11 +109,28 @@ class RouteRecommendationServiceTest {
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
                 90,
+                TripType.ONE_WAY,
                 ScenicTheme.LAKE));
 
         assertThat(capturedRequest.get().waypointCandidates()).hasSize(1);
         assertThat(capturedRequest.get().waypointCandidates().getFirst().spotId()).isEqualTo(7L);
         assertThat(capturedRequest.get().waypointCandidates().getFirst().name())
                 .isEqualTo("VERIFIED_WAYPOINT_TEST_ONLY");
+        assertThat(capturedRequest.get().tripType()).isEqualTo(TripType.ONE_WAY);
+    }
+
+    /**
+     * 프리셋에 없는 직접 입력 시간도 임시 범위와 5분 단위를 만족하면 허용합니다.
+     */
+    @Test
+    void acceptsCustomDurationInFiveMinuteSteps() {
+        RouteRecommendationResponse response = service.recommend(new RouteRecommendationRequest(
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                75,
+                TripType.ONE_WAY,
+                ScenicTheme.SEA));
+
+        assertThat(response.routes().getFirst().estimatedMinutes()).isEqualTo(75);
     }
 }

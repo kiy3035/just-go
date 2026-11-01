@@ -74,11 +74,11 @@ public class ApiExceptionHandler {
     }
 
     /**
-     * 잘못된 JSON이나 알 수 없는 테마 문자열은 내부 역직렬화 내용을 노출하지 않고 처리합니다.
+     * 잘못된 JSON이나 알 수 없는 테마·주행 방식 문자열은 내부 역직렬화 내용을 노출하지 않고 처리합니다.
      */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiErrorResponse> handleUnreadableJson() {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
-                new ApiErrorResponse("INVALID_JSON", "JSON 형식과 풍경 테마 값을 확인해 주세요.", Map.of()));
+                new ApiErrorResponse("INVALID_JSON", "JSON 형식과 풍경 테마·주행 방식 값을 확인해 주세요.", Map.of()));
     }
 }

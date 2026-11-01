@@ -3,6 +3,7 @@ package com.example.justgo.backend.integration.routing;
 import java.math.BigDecimal;
 import java.util.List;
 
+import com.example.justgo.backend.route.TripType;
 import com.example.justgo.backend.spot.ScenicTheme;
 
 /**
@@ -13,6 +14,7 @@ public record DrivingRouteRequest(
         BigDecimal latitude,
         BigDecimal longitude,
         int desiredMinutes,
+        TripType tripType,
         ScenicTheme theme,
         List<DrivingRouteWaypointCandidate> waypointCandidates) {
 

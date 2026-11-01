@@ -16,6 +16,7 @@ import jakarta.validation.constraints.NotNull;
 public record RouteRecommendationRequest(
         @NotNull @DecimalMin("-90.0") @DecimalMax("90.0") BigDecimal latitude,
         @NotNull @DecimalMin("-180.0") @DecimalMax("180.0") BigDecimal longitude,
-        @NotNull @Min(30) @Max(120) Integer desiredMinutes,
+        @NotNull @Min(10) @Max(240) Integer desiredMinutes,
+        @NotNull TripType tripType,
         @NotNull ScenicTheme theme) {
 }
