@@ -27,6 +27,7 @@
 | Android SDK·프로젝트 | 보류 | 사용자 지시로 Java/Web 백엔드 작업을 우선함 | 재개 시 API 34 설치, Java/XML 프로젝트 생성, `assembleDebug` 필요 |
 | Pleos Emulator·NaviHelper | 차단 | 실제 연동 코드를 만들지 않음 | 공식 최소 GPU를 만족하는 장비, SDK/계정, 에뮬레이터 검증 필요 |
 | 목표 시간 추천·순위 | 완료 | LIVE 후보를 임시 ±15%로 필터하고 시간 차이·거리·ID 순으로 최대 3건 반환 | 실제 주행 후 오차율 조정 필요 |
+| 추천 경유지·도착지 계약 | 완료 | 왕복은 경관 경유지→출발지 복귀, 편도는 경관 도착지 순서의 WGS84 지점 반환 | Android 표시와 NaviHelper 실제 전달은 정도혜 작업·Pleos 검증 필요 |
 | 경관·순환 품질 점수 | 진행 가능 | VERIFIED 테마 후보 조건까지 적용 | 세부 경관 검수 기준과 왕복 중복 구간 데이터 필요 |
 | 외부 경로 API 조사 | 완료 | TMAP·카카오모빌리티·NAVER 공식 기능·가격·쿼터·제약 비교 | `routing-provider-comparison.md`에 확인일과 근거 기록 |
 | TMAP HTTP 클라이언트 | 완료 | WGS84 일반 자동차·다중 경유지 요청, timeout, 일일 로컬 상한 90건, 오류·응답 검증 | 모의 HTTP 테스트만 통과, 실제 TMAP 호출은 미실행 |
@@ -43,6 +44,7 @@
   → DrivingRouteProvider 요청 모델로 후보 전달
   → mock 프로필: MOCK 응답
   → tmap 프로필: 후보 최대 3건의 TMAP 시간·거리 LIVE 응답
+  → LIVE 코스별 WAYPOINT/DESTINATION 순서 반환
   → 기본 프로필: UNAVAILABLE 응답
 ```
 

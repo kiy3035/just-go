@@ -11,6 +11,8 @@ import com.example.justgo.backend.integration.routing.DrivingRouteMode;
 import com.example.justgo.backend.integration.routing.DrivingRouteCandidate;
 import com.example.justgo.backend.integration.routing.DrivingRouteRequest;
 import com.example.justgo.backend.integration.routing.DrivingRouteResult;
+import com.example.justgo.backend.integration.routing.DrivingRouteStop;
+import com.example.justgo.backend.integration.routing.DrivingRouteStopType;
 import com.example.justgo.backend.integration.routing.MockDrivingRouteProvider;
 import com.example.justgo.backend.integration.routing.UnavailableDrivingRouteProvider;
 import com.example.justgo.backend.spot.SpotCandidateQuery;
@@ -185,6 +187,46 @@ class RouteRecommendationServiceTest {
         assertThat(response.notice()).contains("±15%", "조건을 바꿔");
     }
 
+    /** Provider 지점 모델을 Android가 사용할 수 있는 API 지점 DTO로 변환합니다. */
+    @Test
+    void mapsNavigationStopsToApiResponse() {
+        DrivingRouteCandidate routeWithStop = new DrivingRouteCandidate(
+                "WITH_STOP",
+                "ROUTE_STOP_MAPPING_TEST_ONLY",
+                60,
+                10_000,
+                ScenicTheme.MOUNTAIN,
+                List.of(new DrivingRouteStop(
+                        1,
+                        DrivingRouteStopType.DESTINATION,
+                        "DESTINATION_TEST_ONLY",
+                        new BigDecimal("0.300000"),
+                        new BigDecimal("0.400000"))),
+                "ROUTE_STOP_MAPPING_TEST_ONLY");
+        RouteRecommendationService liveService = new RouteRecommendationService(request ->
+                new DrivingRouteResult(
+                        DrivingRouteMode.LIVE,
+                        false,
+                        List.of(routeWithStop),
+                        "LIVE 테스트 결과"),
+                emptySpotCandidateQuery);
+
+        RouteRecommendationResponse response = liveService.recommend(new RouteRecommendationRequest(
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                60,
+                TripType.ONE_WAY,
+                ScenicTheme.MOUNTAIN));
+
+        assertThat(response.routes().getFirst().stops()).singleElement()
+                .satisfies(stop -> {
+                    assertThat(stop.sequence()).isEqualTo(1);
+                    assertThat(stop.type()).isEqualTo("DESTINATION");
+                    assertThat(stop.name()).isEqualTo("DESTINATION_TEST_ONLY");
+                    assertThat(stop.latitude()).isEqualByComparingTo("0.300000");
+                });
+    }
+
     /** 서비스 테스트용 LIVE 후보를 실제 위치와 무관한 값으로 생성합니다. */
     private DrivingRouteCandidate liveCandidate(String id, int minutes, long distanceMeters) {
         return new DrivingRouteCandidate(
@@ -193,6 +235,7 @@ class RouteRecommendationServiceTest {
                 minutes,
                 distanceMeters,
                 ScenicTheme.RIVER,
+                List.of(),
                 "LIVE_RANKING_TEST_ONLY");
     }
 }

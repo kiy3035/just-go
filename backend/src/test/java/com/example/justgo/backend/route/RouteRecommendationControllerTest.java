@@ -74,7 +74,8 @@ class RouteRecommendationControllerTest {
                 .andExpect(header().string(TraceIdFilter.TRACE_ID_HEADER, "web-test-1"))
                 .andExpect(jsonPath("$.mode").value("MOCK"))
                 .andExpect(jsonPath("$.mock").value(true))
-                .andExpect(jsonPath("$.routes[0].routeId").value("MOCK-ROUTE-001"));
+                .andExpect(jsonPath("$.routes[0].routeId").value("MOCK-ROUTE-001"))
+                .andExpect(jsonPath("$.routes[0].stops").isEmpty());
     }
 
     /**

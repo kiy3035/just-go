@@ -8,6 +8,8 @@ import com.example.justgo.backend.integration.routing.DrivingRouteMode;
 import com.example.justgo.backend.integration.routing.DrivingRouteProvider;
 import com.example.justgo.backend.integration.routing.DrivingRouteRequest;
 import com.example.justgo.backend.integration.routing.DrivingRouteResult;
+import com.example.justgo.backend.integration.routing.DrivingRouteStop;
+import com.example.justgo.backend.integration.routing.DrivingRouteStopType;
 import com.example.justgo.backend.integration.routing.DrivingRouteWaypointCandidate;
 import com.example.justgo.backend.route.TripType;
 import org.springframework.context.annotation.Profile;
@@ -82,7 +84,34 @@ public class TmapDrivingRouteProvider implements DrivingRouteProvider {
                 toWholeMinutes(summary.durationSeconds()),
                 summary.distanceMeters(),
                 request.theme(),
+                buildStops(request, candidate),
                 "검수된 경관 후보의 TMAP 자동차 경로 시간·거리 결과입니다.");
+    }
+
+    /**
+     * 왕복은 경관 후보를 경유한 뒤 출발지로 돌아가고, 편도는 후보에서 종료합니다.
+     */
+    private List<DrivingRouteStop> buildStops(
+            DrivingRouteRequest request,
+            DrivingRouteWaypointCandidate candidate) {
+        DrivingRouteStop scenicStop = new DrivingRouteStop(
+                1,
+                request.tripType() == TripType.ROUND_TRIP
+                        ? DrivingRouteStopType.WAYPOINT
+                        : DrivingRouteStopType.DESTINATION,
+                candidate.name(),
+                candidate.latitude(),
+                candidate.longitude());
+        if (request.tripType() == TripType.ONE_WAY) {
+            return List.of(scenicStop);
+        }
+        DrivingRouteStop returnToOrigin = new DrivingRouteStop(
+                2,
+                DrivingRouteStopType.DESTINATION,
+                "출발지 복귀",
+                request.latitude(),
+                request.longitude());
+        return List.of(scenicStop, returnToOrigin);
     }
 
     /** 초 단위 시간을 부족하게 표시하지 않도록 올림한 분 단위로 변환합니다. */

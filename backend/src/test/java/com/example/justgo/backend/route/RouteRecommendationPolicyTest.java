@@ -49,6 +49,7 @@ class RouteRecommendationPolicyTest {
                 minutes,
                 distanceMeters,
                 ScenicTheme.RIVER,
+                List.of(),
                 "RANKING_TEST_ONLY");
     }
 }

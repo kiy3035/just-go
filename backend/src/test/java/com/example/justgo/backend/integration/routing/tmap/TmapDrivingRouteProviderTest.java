@@ -13,6 +13,7 @@ import java.util.List;
 
 import com.example.justgo.backend.integration.routing.DrivingRouteMode;
 import com.example.justgo.backend.integration.routing.DrivingRouteRequest;
+import com.example.justgo.backend.integration.routing.DrivingRouteStopType;
 import com.example.justgo.backend.integration.routing.DrivingRouteWaypointCandidate;
 import com.example.justgo.backend.route.TripType;
 import com.example.justgo.backend.spot.ScenicTheme;
@@ -41,6 +42,13 @@ class TmapDrivingRouteProviderTest {
         assertThat(result.mode()).isEqualTo(DrivingRouteMode.LIVE);
         assertThat(result.routes().getFirst().estimatedMinutes()).isEqualTo(76);
         assertThat(result.routes().getFirst().distanceMeters()).isEqualTo(12_345L);
+        assertThat(result.routes().getFirst().stops()).hasSize(2);
+        assertThat(result.routes().getFirst().stops().getFirst().type())
+                .isEqualTo(DrivingRouteStopType.WAYPOINT);
+        assertThat(result.routes().getFirst().stops().get(1).type())
+                .isEqualTo(DrivingRouteStopType.DESTINATION);
+        assertThat(result.routes().getFirst().stops().get(1).latitude())
+                .isEqualByComparingTo("0.100000");
     }
 
     /** 편도는 경관 후보를 도착점으로 사용하고 경유지를 비우는지 확인합니다. */
@@ -57,6 +65,11 @@ class TmapDrivingRouteProviderTest {
         assertThat(search.end().longitude()).isEqualByComparingTo("0.400000");
         assertThat(search.waypoints()).isEmpty();
         assertThat(result.routes().getFirst().routeId()).isEqualTo("TMAP-SPOT-8");
+        assertThat(result.routes().getFirst().stops()).singleElement()
+                .satisfies(stop -> {
+                    assertThat(stop.type()).isEqualTo(DrivingRouteStopType.DESTINATION);
+                    assertThat(stop.name()).isEqualTo("VERIFIED_SCENIC_TEST_8");
+                });
     }
 
     /** 무료 쿼터 보호를 위해 한 요청에서 앞의 후보 세 건만 평가하는지 확인합니다. */

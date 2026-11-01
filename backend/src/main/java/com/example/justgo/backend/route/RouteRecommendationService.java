@@ -99,6 +99,14 @@ public class RouteRecommendationService {
                 candidate.estimatedMinutes(),
                 candidate.distanceMeters(),
                 candidate.theme(),
+                candidate.stops().stream()
+                        .map(stop -> new RouteRecommendationStop(
+                                stop.sequence(),
+                                stop.type().name(),
+                                stop.name(),
+                                stop.latitude(),
+                                stop.longitude()))
+                        .toList(),
                 candidate.reason());
     }
 }
