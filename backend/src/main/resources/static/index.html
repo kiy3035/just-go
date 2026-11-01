@@ -3,138 +3,419 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>just go - 개발용 웹 확인</title>
+    <meta name="theme-color" content="#0b100d">
+    <title>just go — 드라이브 코스 선택</title>
     <style>
-        :root { font-family: system-ui, sans-serif; color-scheme: light; }
-        body { max-width: 760px; margin: 0 auto; padding: 32px 20px; background: #f5f7fa; color: #172033; }
-        main { background: white; border-radius: 16px; padding: 28px; box-shadow: 0 8px 24px #1c2b4a14; }
-        h1 { margin-top: 0; text-transform: lowercase; }
-        .warning { padding: 14px; border-radius: 10px; background: #fff3cd; border: 1px solid #ffe69c; }
-        form { display: grid; gap: 16px; margin-top: 24px; }
-        .row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-        label { display: grid; gap: 6px; font-weight: 600; }
-        input, select, button { min-height: 44px; border-radius: 8px; border: 1px solid #aab3c2; padding: 0 12px; font: inherit; }
-        button { border: 0; background: #155eef; color: white; font-weight: 700; cursor: pointer; }
-        pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 16px; border-radius: 10px; background: #111827; color: #d1fae5; }
-        .mock { color: #9a3412; font-weight: 800; }
-        .divider { margin: 36px 0; border: 0; border-top: 1px solid #d9dee7; }
-        @media (max-width: 600px) { .row { grid-template-columns: 1fr; } }
+        :root {
+            color-scheme: dark;
+            font-family: Pretendard, "Noto Sans KR", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            --ink: #f3f5ec;
+            --muted: #9ca99f;
+            --surface: rgba(24, 34, 29, 0.9);
+            --line: rgba(213, 226, 207, 0.13);
+            --lime: #b9d97d;
+            --lime-soft: rgba(185, 217, 125, 0.12);
+            --teal: #80b9aa;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            min-width: 320px;
+            margin: 0;
+            background:
+                radial-gradient(circle at 88% 8%, rgba(126, 181, 164, 0.11), transparent 25rem),
+                linear-gradient(145deg, #111915 0%, #0b100d 62%, #142019 100%);
+            color: var(--ink);
+        }
+        button, input { font: inherit; }
+        button { color: inherit; }
+
+        .shell {
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: minmax(260px, 0.72fr) minmax(520px, 1.28fr);
+        }
+        .visual {
+            position: relative;
+            min-height: 100vh;
+            overflow: hidden;
+            padding: 42px clamp(28px, 5vw, 76px);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            background:
+                linear-gradient(180deg, rgba(13, 16, 12, 0.02), rgba(13, 16, 12, 0.76)),
+                radial-gradient(circle at 50% 22%, #314237, #151c17 64%);
+            border-right: 1px solid var(--line);
+        }
+        .visual::before {
+            content: "";
+            position: absolute;
+            inset: 18% -28% -18%;
+            opacity: 0.22;
+            background:
+                linear-gradient(118deg, transparent 45%, rgba(185, 217, 125, 0.16) 45.2%, transparent 45.7%),
+                linear-gradient(63deg, transparent 53%, rgba(255, 255, 255, 0.14) 53.2%, transparent 53.7%);
+            transform: rotate(-7deg);
+        }
+        .brand, .visual-copy, .route-art { position: relative; z-index: 1; }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 900;
+            font-size: 1.05rem;
+            letter-spacing: -0.03em;
+        }
+        .brand-mark {
+            width: 12px;
+            height: 12px;
+            border-radius: 50% 50% 50% 0;
+            background: var(--lime);
+            box-shadow: 0 0 22px rgba(185, 217, 125, 0.34);
+            transform: rotate(-45deg);
+        }
+        .route-art {
+            width: min(100%, 430px);
+            margin: auto;
+            filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.24));
+        }
+        .route-art svg { display: block; width: 100%; height: auto; }
+        .visual-copy .eyebrow, .panel-heading .eyebrow {
+            margin: 0 0 12px;
+            color: var(--lime);
+            font-size: 0.73rem;
+            font-weight: 850;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }
+        .visual-copy h1 {
+            max-width: 520px;
+            margin: 0;
+            font-size: clamp(2.3rem, 5vw, 5rem);
+            line-height: 0.98;
+            letter-spacing: -0.075em;
+        }
+        .visual-copy p:last-child {
+            max-width: 420px;
+            margin: 20px 0 0;
+            color: #c6cbbf;
+            line-height: 1.65;
+        }
+
+        .controls {
+            min-height: 100vh;
+            padding: 40px clamp(24px, 5vw, 76px) 28px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .panel { width: min(100%, 760px); margin: 0 auto; }
+        .panel-heading {
+            display: flex;
+            align-items: end;
+            justify-content: space-between;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .panel-heading h2 {
+            margin: 0;
+            font-size: clamp(1.65rem, 3vw, 2.55rem);
+            line-height: 1.15;
+            letter-spacing: -0.055em;
+        }
+        .prototype-badge {
+            flex: 0 0 auto;
+            padding: 8px 12px;
+            border: 1px solid rgba(185, 217, 125, 0.28);
+            border-radius: 999px;
+            background: var(--lime-soft);
+            color: var(--lime);
+            font-size: 0.72rem;
+            font-weight: 800;
+        }
+        .drive-form { display: grid; gap: 26px; }
+        fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+        legend {
+            width: 100%;
+            margin-bottom: 12px;
+            font-size: 0.96rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+        .legend-number {
+            display: inline-grid;
+            place-items: center;
+            width: 24px;
+            height: 24px;
+            margin-right: 7px;
+            border-radius: 50%;
+            background: var(--ink);
+            color: #11150f;
+            font-size: 0.72rem;
+        }
+        .choice-grid { display: grid; gap: 10px; }
+        .choice-grid.two { grid-template-columns: repeat(2, 1fr); }
+        .choice-grid.four { grid-template-columns: repeat(4, 1fr); }
+        .choice-grid.five { grid-template-columns: repeat(5, 1fr); }
+        .choice { position: relative; min-width: 0; }
+        .choice input { position: absolute; opacity: 0; pointer-events: none; }
+        .choice label {
+            min-height: 66px;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            border: 1px solid var(--line);
+            border-radius: 15px;
+            background: var(--surface);
+            color: var(--ink);
+            cursor: pointer;
+            user-select: none;
+            transition: border-color 150ms ease, background 150ms ease, color 150ms ease, transform 150ms ease;
+        }
+        .choice label:hover { transform: translateY(-2px); border-color: rgba(229, 237, 218, 0.28); }
+        .choice input:focus-visible + label { outline: 3px solid rgba(185, 217, 125, 0.28); outline-offset: 2px; }
+        .choice input:checked + label {
+            border-color: var(--lime);
+            background: var(--lime);
+            color: #12170d;
+            box-shadow: 0 8px 25px rgba(185, 217, 125, 0.12);
+        }
+        .trip-choice label { justify-content: flex-start; min-height: 78px; padding-inline: 20px; }
+        .choice-copy { display: grid; gap: 3px; }
+        .choice-copy strong { font-size: 1.02rem; }
+        .choice-copy small { color: var(--muted); font-size: 0.73rem; }
+        .choice input:checked + label small { color: rgba(18, 23, 13, 0.66); }
+        .trip-icon {
+            display: grid;
+            place-items: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 11px;
+            background: rgba(255, 255, 255, 0.07);
+            font-size: 1.1rem;
+        }
+        .choice input:checked + label .trip-icon { background: rgba(18, 23, 13, 0.1); }
+        .theme-choice label {
+            min-height: 82px;
+            flex-direction: column;
+            font-size: 0.82rem;
+            font-weight: 750;
+        }
+        .theme-icon { font-size: 1.55rem; line-height: 1; }
+        .custom-time {
+            display: none;
+            margin-top: 10px;
+            padding: 15px 17px;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            gap: 12px;
+            border: 1px solid var(--line);
+            border-radius: 15px;
+            background: var(--surface);
+        }
+        .custom-time.is-visible { display: grid; }
+        .custom-time span { color: var(--muted); font-size: 0.83rem; }
+        .custom-input-wrap { display: flex; align-items: center; gap: 8px; }
+        .custom-time input {
+            width: 90px;
+            min-height: 46px;
+            padding: 0 12px;
+            border: 1px solid rgba(229, 237, 218, 0.24);
+            border-radius: 11px;
+            background: #11150f;
+            color: var(--ink);
+            text-align: right;
+            font-weight: 800;
+        }
+        .custom-time input:focus { outline: 2px solid var(--lime); outline-offset: 2px; }
+        .submit-button {
+            width: 100%;
+            min-height: 62px;
+            padding: 0 24px;
+            border: 0;
+            border-radius: 17px;
+            background: var(--teal);
+            color: #102019;
+            font-weight: 900;
+            letter-spacing: -0.025em;
+            cursor: pointer;
+            box-shadow: 0 16px 32px rgba(128, 185, 170, 0.2);
+            transition: transform 150ms ease, filter 150ms ease;
+        }
+        .submit-button:hover { transform: translateY(-2px); filter: brightness(1.06); }
+        .submit-button:focus-visible { outline: 3px solid rgba(128, 185, 170, 0.42); outline-offset: 3px; }
+        .selection-result {
+            display: none;
+            margin-top: 16px;
+            padding: 18px 20px;
+            border: 1px solid rgba(185, 217, 125, 0.22);
+            border-radius: 16px;
+            background: var(--lime-soft);
+        }
+        .selection-result.is-visible { display: block; }
+        .selection-result strong { display: block; margin-bottom: 6px; color: var(--lime); }
+        .selection-result p { margin: 0; color: #d5ddcc; line-height: 1.55; }
+        .selection-result small { display: block; margin-top: 8px; color: var(--muted); }
+        .developer-tools { width: min(100%, 760px); margin: 24px auto 0; color: var(--muted); }
+        .developer-tools summary { cursor: pointer; font-size: 0.78rem; }
+        .developer-tools p { margin: 10px 0 0; font-size: 0.75rem; line-height: 1.55; }
+
+        @media (max-width: 980px) {
+            .shell { grid-template-columns: 1fr; }
+            .visual { min-height: 440px; padding-block: 30px; border-right: 0; border-bottom: 1px solid var(--line); }
+            .route-art { position: absolute; right: -40px; top: 44px; width: 390px; opacity: 0.52; }
+            .visual-copy { margin-top: auto; }
+            .controls { min-height: auto; padding-block: 46px 32px; }
+        }
+        @media (max-width: 650px) {
+            .visual { min-height: 370px; }
+            .route-art { width: 300px; right: -76px; top: 58px; }
+            .visual-copy h1 { font-size: 2.65rem; }
+            .visual-copy p:last-child { font-size: 0.88rem; }
+            .panel-heading { align-items: flex-start; }
+            .prototype-badge { margin-top: 3px; }
+            .choice-grid.four { grid-template-columns: repeat(2, 1fr); }
+            .choice-grid.five { grid-template-columns: repeat(3, 1fr); }
+            .theme-choice:last-child { grid-column: span 2; }
+            .choice label { min-height: 62px; }
+        }
+        @media (max-width: 430px) {
+            .visual, .controls { padding-inline: 18px; }
+            .choice-grid.two { grid-template-columns: 1fr; }
+            .trip-choice label { min-height: 68px; }
+            .custom-time { grid-template-columns: 1fr; }
+            .custom-input-wrap { justify-content: flex-end; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+        }
     </style>
 </head>
 <body>
-<main>
-    <h1>just go</h1>
-    <p>Java 백엔드 REST 연결을 확인하는 임시 개발 화면입니다.</p>
-    <div class="warning">
-        <strong>개발 전용:</strong> 실제 위치를 입력하지 마세요. <code>mock</code> 프로필 결과는 실제 도로·시간·거리가 아닙니다.
-    </div>
-
-    <form id="recommendation-form">
-        <div class="row">
-            <label>테스트 위도
-                <input id="latitude" type="number" value="0" min="-90" max="90" step="0.000001" required>
-            </label>
-            <label>테스트 경도
-                <input id="longitude" type="number" value="0" min="-180" max="180" step="0.000001" required>
-            </label>
+<main class="shell">
+    <section class="visual" aria-label="서비스 소개">
+        <div class="brand"><span class="brand-mark" aria-hidden="true"></span>just go</div>
+        <div class="route-art" aria-hidden="true">
+            <svg viewBox="0 0 480 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M49 306C85 244 94 178 154 151C213 124 273 169 318 128C361 89 339 39 419 31" stroke="#0c0f0c" stroke-width="46" stroke-linecap="round"/>
+                <path d="M49 306C85 244 94 178 154 151C213 124 273 169 318 128C361 89 339 39 419 31" stroke="#596153" stroke-width="3" stroke-dasharray="14 15" stroke-linecap="round"/>
+                <circle cx="50" cy="304" r="20" fill="var(--lime)" fill-opacity=".14"/>
+                <circle cx="50" cy="304" r="8" fill="var(--lime)"/>
+                <path d="M419 9C404.6 9 393 20.6 393 35C393 55.4 419 78 419 78C419 78 445 55.4 445 35C445 20.6 433.4 9 419 9Z" fill="var(--teal)"/>
+                <circle cx="419" cy="34" r="8" fill="#102019"/>
+            </svg>
         </div>
-        <div class="row">
-            <label>희망 주행 시간
-                <select id="desiredMinutes">
-                    <option value="30">30분</option>
-                    <option value="60" selected>60분</option>
-                    <option value="90">90분</option>
-                    <option value="120">120분</option>
-                </select>
-            </label>
-            <label>풍경 테마
-                <select id="theme">
-                    <option value="CITY">도시</option>
-                    <option value="MOUNTAIN">산</option>
-                    <option value="RIVER">강</option>
-                    <option value="LAKE">호수</option>
-                    <option value="SEA">바다</option>
-                </select>
-            </label>
+        <div class="visual-copy">
+            <p class="eyebrow">Drive without a destination</p>
+            <h1>목적지 없이,<br>좋은 길로.</h1>
+            <p>원하는 시간과 풍경만 고르면 오늘의 드라이브 코스를 찾아드려요.</p>
         </div>
-        <button type="submit">개발용 추천 요청 보내기</button>
-    </form>
+    </section>
 
-    <h2>응답</h2>
-    <p id="mode"></p>
-    <pre id="result">아직 요청하지 않았습니다.</pre>
+    <section class="controls" aria-labelledby="form-title">
+        <div class="panel">
+            <header class="panel-heading">
+                <div>
+                    <p class="eyebrow">Plan your drive</p>
+                    <h2 id="form-title">오늘은 어떻게 달릴까요?</h2>
+                </div>
+                <span class="prototype-badge">화면 시안</span>
+            </header>
 
-    <hr class="divider">
-    <h2>검수 완료 장소 후보 조회</h2>
-    <p>DB에 직접 등록되고 <code>VERIFIED</code> 처리된 활성 장소만 조회합니다. 저장소에는 실제 장소 시드를 포함하지 않습니다.</p>
-    <form id="spot-form">
-        <div class="row">
-            <label>풍경 테마
-                <select id="spot-theme">
-                    <option value="CITY">도시</option>
-                    <option value="MOUNTAIN">산</option>
-                    <option value="RIVER">강</option>
-                    <option value="LAKE">호수</option>
-                    <option value="SEA">바다</option>
-                </select>
-            </label>
-            <label>최대 조회 개수
-                <input id="spot-limit" type="number" value="10" min="1" max="50" required>
-            </label>
+            <form class="drive-form" id="drive-form">
+                <fieldset>
+                    <legend><span class="legend-number">1</span>주행 방식을 선택해 주세요</legend>
+                    <div class="choice-grid two">
+                        <div class="choice trip-choice">
+                            <input type="radio" name="tripType" id="roundTrip" value="왕복" checked>
+                            <label for="roundTrip"><span class="trip-icon" aria-hidden="true">↻</span><span class="choice-copy"><strong>왕복</strong><small>출발지로 돌아오는 코스</small></span></label>
+                        </div>
+                        <div class="choice trip-choice">
+                            <input type="radio" name="tripType" id="oneWay" value="편도">
+                            <label for="oneWay"><span class="trip-icon" aria-hidden="true">→</span><span class="choice-copy"><strong>편도</strong><small>새로운 곳에서 끝나는 코스</small></span></label>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <legend><span class="legend-number">2</span>얼마나 달리고 싶나요?</legend>
+                    <div class="choice-grid four">
+                        <div class="choice"><input type="radio" name="duration" id="duration30" value="30"><label for="duration30"><strong>30분</strong></label></div>
+                        <div class="choice"><input type="radio" name="duration" id="duration60" value="60" checked><label for="duration60"><strong>60분</strong></label></div>
+                        <div class="choice"><input type="radio" name="duration" id="duration120" value="120"><label for="duration120"><strong>120분</strong></label></div>
+                        <div class="choice"><input type="radio" name="duration" id="durationCustom" value="custom"><label for="durationCustom"><strong>직접 입력</strong></label></div>
+                    </div>
+                    <div class="custom-time" id="custom-time">
+                        <span>10분부터 240분까지 입력할 수 있어요.</span>
+                        <label class="custom-input-wrap" for="customMinutes"><input type="number" id="customMinutes" min="10" max="240" step="5" value="90" inputmode="numeric" disabled><strong>분</strong></label>
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <legend><span class="legend-number">3</span>어떤 풍경이 보고 싶나요?</legend>
+                    <div class="choice-grid five">
+                        <div class="choice theme-choice"><input type="radio" name="theme" id="city" value="도시" checked><label for="city"><span class="theme-icon" aria-hidden="true">▥</span>도시</label></div>
+                        <div class="choice theme-choice"><input type="radio" name="theme" id="mountain" value="산"><label for="mountain"><span class="theme-icon" aria-hidden="true">▲</span>산</label></div>
+                        <div class="choice theme-choice"><input type="radio" name="theme" id="sea" value="바다"><label for="sea"><span class="theme-icon" aria-hidden="true">≋</span>바다</label></div>
+                        <div class="choice theme-choice"><input type="radio" name="theme" id="lake" value="호수"><label for="lake"><span class="theme-icon" aria-hidden="true">◉</span>호수</label></div>
+                        <div class="choice theme-choice"><input type="radio" name="theme" id="river" value="강"><label for="river"><span class="theme-icon" aria-hidden="true">〰</span>강</label></div>
+                    </div>
+                </fieldset>
+
+                <button class="submit-button" type="submit">이 조건으로 코스 찾기&nbsp; →</button>
+            </form>
+
+            <section class="selection-result" id="selection-result" aria-live="polite">
+                <strong>선택한 조건을 확인했어요.</strong>
+                <p id="selection-summary"></p>
+                <small>현재는 화면 시안입니다. 실제 TMAP 경로 추천은 아직 연결하지 않았습니다.</small>
+            </section>
         </div>
-        <button type="submit">검수 완료 장소 조회</button>
-    </form>
-    <pre id="spot-result">아직 조회하지 않았습니다.</pre>
+
+        <details class="developer-tools">
+            <summary>개발 상태 안내</summary>
+            <p>왕복·편도와 자유 시간 입력은 아직 백엔드 API 계약에 반영되지 않았습니다. 이 화면은 입력 흐름과 디자인을 확인하기 위한 프로토타입이며 실제 위치나 경로를 저장하지 않습니다.</p>
+        </details>
+    </section>
 </main>
+
 <script>
-    const form = document.querySelector('#recommendation-form');
-    const mode = document.querySelector('#mode');
-    const result = document.querySelector('#result');
-    const spotForm = document.querySelector('#spot-form');
-    const spotResult = document.querySelector('#spot-result');
+    const driveForm = document.querySelector('#drive-form');
+    const customTime = document.querySelector('#custom-time');
+    const customMinutes = document.querySelector('#customMinutes');
+    const selectionResult = document.querySelector('#selection-result');
+    const selectionSummary = document.querySelector('#selection-summary');
 
-    form.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        mode.textContent = '';
-        result.textContent = '요청 중...';
+    /** 직접 입력 선택 여부에 맞춰 분 입력란의 표시와 사용 가능 상태를 함께 갱신한다. */
+    function syncCustomTimeInput() {
+        const isCustom = document.querySelector('input[name="duration"]:checked').value === 'custom';
+        customTime.classList.toggle('is-visible', isCustom);
+        customMinutes.disabled = !isCustom;
+        if (isCustom) customMinutes.focus();
+    }
 
-        const request = {
-            latitude: Number(document.querySelector('#latitude').value),
-            longitude: Number(document.querySelector('#longitude').value),
-            desiredMinutes: Number(document.querySelector('#desiredMinutes').value),
-            theme: document.querySelector('#theme').value
-        };
-
-        try {
-            const response = await fetch('/api/v1/routes/recommendations', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(request)
-            });
-            const body = await response.json();
-            mode.textContent = body.mock ? 'MOCK 결과 — 실제 경로가 아닙니다.' : `모드: ${body.mode ?? 'ERROR'}`;
-            mode.className = body.mock ? 'mock' : '';
-            result.textContent = JSON.stringify(body, null, 2);
-        } catch (error) {
-            mode.textContent = '요청 실패';
-            result.textContent = '백엔드가 실행 중인지 확인해 주세요.';
-        }
+    document.querySelectorAll('input[name="duration"]').forEach((input) => {
+        input.addEventListener('change', syncCustomTimeInput);
     });
 
-    spotForm.addEventListener('submit', async (event) => {
+    driveForm.addEventListener('submit', (event) => {
         event.preventDefault();
-        spotResult.textContent = '조회 중...';
+        const tripType = document.querySelector('input[name="tripType"]:checked').value;
+        const durationValue = document.querySelector('input[name="duration"]:checked').value;
+        const theme = document.querySelector('input[name="theme"]:checked').value;
+        const minutes = durationValue === 'custom' ? Number(customMinutes.value) : Number(durationValue);
 
-        const theme = encodeURIComponent(document.querySelector('#spot-theme').value);
-        const limit = encodeURIComponent(document.querySelector('#spot-limit').value);
-
-        try {
-            const response = await fetch(`/api/v1/spots?theme=${theme}&limit=${limit}`);
-            const body = await response.json();
-            spotResult.textContent = JSON.stringify(body, null, 2);
-        } catch (error) {
-            spotResult.textContent = '백엔드가 실행 중인지 확인해 주세요.';
+        if (!Number.isInteger(minutes) || minutes < 10 || minutes > 240) {
+            customMinutes.reportValidity();
+            return;
         }
+
+        selectionSummary.textContent = `${tripType} · ${minutes}분 · ${theme} 풍경`;
+        selectionResult.classList.add('is-visible');
+        selectionResult.scrollIntoView({behavior: 'smooth', block: 'nearest'});
     });
 </script>
 </body>
