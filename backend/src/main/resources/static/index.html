@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>just go - 개발용 웹 확인</title>
+    <style>
+        :root { font-family: system-ui, sans-serif; color-scheme: light; }
+        body { max-width: 760px; margin: 0 auto; padding: 32px 20px; background: #f5f7fa; color: #172033; }
+        main { background: white; border-radius: 16px; padding: 28px; box-shadow: 0 8px 24px #1c2b4a14; }
+        h1 { margin-top: 0; text-transform: lowercase; }
+        .warning { padding: 14px; border-radius: 10px; background: #fff3cd; border: 1px solid #ffe69c; }
+        form { display: grid; gap: 16px; margin-top: 24px; }
+        .row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        label { display: grid; gap: 6px; font-weight: 600; }
+        input, select, button { min-height: 44px; border-radius: 8px; border: 1px solid #aab3c2; padding: 0 12px; font: inherit; }
+        button { border: 0; background: #155eef; color: white; font-weight: 700; cursor: pointer; }
+        pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 16px; border-radius: 10px; background: #111827; color: #d1fae5; }
+        .mock { color: #9a3412; font-weight: 800; }
+        @media (max-width: 600px) { .row { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<main>
+    <h1>just go</h1>
+    <p>Java 백엔드 REST 연결을 확인하는 임시 개발 화면입니다.</p>
+    <div class="warning">
+        <strong>개발 전용:</strong> 실제 위치를 입력하지 마세요. <code>mock</code> 프로필 결과는 실제 도로·시간·거리가 아닙니다.
+    </div>
+
+    <form id="recommendation-form">
+        <div class="row">
+            <label>테스트 위도
+                <input id="latitude" type="number" value="0" min="-90" max="90" step="0.000001" required>
+            </label>
+            <label>테스트 경도
+                <input id="longitude" type="number" value="0" min="-180" max="180" step="0.000001" required>
+            </label>
+        </div>
+        <div class="row">
+            <label>희망 주행 시간
+                <select id="desiredMinutes">
+                    <option value="30">30분</option>
+                    <option value="60" selected>60분</option>
+                    <option value="90">90분</option>
+                    <option value="120">120분</option>
+                </select>
+            </label>
+            <label>풍경 테마
+                <select id="theme">
+                    <option value="CITY">도시</option>
+                    <option value="MOUNTAIN">산</option>
+                    <option value="RIVER">강</option>
+                    <option value="LAKE">호수</option>
+                    <option value="SEA">바다</option>
+                </select>
+            </label>
+        </div>
+        <button type="submit">개발용 추천 요청 보내기</button>
+    </form>
+
+    <h2>응답</h2>
+    <p id="mode"></p>
+    <pre id="result">아직 요청하지 않았습니다.</pre>
+</main>
+<script>
+    const form = document.querySelector('#recommendation-form');
+    const mode = document.querySelector('#mode');
+    const result = document.querySelector('#result');
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        mode.textContent = '';
+        result.textContent = '요청 중...';
+
+        const request = {
+            latitude: Number(document.querySelector('#latitude').value),
+            longitude: Number(document.querySelector('#longitude').value),
+            desiredMinutes: Number(document.querySelector('#desiredMinutes').value),
+            theme: document.querySelector('#theme').value
+        };
+
+        try {
+            const response = await fetch('/api/v1/routes/recommendations', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(request)
+            });
+            const body = await response.json();
+            mode.textContent = body.mock ? 'MOCK 결과 — 실제 경로가 아닙니다.' : `모드: ${body.mode ?? 'ERROR'}`;
+            mode.className = body.mock ? 'mock' : '';
+            result.textContent = JSON.stringify(body, null, 2);
+        } catch (error) {
+            mode.textContent = '요청 실패';
+            result.textContent = '백엔드가 실행 중인지 확인해 주세요.';
+        }
+    });
+</script>
+</body>
+</html>

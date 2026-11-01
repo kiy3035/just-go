@@ -2,7 +2,7 @@
 
 `just go`는 출발지, 희망 주행 시간, 풍경 테마를 바탕으로 드라이브 코스를 추천하는 Pleos Connect 차량용 앱 프로젝트입니다.
 
-현재 구성 범위는 `INITIAL_SETUP.md`의 0~3단계입니다. 백엔드와 로컬 PostgreSQL 개발 환경만 만들었으며 Android 프로젝트, Pleos SDK, 추천 엔진, 외부 경로 API는 아직 구현하지 않았습니다.
+초기 0~3단계 백엔드·인프라 구성 이후, Java REST 연결을 먼저 확인할 수 있는 개발용 웹 화면과 추천 요청 API 초안을 추가했습니다. Android 프로젝트와 Pleos SDK, 실제 추천 엔진, 외부 경로 API는 아직 구현하지 않았습니다.
 
 ## 역할 분담
 
@@ -71,6 +71,20 @@ $env:DB_PASSWORD = "<infra/.env에 설정한 로컬 비밀번호>"
 
 DB 포트를 바꿨다면 `DB_URL`의 포트도 동일하게 바꿉니다. 서버의 기본 8080 포트가 충돌하면 실행 전에 `$env:SERVER_PORT = "18080"`처럼 사용 가능한 포트를 지정합니다. 기동 후 해당 포트의 `/actuator/health`에서 상태를 확인하고 서버는 `Ctrl+C`로 종료합니다.
 
+### 브라우저 우선 개발 확인
+
+외부 경로 API를 연결하기 전 화면과 Java REST 흐름만 확인하려면 `local,mock` 프로필로 실행합니다. `mock` 프로필은 실제 도로 경로가 아닌 명백한 예시값만 반환합니다.
+
+```powershell
+$env:SPRING_PROFILES_ACTIVE = "local,mock"
+$env:SERVER_PORT = "18080"
+.\gradlew.bat bootRun
+```
+
+브라우저에서 `http://127.0.0.1:18080/`을 엽니다. 초기 좌표 `0, 0`은 실제 사용자 위치가 아닌 테스트 값입니다. 응답에 `mock: true`, `mode: "MOCK"`가 표시되며 실제 경로·예상 시간·거리로 사용하면 안 됩니다.
+
+`mock` 프로필 없이 실행하면 같은 API는 `mode: "UNAVAILABLE"`과 빈 코스 목록을 반환합니다. 외부 경로 제공자를 확정하기 전에는 실제 추천 성공으로 간주하지 않습니다.
+
 ## 3. 로컬 인프라 종료와 데이터 초기화
 
 컨테이너만 중지하고 DB 데이터를 유지하려면 다음을 실행합니다.
@@ -90,7 +104,7 @@ docker compose --env-file .env down -v
 
 - Android 프로젝트 생성과 `assembleDebug`
 - Pleos Emulator/NaviHelper 연동 및 검증
-- 추천 API, 추천 알고리즘, 외부 자동차 경로 API
+- 실제 추천 알고리즘과 외부 자동차 경로 API (`mock` 프로필의 예시는 실제 추천이 아님)
 - 계정, 사용자 위치/주행 기록 저장
 - 원격 저장소 작업, push, 클라우드 배포
 

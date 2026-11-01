@@ -136,3 +136,17 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 
 1. API 계약을 먼저 합의한 뒤 추천 기능의 백엔드 골격을 별도 작업으로 진행합니다.
 2. 외부 제공자를 확정하지 않은 상태로 `DrivingRouteProvider` 인터페이스와 로컬 PoC 경계를 준비합니다.
+
+## 8. 2026-11-01 후속 Java/Web 우선 작업
+
+- Android/Pleos 환경 설정은 사용자 지시에 따라 일시 보류했습니다.
+- `POST /api/v1/routes/recommendations` 계약과 Controller → Service → `DrivingRouteProvider` 경계를 추가했습니다.
+- 일반 실행은 `UNAVAILABLE`과 빈 결과를 반환하며 존재하지 않는 코스를 만들지 않습니다.
+- `mock` 프로필에서만 `mock: true`, `mode: MOCK`인 화면 연결 검증용 예시를 반환합니다. 이 값은 실제 도로·시간·거리가 아닙니다.
+- Spring Boot가 제공하는 `/` 개발용 웹 화면에서 테스트 좌표와 조건으로 REST 연결을 확인할 수 있게 했습니다. 실제 개인정보·위치를 입력하거나 저장하지 않습니다.
+- 외부 API 계정·키·유료 서비스는 사용하지 않았습니다.
+- `.\gradlew.bat clean test --no-daemon`: 전체 7개 테스트 통과(수정 전 MVC 테스트의 누락 프로필을 확인·보완한 뒤 재실행).
+- 별도 테스트 DB(`127.0.0.1:55433`)에서 `local,mock` 서버 기동: PostgreSQL 17.11 연결, Flyway V1 적용, `/` HTTP 200, `/actuator/health` UP 확인.
+- `POST /api/v1/routes/recommendations`: HTTP 200, `mock: true`, `mode: MOCK`, `X-Trace-Id` 유지 확인. 45분 요청은 HTTP 400과 `UNSUPPORTED_DURATION` 확인.
+- 첫 실제 기동은 기존 보존 볼륨의 비밀번호 불일치로 실패했고, 두 번째 시도는 `.env.example` 문자열을 잘못 입력해 실패했습니다. 기존 데이터는 삭제하지 않았고 별도 테스트 볼륨과 정확한 가짜 예시값으로 재검증했습니다.
+- `.\gradlew.bat build --no-daemon`: 성공, 실행 JAR 생성 확인.
