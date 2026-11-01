@@ -162,3 +162,13 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - `.\gradlew.bat build --no-daemon`: 성공, V2 마이그레이션과 웹 정적 파일이 포함된 실행 JAR 생성 확인.
 - 보존된 PostgreSQL 17.11 테스트 DB에서 기존 V1 다음에 V2만 추가 적용되는 것을 확인했습니다. `flyway_schema_history`의 V1·V2 모두 `success=true`입니다.
 - 실제 HTTP 검증: `/` 200 및 장소 조회 폼 포함, `GET /api/v1/spots?theme=RIVER&limit=10` 200과 빈 목록, 알 수 없는 테마와 `limit=51`은 각각 400 오류 계약을 확인했습니다.
+
+## 10. 2026-11-01 진척 현황판 및 추천 후보 연결
+
+- 완료·보류·차단·미착수 상태를 한눈에 보는 `docs/progress.md`를 추가하고 README에서 연결했습니다.
+- `SpotCandidateQuery` 읽기 경계를 추가해 추천 계층이 MyBatis 구현에 직접 의존하지 않도록 했습니다.
+- 추천 요청마다 같은 테마의 VERIFIED·활성·좌표 보유 장소를 최대 20건 조회하고, 최소 식별자·이름·WGS84 좌표만 `DrivingRouteProvider` 요청 모델로 전달합니다.
+- 장소 조회 트랜잭션이 끝난 뒤 Provider를 호출하는 구조를 유지해 향후 외부 HTTP I/O 동안 DB 트랜잭션을 열어두지 않습니다.
+- 외부 경로 업체·계정·API 키·유료 서비스는 연결하지 않았고, 일반 프로필의 실제 경로 결과는 계속 `UNAVAILABLE`입니다.
+- 첫 `clean test` 시도는 샌드박스가 사용자 Gradle 캐시의 잠금 파일 접근을 거부해 중단됐습니다. 승인된 로컬 캐시 접근으로 같은 명령을 재실행해 전체 14개 테스트 통과, 실패·오류·건너뜀 0개를 확인했습니다.
+- `.\gradlew.bat build --no-daemon`은 성공했고, 실행 JAR에 `SpotCandidateQuery`, `DrivingRouteWaypointCandidate`, `RouteRecommendationService` 클래스가 포함된 것을 확인했습니다.

@@ -6,6 +6,9 @@ import com.example.justgo.backend.integration.routing.DrivingRouteCandidate;
 import com.example.justgo.backend.integration.routing.DrivingRouteProvider;
 import com.example.justgo.backend.integration.routing.DrivingRouteRequest;
 import com.example.justgo.backend.integration.routing.DrivingRouteResult;
+import com.example.justgo.backend.integration.routing.DrivingRouteWaypointCandidate;
+import com.example.justgo.backend.spot.SpotCandidateQuery;
+import com.example.justgo.backend.spot.SpotCandidateRecord;
 import org.springframework.stereotype.Service;
 
 /**
@@ -16,11 +19,16 @@ import org.springframework.stereotype.Service;
 public class RouteRecommendationService {
 
     private static final Set<Integer> SUPPORTED_DURATIONS = Set.of(30, 60, 90, 120);
+    private static final int MAX_WAYPOINT_CANDIDATES = 20;
 
     private final DrivingRouteProvider drivingRouteProvider;
+    private final SpotCandidateQuery spotCandidateQuery;
 
-    public RouteRecommendationService(DrivingRouteProvider drivingRouteProvider) {
+    public RouteRecommendationService(
+            DrivingRouteProvider drivingRouteProvider,
+            SpotCandidateQuery spotCandidateQuery) {
         this.drivingRouteProvider = drivingRouteProvider;
+        this.spotCandidateQuery = spotCandidateQuery;
     }
 
     /**
@@ -34,11 +42,17 @@ public class RouteRecommendationService {
             throw new UnsupportedDrivingDurationException(request.desiredMinutes());
         }
 
+        var waypointCandidates = spotCandidateQuery
+                .loadVerifiedCandidates(request.theme(), MAX_WAYPOINT_CANDIDATES)
+                .stream()
+                .map(this::toWaypointCandidate)
+                .toList();
         DrivingRouteRequest providerRequest = new DrivingRouteRequest(
                 request.latitude(),
                 request.longitude(),
                 request.desiredMinutes(),
-                request.theme());
+                request.theme(),
+                waypointCandidates);
         DrivingRouteResult result = drivingRouteProvider.calculate(providerRequest);
 
         return new RouteRecommendationResponse(
@@ -46,6 +60,17 @@ public class RouteRecommendationService {
                 result.mock(),
                 result.routes().stream().map(this::toResponseItem).toList(),
                 result.notice());
+    }
+
+    /**
+     * 내부 DB 모델에서 외부 경로 제공자에 필요한 최소 식별자와 좌표만 전달합니다.
+     */
+    private DrivingRouteWaypointCandidate toWaypointCandidate(SpotCandidateRecord candidate) {
+        return new DrivingRouteWaypointCandidate(
+                candidate.id(),
+                candidate.name(),
+                candidate.latitude(),
+                candidate.longitude());
     }
 
     /**

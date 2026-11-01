@@ -1,6 +1,7 @@
 package com.example.justgo.backend.integration.routing;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import com.example.justgo.backend.spot.ScenicTheme;
 
@@ -12,5 +13,13 @@ public record DrivingRouteRequest(
         BigDecimal latitude,
         BigDecimal longitude,
         int desiredMinutes,
-        ScenicTheme theme) {
+        ScenicTheme theme,
+        List<DrivingRouteWaypointCandidate> waypointCandidates) {
+
+    /**
+     * 제공자 실행 도중 후보 목록이 바뀌지 않도록 방어적으로 복사합니다.
+     */
+    public DrivingRouteRequest {
+        waypointCandidates = List.copyOf(waypointCandidates);
+    }
 }

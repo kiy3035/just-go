@@ -4,16 +4,25 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.when;
+
+import java.util.List;
 
 import com.example.justgo.backend.common.ApiExceptionHandler;
 import com.example.justgo.backend.common.TraceIdFilter;
 import com.example.justgo.backend.integration.routing.MockDrivingRouteProvider;
+import com.example.justgo.backend.spot.ScenicTheme;
+import com.example.justgo.backend.spot.SpotCandidateQuery;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -31,6 +40,18 @@ class RouteRecommendationControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @MockitoBean
+    private SpotCandidateQuery spotCandidateQuery;
+
+    /**
+     * HTTP 계층 테스트에서는 DB 대신 빈 검수 후보 목록을 사용합니다.
+     */
+    @BeforeEach
+    void setUpSpotCandidates() {
+        when(spotCandidateQuery.loadVerifiedCandidates(any(ScenicTheme.class), anyInt()))
+                .thenReturn(List.of());
+    }
 
     /**
      * 정상 요청이 명시적인 MOCK 결과와 안전한 추적 헤더를 반환하는지 확인합니다.

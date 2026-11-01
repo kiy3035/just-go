@@ -61,7 +61,7 @@ GitHub (하나의 저장소)
 ## 4. 핵심 데이터 흐름
 
 1. Android: 출발지(`lat`, `lon`), 시간(분), 테마, 왕복 여부 입력.
-2. Backend: 검수된 `SPOT` 및 `SCENIC_SEGMENT`에서 후보 조회.
+2. Backend: 검수된 `SPOT` 및 `SCENIC_SEGMENT`에서 후보 조회. 현재는 `SPOT`의 VERIFIED·활성·좌표 보유 후보를 Provider 요청 경계까지 전달하는 단계까지 구현.
 3. Backend: 1~2개 경유지 조합과 실제 자동차 경로 API 조회.
 4. Backend: 예상 주행시간, 경관 적합성, 중복 구간을 기준으로 점수화. 과거 방문 이력 활용은 P1 검토.
 5. Backend → Android: 0~3개 코스와 경유지 목록, 시간·거리·추천 근거 제공.
@@ -119,6 +119,7 @@ public interface DrivingRouteProvider {
 
 - 위 코드는 설계 수준의 인터페이스 예시이며 구현/호환 라이브러리는 미선정.
 - `MockDrivingRouteProvider`는 `mock` 프로파일에서만 사용하고 UI에 `MOCK` 표시.
+- 현재 구현은 같은 테마의 검수 완료 `SPOT`을 최대 20건 Provider 요청에 전달하며, 실제 경유지 선택·경로 계산은 제공자 선정 후 구현한다.
 - 유료 API·무료 쿼터·위도/경도 좌표계·다중 경유지·배포 허가·저장 제한을 검증하기 전 벤더 확정 금지.
 
 ## 8. 외부 및 차량 SDK PoC (구현 우선순위)

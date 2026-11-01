@@ -48,4 +48,22 @@ class SpotServiceTest {
                 .isInstanceOf(InvalidSpotLimitException.class)
                 .hasMessageContaining("1 이상 50 이하");
     }
+
+    /**
+     * 추천 계층용 조회 경계도 공개 API와 같은 검수 완료 후보 목록을 반환하는지 확인합니다.
+     */
+    @Test
+    void loadsVerifiedCandidatesForRecommendation() {
+        SpotCandidateRecord candidate = new SpotCandidateRecord(
+                2L,
+                "VERIFIED_ROUTE_CANDIDATE_TEST_ONLY",
+                ScenicTheme.MOUNTAIN,
+                new BigDecimal("0.300000"),
+                new BigDecimal("0.400000"));
+        when(spotMapper.findVerifiedCandidatesByTheme(ScenicTheme.MOUNTAIN, 20))
+                .thenReturn(List.of(candidate));
+
+        assertThat(spotService.loadVerifiedCandidates(ScenicTheme.MOUNTAIN, 20))
+                .containsExactly(candidate);
+    }
 }

@@ -9,7 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 검수 완료 경관 장소 후보를 조회하고 API 응답으로 변환합니다.
  */
 @Service
-public class SpotService {
+public class SpotService implements SpotCandidateQuery {
 
     private static final int MIN_LIMIT = 1;
     private static final int MAX_LIMIT = 50;
@@ -29,15 +29,25 @@ public class SpotService {
      */
     @Transactional(readOnly = true)
     public SpotCandidateListResponse findVerifiedCandidates(ScenicTheme theme, int limit) {
-        if (limit < MIN_LIMIT || limit > MAX_LIMIT) {
-            throw new InvalidSpotLimitException(limit);
-        }
-
-        List<SpotCandidateResponse> spots = spotMapper.findVerifiedCandidatesByTheme(theme, limit)
+        List<SpotCandidateResponse> spots = loadVerifiedCandidates(theme, limit)
                 .stream()
                 .map(this::toResponse)
                 .toList();
         return new SpotCandidateListResponse(theme, spots.size(), spots);
+    }
+
+    /**
+     * 추천 서비스와 공개 조회 API가 같은 검수 조건을 사용하도록 Mapper 조회를 한곳에 둡니다.
+     * 이 메서드가 끝난 뒤 외부 경로 API를 호출하므로 DB 트랜잭션을 외부 I/O 동안 유지하지 않습니다.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<SpotCandidateRecord> loadVerifiedCandidates(ScenicTheme theme, int limit) {
+        if (limit < MIN_LIMIT || limit > MAX_LIMIT) {
+            throw new InvalidSpotLimitException(limit);
+        }
+
+        return List.copyOf(spotMapper.findVerifiedCandidatesByTheme(theme, limit));
     }
 
     /**
