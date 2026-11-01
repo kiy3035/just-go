@@ -1,0 +1,18 @@
+plugins { id 'com.android.application' version '8.10.1' }
+android {
+    namespace 'com.example.justgo'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'com.example.justgo' // PROVISIONAL: 제출 전 고유 ID 확정
+        minSdk 28
+        targetSdk 34
+        versionCode 1
+        versionName '0.1'
+    }
+    buildFeatures { viewBinding true }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+dependencies { testImplementation 'junit:junit:4.13.2' }
