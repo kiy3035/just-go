@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.example.justgo.backend.integration.routing.DrivingRouteMode;
+import com.example.justgo.backend.integration.routing.DrivingRouteCandidate;
 import com.example.justgo.backend.integration.routing.DrivingRouteRequest;
 import com.example.justgo.backend.integration.routing.DrivingRouteResult;
 import com.example.justgo.backend.integration.routing.MockDrivingRouteProvider;
@@ -132,5 +133,66 @@ class RouteRecommendationServiceTest {
                 ScenicTheme.SEA));
 
         assertThat(response.routes().getFirst().estimatedMinutes()).isEqualTo(75);
+    }
+
+    /** LIVE 후보에만 시간 오차 필터와 가까운 시간 우선 정렬을 적용합니다. */
+    @Test
+    void filtersAndRanksLiveRoutesByDesiredDuration() {
+        RouteRecommendationService liveService = new RouteRecommendationService(request ->
+                new DrivingRouteResult(
+                        DrivingRouteMode.LIVE,
+                        false,
+                        List.of(
+                                liveCandidate("OUTSIDE", 80, 1_000),
+                                liveCandidate("THIRD", 55, 2_000),
+                                liveCandidate("FIRST", 60, 3_000),
+                                liveCandidate("SECOND", 63, 4_000)),
+                        "LIVE 테스트 결과"),
+                emptySpotCandidateQuery);
+
+        RouteRecommendationResponse response = liveService.recommend(new RouteRecommendationRequest(
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                60,
+                TripType.ROUND_TRIP,
+                ScenicTheme.RIVER));
+
+        assertThat(response.routes())
+                .extracting(RouteRecommendationItem::routeId)
+                .containsExactly("FIRST", "SECOND", "THIRD");
+    }
+
+    /** 허용 오차 안의 LIVE 후보가 없으면 가짜 대체 코스 대신 빈 결과를 반환합니다. */
+    @Test
+    void returnsEmptyLiveResultWhenNoRouteMatchesDuration() {
+        RouteRecommendationService liveService = new RouteRecommendationService(request ->
+                new DrivingRouteResult(
+                        DrivingRouteMode.LIVE,
+                        false,
+                        List.of(liveCandidate("OUTSIDE", 90, 1_000)),
+                        "LIVE 테스트 결과"),
+                emptySpotCandidateQuery);
+
+        RouteRecommendationResponse response = liveService.recommend(new RouteRecommendationRequest(
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                60,
+                TripType.ONE_WAY,
+                ScenicTheme.LAKE));
+
+        assertThat(response.mode()).isEqualTo("LIVE");
+        assertThat(response.routes()).isEmpty();
+        assertThat(response.notice()).contains("±15%", "조건을 바꿔");
+    }
+
+    /** 서비스 테스트용 LIVE 후보를 실제 위치와 무관한 값으로 생성합니다. */
+    private DrivingRouteCandidate liveCandidate(String id, int minutes, long distanceMeters) {
+        return new DrivingRouteCandidate(
+                id,
+                "LIVE_RANKING_TEST_ONLY",
+                minutes,
+                distanceMeters,
+                ScenicTheme.RIVER,
+                "LIVE_RANKING_TEST_ONLY");
     }
 }

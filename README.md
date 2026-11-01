@@ -2,7 +2,7 @@
 
 `just go`는 출발지, 희망 주행 시간, 풍경 테마를 바탕으로 드라이브 코스를 추천하는 Pleos Connect 차량용 앱 프로젝트입니다.
 
-초기 0~3단계 백엔드·인프라 구성 이후, 드라이브 조건을 고르는 반응형 웹 화면 시안과 추천 요청 API 초안을 추가했습니다. 외부 자동차 경로는 TMAP API Free로 결정했고 왕복·편도 Provider까지 연결했지만, 실제 앱 키 호출과 목표 시간 기반 추천·순위는 아직 검증·구현하지 않았습니다. Android 프로젝트와 Pleos SDK도 아직 구현하지 않았습니다.
+초기 0~3단계 백엔드·인프라 구성 이후, 드라이브 조건을 고르는 반응형 웹 화면 시안과 추천 요청 API 초안을 추가했습니다. 외부 자동차 경로는 TMAP API Free로 결정했고 왕복·편도 Provider와 임시 ±15% 목표 시간 추천까지 구현했습니다. 실제 앱 키 호출과 세부 경관·순환 품질 점수는 아직 검증·구현하지 않았으며 Android 프로젝트와 Pleos SDK도 아직 구현하지 않았습니다.
 
 현재 완료·보류·차단 항목과 다음 작업은 [`docs/progress.md`](docs/progress.md)에서 확인합니다. 실제 실행 명령과 검증 이력은 [`docs/setup-report.md`](docs/setup-report.md)에 날짜순으로 기록합니다. 외부 경로 업체의 공식 가격·쿼터·제약 비교는 [`docs/routing-provider-comparison.md`](docs/routing-provider-comparison.md)에 정리했습니다.
 
@@ -95,7 +95,7 @@ $env:SERVER_PORT = "18080"
 
 풍경 테마별 검수 완료 장소 후보는 `GET /api/v1/spots?theme=RIVER&limit=10`으로 확인합니다. 이 API는 DB에서 `VERIFIED`, 활성, 좌표 등록 조건을 모두 만족하는 장소만 반환합니다. 실제 장소 시드는 검수와 사용권 확인 전까지 저장소에 포함하지 않습니다.
 
-추천 서비스는 같은 검수 조건의 장소 후보를 최대 20건 조회해 `DrivingRouteProvider` 요청에 전달합니다. `tmap` Provider는 무료 쿼터 보호를 위해 그중 앞의 최대 3건만 계산합니다. 아직 목표 시간 기반 필터·정렬이 없으므로 최종 추천 알고리즘 완료를 의미하지 않습니다.
+추천 서비스는 같은 검수 조건의 장소 후보를 최대 20건 조회해 `DrivingRouteProvider` 요청에 전달합니다. `tmap` Provider는 무료 쿼터 보호를 위해 그중 앞의 최대 3건만 계산합니다. LIVE 결과는 희망 시간 ±15% 안에서 시간 차이·거리·경로 ID 순으로 정렬하며, 맞는 후보가 없으면 빈 결과와 조건 변경 안내를 반환합니다.
 
 ### TMAP Provider 준비
 
@@ -130,7 +130,7 @@ docker compose --env-file .env down -v
 
 - Android 프로젝트 생성과 `assembleDebug`
 - Pleos Emulator/NaviHelper 연동 및 검증
-- 실제 추천 알고리즘과 TMAP 앱 키를 사용한 외부 호출 (`mock` 프로필의 예시는 실제 추천이 아님)
+- 실제 TMAP 앱 키를 사용한 외부 호출과 세부 경관·순환 품질 점수 (`mock` 프로필의 예시는 실제 추천이 아님)
 - 계정, 사용자 위치/주행 기록 저장
 - 클라우드 배포와 원격 HTTPS 백엔드
 

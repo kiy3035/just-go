@@ -1,6 +1,7 @@
 package com.example.justgo.backend.route;
 
 import com.example.justgo.backend.integration.routing.DrivingRouteCandidate;
+import com.example.justgo.backend.integration.routing.DrivingRouteMode;
 import com.example.justgo.backend.integration.routing.DrivingRouteProvider;
 import com.example.justgo.backend.integration.routing.DrivingRouteRequest;
 import com.example.justgo.backend.integration.routing.DrivingRouteResult;
@@ -23,6 +24,7 @@ public class RouteRecommendationService {
 
     private final DrivingRouteProvider drivingRouteProvider;
     private final SpotCandidateQuery spotCandidateQuery;
+    private final RouteRecommendationPolicy recommendationPolicy = new RouteRecommendationPolicy();
 
     public RouteRecommendationService(
             DrivingRouteProvider drivingRouteProvider,
@@ -32,10 +34,10 @@ public class RouteRecommendationService {
     }
 
     /**
-     * 임시 개발 범위와 5분 단위를 확인한 후 제공자 결과를 API 응답으로 변환합니다.
+     * 입력 시간 단위를 검증하고 LIVE 후보에는 임시 시간 추천 정책을 적용합니다.
      *
      * @param request 검증된 외부 요청
-     * @return MOCK 또는 미연동 상태가 명시된 추천 응답
+     * @return 데이터 출처 모드와 추천 결과가 명시된 응답
      */
     public RouteRecommendationResponse recommend(RouteRecommendationRequest request) {
         if (request.desiredMinutes() < MIN_DURATION_MINUTES
@@ -57,12 +59,23 @@ public class RouteRecommendationService {
                 request.theme(),
                 waypointCandidates);
         DrivingRouteResult result = drivingRouteProvider.calculate(providerRequest);
+        var recommendedRoutes = result.mode() == DrivingRouteMode.LIVE
+                ? recommendationPolicy.rankWithinDurationTolerance(
+                        request.desiredMinutes(),
+                        result.routes())
+                : result.routes();
+        String notice = result.mode() == DrivingRouteMode.LIVE
+                && !result.routes().isEmpty()
+                && recommendedRoutes.isEmpty()
+                ? "희망 주행 시간 ±%d%%에 맞는 검수 코스를 찾지 못했습니다. 시간이나 풍경 조건을 바꿔 주세요."
+                        .formatted(RouteRecommendationPolicy.DURATION_TOLERANCE_PERCENT)
+                : result.notice();
 
         return new RouteRecommendationResponse(
                 result.mode().name(),
                 result.mock(),
-                result.routes().stream().map(this::toResponseItem).toList(),
-                result.notice());
+                recommendedRoutes.stream().map(this::toResponseItem).toList(),
+                notice);
     }
 
     /**
