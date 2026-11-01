@@ -1,0 +1,12 @@
+spring:
+  config:
+    activate:
+      on-profile: tmap
+
+integration:
+  tmap:
+    base-url: ${TMAP_BASE_URL:https://apis.openapi.sk.com}
+    app-key: ${TMAP_APP_KEY:}
+    connect-timeout: ${TMAP_CONNECT_TIMEOUT:2s}
+    read-timeout: ${TMAP_READ_TIMEOUT:5s}
+    daily-call-limit: ${TMAP_DAILY_CALL_LIMIT:90}

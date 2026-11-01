@@ -1,7 +1,7 @@
 package com.example.justgo.backend.integration.routing;
 
 /**
- * TMAP·카카오모빌리티·NAVER 중 어느 제공자도 확정하지 않고 교체 가능하게 유지하는 경계입니다.
+ * 첫 PoC 제공자인 TMAP 구현을 내부에 격리하고 향후에도 교체 가능하게 유지하는 경계입니다.
  */
 public interface DrivingRouteProvider {
 

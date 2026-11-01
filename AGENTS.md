@@ -32,9 +32,10 @@
 | API | JSON 기반 REST, OpenAPI 문서 | 설계안 |
 | 로컬 인프라 | Docker Compose + PostgreSQL | 설계안 |
 | 배포 | **처음에는 두 사람 모두 로컬에서 개발** | 결정 |
+| 외부 자동차 경로 | **TMAP API Free로 첫 PoC** | 확정 — 실제 키 검증 전 |
 
 - 사용자가 승인하지 않은 JPA, Hibernate ORM, MongoDB, Redis, Kafka, RabbitMQ, MSA, Kubernetes, API Gateway, AWS 리소스를 추가하지 않는다.
-- 외부 경로 제공자는 **미정**이다. TMAP/카카오모빌리티/NAVER 중 하나를 코딩으로 확정하지 않는다. `DrivingRouteProvider`와 로컬 Mock/Fake 구현으로 교체 가능한 경계를 둔다.
+- 외부 경로 제공자는 사용자가 **TMAP API Free로 첫 PoC를 진행하기로 확정**했다. 다만 벤더 구현은 `DrivingRouteProvider` 뒤에 두어 교체 가능한 경계를 유지한다. Free 한도 초과 자동 차단과 24시간 데이터 사용 제한을 적용하며, 유료 플랜·후불 종량제 전환은 별도 명시 승인이 없으면 금지한다.
 - Pleos SDK 버전·Gradle 좌표·메서드·퍼미션은 반드시 공식 문서와 로컬에서 확인한다. **추측으로 코드를 만들어 성공한 것처럼 보고하지 않는다.**
 - Android 앱과 백엔드의 Java 언어/바이트코드 수준은 별도로 다룬다. 백엔드의 Java 21 설정을 Android에 무조건 복사하지 않는다.
 - **앱 목표 카테고리는 `Mobility Services`로 결정했다.** 다만 실제 Pleos 등록/심사에서 이 분류가 승인되는지는 검증 전이며, `AndroidManifest.xml`의 SDK 카테고리·퍼미션 선언과 동일한 개념이라고 단정하지 않는다. NaviHelper 사용만으로 Maps/Navigation 앱 또는 `APP_MAPS`/Distraction Optimized 선언을 임의로 추가하지 않는다.
@@ -126,3 +127,5 @@ Codex는 모든 작업을 아래 순서로 보고한다.
 - Maps/Navigation 심사 정책: https://document.pleos.ai/docs/pleos-only/vehicle-app-developer-guide/navigation-app-development-guide
 - 주행 규제: https://document.pleos.ai/docs/pleos-only/vehicle-app-developer-guide/driving-restriction-development-guide
 - Pleos Emulator GPU 조건: https://document.pleos.ai/docs/connect/guide/getting-started/application-development/configure-pleos-connect-emulator
+- TMAP 다중 경유지 30: https://tmap-skopenapi.readme.io/reference/%EB%8B%A4%EC%A4%91-%EA%B2%BD%EC%9C%A0%EC%A7%80-%EC%95%88%EB%82%B4-%EC%83%98%ED%94%8C%EC%98%88%EC%A0%9C
+- TMAP API 약관: https://tmapapi.tmapmobility.com/terms.html

@@ -4,8 +4,8 @@ info:
   version: 0.1.0-draft
   description: >-
     브라우저와 백엔드 연결 검증을 위한 추천 요청 초안입니다. mock=true 또는
-    mode=MOCK인 응답은 실제 도로·시간·거리 데이터가 아닙니다. 외부 경로 제공자는
-    아직 확정하거나 연결하지 않았습니다.
+    mode=MOCK인 응답은 실제 도로·시간·거리 데이터가 아닙니다. 첫 외부 경로
+    제공자는 TMAP으로 결정했지만 실제 앱 키 검증과 추천 Provider 연결 전입니다.
 paths:
   /api/v1/spots:
     get:

@@ -7,7 +7,7 @@
 - **두 개발자 PC에서 독립 로컬 개발**. GitHub는 코드·명세를 공유하고 서버 실행 상태를 공유하지 않는다.
 - Java Android 앱과 Java 21 Spring Boot 서버를 분리한다.
 - 단일 백엔드 모놀리스 + PostgreSQL(RDB), MyBatis Mapper XML.
-- 외부 자동차 경로 API는 인터페이스 뒤에 감춘다. 업체 미확정.
+- 첫 외부 자동차 경로 PoC 제공자는 TMAP API Free로 확정했으며 인터페이스 뒤에 감춰 교체 가능성을 유지한다.
 - NaviHelper는 **경유지·목적지를 차량 내비게이션에 전달**하는 용도이며, 경관 중심 코스 추천 엔진 자체가 아니다.
 - NoSQL, Redis, 메시지 브로커, MSA, AWS는 초기 미사용.
 
@@ -31,7 +31,7 @@ flowchart TB
       Mapper --> DB[(PostgreSQL 17)]
       Recommendation --> RouteProvider[DrivingRouteProvider 인터페이스]
     end
-    RouteProvider -. 실제 계약 후 연결 .-> MapAPI[외부 자동차 경로 API]
+    RouteProvider -. 앱 키 검증 후 연결 .-> MapAPI[TMAP API Free]
 ```
 
 > 개발 환경에서만 HTTP loopback 사용. 외부 서비스 노출 시 HTTPS/TLS가 원칙이며 Android cleartext 허용을 무분별하게 확대하지 않는다.
@@ -97,7 +97,7 @@ MyBatis SQL은 Mapper XML에 둔다. 데이터 모델과 API DTO를 혼용하지
 - `ROUTE_TEMPLATE`, `ROUTE_STOP`: 검수 코스 후보 / 순서.
 - `APP_USER`, `DRIVE_TRIP`: P1. 익명 계정·드라이브 이력 저장 범위 확정 후 생성.
 - 인덱스: 테마+지역+좌표 후보 검색 패턴을 먼저 측정한 뒤 결정. 공간 검색 증가 시 PostGIS 검토.
-- 경로 API 응답 원본 저장은 금지부터 시작해 제공사 약관 확인 후 필요한 범위만 허용한다.
+- TMAP 경로 API 응답 원본은 영구 저장하지 않는다. 약관의 24시간 사용 제한보다 보수적으로 요청 처리 중 메모리에서만 사용한다.
 
 ## 7. 추천 및 경로 계산
 
@@ -117,10 +117,11 @@ public interface DrivingRouteProvider {
 }
 ```
 
-- 위 코드는 설계 수준의 인터페이스 예시이며 구현/호환 라이브러리는 미선정.
+- 위 인터페이스는 현재 코드의 실제 교체 경계이며, TMAP 연동은 Spring `RestClient` 기반 HTTP 클라이언트로 준비했습니다.
 - `MockDrivingRouteProvider`는 `mock` 프로파일에서만 사용하고 UI에 `MOCK` 표시.
-- 현재 구현은 같은 테마의 검수 완료 `SPOT`을 최대 20건 Provider 요청에 전달하며, 실제 경유지 선택·경로 계산은 제공자 선정 후 구현한다.
-- 유료 API·무료 쿼터·위도/경도 좌표계·다중 경유지·배포 허가·저장 제한을 검증하기 전 벤더 확정 금지.
+- 현재 구현은 같은 테마의 검수 완료 `SPOT`을 최대 20건 Provider 요청에 전달합니다.
+- TMAP 다중 경유지 30 HTTP 클라이언트는 WGS84 출발·도착·경유지, timeout, 일일 로컬 상한, 오류 분류, 거리·시간 응답 검증까지 구현했습니다. 실제 추천 Provider 연결과 외부 호출은 아직 미검증입니다.
+- 희망 시간에 출발지 복귀를 포함할지는 아직 제안 상태이므로, TMAP 클라이언트가 왕복을 자동 결정하지 않고 상위 추천 정책이 명시적인 출발·도착 좌표를 구성합니다.
 
 ## 8. 외부 및 차량 SDK PoC (구현 우선순위)
 
