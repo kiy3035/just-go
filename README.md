@@ -4,7 +4,7 @@
 
 초기 0~3단계 백엔드·인프라 구성 이후, Java REST 연결을 먼저 확인할 수 있는 개발용 웹 화면과 추천 요청 API 초안을 추가했습니다. Android 프로젝트와 Pleos SDK, 실제 추천 엔진, 외부 경로 API는 아직 구현하지 않았습니다.
 
-현재 완료·보류·차단 항목과 다음 작업은 [`docs/progress.md`](docs/progress.md)에서 확인합니다. 실제 실행 명령과 검증 이력은 [`docs/setup-report.md`](docs/setup-report.md)에 날짜순으로 기록합니다.
+현재 완료·보류·차단 항목과 다음 작업은 [`docs/progress.md`](docs/progress.md)에서 확인합니다. 실제 실행 명령과 검증 이력은 [`docs/setup-report.md`](docs/setup-report.md)에 날짜순으로 기록합니다. 외부 경로 업체의 공식 가격·쿼터·제약 비교는 [`docs/routing-provider-comparison.md`](docs/routing-provider-comparison.md)에 정리했습니다.
 
 ## 역할 분담
 
