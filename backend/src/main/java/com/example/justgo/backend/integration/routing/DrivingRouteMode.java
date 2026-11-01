@@ -5,5 +5,6 @@ package com.example.justgo.backend.integration.routing;
  */
 public enum DrivingRouteMode {
     MOCK,
+    LIVE,
     UNAVAILABLE
 }

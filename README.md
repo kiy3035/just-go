@@ -2,7 +2,7 @@
 
 `just go`는 출발지, 희망 주행 시간, 풍경 테마를 바탕으로 드라이브 코스를 추천하는 Pleos Connect 차량용 앱 프로젝트입니다.
 
-초기 0~3단계 백엔드·인프라 구성 이후, 드라이브 조건을 고르는 반응형 웹 화면 시안과 추천 요청 API 초안을 추가했습니다. 외부 자동차 경로는 TMAP API Free로 결정했고 안전한 HTTP 클라이언트까지 구현했지만, 실제 앱 키 호출과 추천 Provider 연결은 아직 검증하지 않았습니다. Android 프로젝트와 Pleos SDK, 실제 추천 엔진도 아직 구현하지 않았습니다.
+초기 0~3단계 백엔드·인프라 구성 이후, 드라이브 조건을 고르는 반응형 웹 화면 시안과 추천 요청 API 초안을 추가했습니다. 외부 자동차 경로는 TMAP API Free로 결정했고 왕복·편도 Provider까지 연결했지만, 실제 앱 키 호출과 목표 시간 기반 추천·순위는 아직 검증·구현하지 않았습니다. Android 프로젝트와 Pleos SDK도 아직 구현하지 않았습니다.
 
 현재 완료·보류·차단 항목과 다음 작업은 [`docs/progress.md`](docs/progress.md)에서 확인합니다. 실제 실행 명령과 검증 이력은 [`docs/setup-report.md`](docs/setup-report.md)에 날짜순으로 기록합니다. 외부 경로 업체의 공식 가격·쿼터·제약 비교는 [`docs/routing-provider-comparison.md`](docs/routing-provider-comparison.md)에 정리했습니다.
 
@@ -91,15 +91,15 @@ $env:SERVER_PORT = "18080"
 
 추천 REST API 연결은 `POST /api/v1/routes/recommendations`를 별도로 호출해 확인합니다. 요청에는 `tripType`(`ROUND_TRIP` 또는 `ONE_WAY`)이 필수이며, `desiredMinutes`는 현재 임시 기준으로 10~240분 범위의 5분 단위입니다. `mock` 프로필 응답에는 `mock: true`, `mode: "MOCK"`가 표시되며 실제 경로·예상 시간·거리로 사용하면 안 됩니다.
 
-`mock` 프로필 없이 실행하면 같은 API는 `mode: "UNAVAILABLE"`과 빈 코스 목록을 반환합니다. 외부 경로 제공자를 확정하기 전에는 실제 추천 성공으로 간주하지 않습니다.
+`mock`과 `tmap` 프로필 없이 실행하면 같은 API는 `mode: "UNAVAILABLE"`과 빈 코스 목록을 반환합니다.
 
 풍경 테마별 검수 완료 장소 후보는 `GET /api/v1/spots?theme=RIVER&limit=10`으로 확인합니다. 이 API는 DB에서 `VERIFIED`, 활성, 좌표 등록 조건을 모두 만족하는 장소만 반환합니다. 실제 장소 시드는 검수와 사용권 확인 전까지 저장소에 포함하지 않습니다.
 
-추천 서비스는 같은 검수 조건의 장소 후보를 최대 20건 조회해 `DrivingRouteProvider` 요청에 전달합니다. TMAP으로 업체는 정했지만 추천 Provider 연결과 실제 호출 전이므로, 아직 실제 자동차 경로 계산이나 추천 성공을 의미하지 않습니다.
+추천 서비스는 같은 검수 조건의 장소 후보를 최대 20건 조회해 `DrivingRouteProvider` 요청에 전달합니다. `tmap` Provider는 무료 쿼터 보호를 위해 그중 앞의 최대 3건만 계산합니다. 아직 목표 시간 기반 필터·정렬이 없으므로 최종 추천 알고리즘 완료를 의미하지 않습니다.
 
-### TMAP 클라이언트 준비
+### TMAP Provider 준비
 
-`tmap` 프로필은 TMAP 다중 경유지 30 HTTP 클라이언트만 구성합니다. 현재 추천 API는 왕복 정책과 실제 앱 키 검증 전까지 계속 `UNAVAILABLE`이며 외부 호출을 자동 실행하지 않습니다.
+`tmap` 프로필은 TMAP Provider를 활성화합니다. 왕복은 검수 후보를 경유해 출발지로 복귀하는 다중 경유지 요청, 편도는 후보를 도착지로 사용하는 일반 자동차 경로 요청으로 구성됩니다. 프로필을 켠 상태에서 추천 API를 호출하면 외부 요청이 발생하므로 앱 키와 무료 쿼터를 확인해야 합니다.
 
 앱 키를 발급한 뒤에도 키를 파일이나 명령 이력에 저장하지 말고 IDE의 비공개 Run Configuration 또는 현재 PowerShell 세션의 환경변수로만 전달합니다.
 
@@ -109,7 +109,7 @@ $env:TMAP_APP_KEY = "<로컬에서 발급한 키>"
 $env:TMAP_DAILY_CALL_LIMIT = "90"
 ```
 
-기본 connect timeout은 2초, read timeout은 5초이며 자동 재시도는 하지 않습니다. Free 다중 경유지 일 100건보다 낮은 로컬 상한 90건을 기본 적용합니다. 키를 Git, 문서, 로그, Android 앱에 넣지 않습니다.
+기본 connect timeout은 2초, read timeout은 5초이며 자동 재시도는 하지 않습니다. Free 다중 경유지 일 100건보다 낮은 로컬 상한 90건과 추천 요청당 후보 최대 3건 제한을 적용합니다. 키를 Git, 문서, 로그, Android 앱에 넣지 않습니다. 이 저장소에서는 아직 실제 앱 키 호출을 검증하지 않았습니다.
 
 ## 3. 로컬 인프라 종료와 데이터 초기화
 

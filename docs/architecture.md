@@ -31,7 +31,7 @@ flowchart TB
       Mapper --> DB[(PostgreSQL 17)]
       Recommendation --> RouteProvider[DrivingRouteProvider 인터페이스]
     end
-    RouteProvider -. 앱 키 검증 후 연결 .-> MapAPI[TMAP API Free]
+    RouteProvider -->|tmap 프로필, 앱 키는 환경변수| MapAPI[TMAP API Free]
 ```
 
 > 개발 환경에서만 HTTP loopback 사용. 외부 서비스 노출 시 HTTPS/TLS가 원칙이며 Android cleartext 허용을 무분별하게 확대하지 않는다.
@@ -117,11 +117,13 @@ public interface DrivingRouteProvider {
 }
 ```
 
-- 위 인터페이스는 현재 코드의 실제 교체 경계이며, TMAP 연동은 Spring `RestClient` 기반 HTTP 클라이언트로 준비했습니다.
+- 위 인터페이스는 현재 코드의 실제 교체 경계이며, `tmap` 프로필에서 Spring `RestClient` 기반 Provider가 활성화됩니다.
 - `MockDrivingRouteProvider`는 `mock` 프로파일에서만 사용하고 UI에 `MOCK` 표시.
 - 현재 구현은 같은 테마의 검수 완료 `SPOT`을 최대 20건 Provider 요청에 전달합니다.
-- TMAP 다중 경유지 30 HTTP 클라이언트는 WGS84 출발·도착·경유지, timeout, 일일 로컬 상한, 오류 분류, 거리·시간 응답 검증까지 구현했습니다. 실제 추천 Provider 연결과 외부 호출은 아직 미검증입니다.
-- API와 Provider 요청 경계에는 `ROUND_TRIP`/`ONE_WAY`가 전달됩니다. TMAP 클라이언트가 왕복을 자동 결정하지 않고, 후속 추천 정책이 주행 방식에 맞는 명시적인 출발·도착 좌표를 구성합니다.
+- TMAP 클라이언트는 경유지가 있는 왕복에 다중 경유지 30 API를, 경유지가 없는 편도에 일반 자동차 경로안내 API를 사용합니다. WGS84 좌표, timeout, 일일 로컬 상한, 오류 분류, 거리·시간 응답 검증을 적용했습니다.
+- TMAP Provider는 무료 쿼터 보호를 위해 전달된 후보 중 앞의 최대 3건만 계산합니다. `ROUND_TRIP`은 후보를 경유해 출발지로 복귀하고 `ONE_WAY`는 후보를 도착지로 사용합니다.
+- 외부 호출 오류는 원시 응답이나 키를 노출하지 않고 인증·쿼터는 HTTP 503, 그 밖의 제공자 오류는 HTTP 502로 변환합니다.
+- Provider 연결은 모의 HTTP·단위 테스트까지만 검증했습니다. 실제 앱 키 호출, 목표 시간 오차 필터·정렬, 경관 점수화는 아직 미검증·미구현입니다.
 
 ## 8. 외부 및 차량 SDK PoC (구현 우선순위)
 

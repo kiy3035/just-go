@@ -16,7 +16,8 @@ import org.springframework.web.client.RestClientException;
  */
 public class TmapRouteClient {
 
-    private static final String ROUTE_PATH = "/tmap/routes/routeSequential30?version=1";
+    private static final String MULTI_ROUTE_PATH = "/tmap/routes/routeSequential30?version=1";
+    private static final String SINGLE_ROUTE_PATH = "/tmap/routes?version=1&totalValue=2";
     private static final String WGS84 = "WGS84GEO";
     private static final String RECOMMENDED_ROUTE = "0";
     private static final String PASSENGER_CAR = "1";
@@ -47,11 +48,12 @@ public class TmapRouteClient {
         callLimiter.acquire();
 
         try {
+            boolean hasWaypoints = !search.waypoints().isEmpty();
             TmapApiResponse response = restClient.post()
-                    .uri(ROUTE_PATH)
+                    .uri(hasWaypoints ? MULTI_ROUTE_PATH : SINGLE_ROUTE_PATH)
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
-                    .body(toApiRequest(search))
+                    .body(hasWaypoints ? toMultiApiRequest(search) : toSingleApiRequest(search))
                     .retrieve()
                     .onStatus(HttpStatusCode::isError, (request, upstreamResponse) -> {
                         throw mapHttpError(upstreamResponse.getStatusCode());
@@ -71,7 +73,7 @@ public class TmapRouteClient {
     /**
      * 내부 좌표의 경도·위도를 TMAP의 X·Y 필드 순서로 변환합니다.
      */
-    private TmapApiRequest toApiRequest(TmapRouteSearch search) {
+    private TmapMultiApiRequest toMultiApiRequest(TmapRouteSearch search) {
         List<TmapApiWaypoint> waypoints = search.waypoints().stream()
                 .map(waypoint -> new TmapApiWaypoint(
                         waypoint.id(),
@@ -80,7 +82,7 @@ public class TmapRouteClient {
                         waypoint.coordinate().latitude().toPlainString()))
                 .toList();
 
-        return new TmapApiRequest(
+        return new TmapMultiApiRequest(
                 WGS84,
                 WGS84,
                 "출발",
@@ -93,6 +95,19 @@ public class TmapRouteClient {
                 RECOMMENDED_ROUTE,
                 PASSENGER_CAR,
                 waypoints);
+    }
+
+    /** 경유지가 없는 편도 경로를 공식 자동차 경로안내 요청 형식으로 변환합니다. */
+    private TmapSingleApiRequest toSingleApiRequest(TmapRouteSearch search) {
+        return new TmapSingleApiRequest(
+                WGS84,
+                WGS84,
+                search.start().longitude().toPlainString(),
+                search.start().latitude().toPlainString(),
+                search.end().longitude().toPlainString(),
+                search.end().latitude().toPlainString(),
+                Integer.parseInt(RECOMMENDED_ROUTE),
+                Integer.parseInt(PASSENGER_CAR));
     }
 
     /**
@@ -116,14 +131,19 @@ public class TmapRouteClient {
      * TMAP의 문자열 숫자를 양수 단위값으로 검증한 뒤 내부 결과로 변환합니다.
      */
     private TmapRouteSummary validateAndMap(TmapApiResponse response) {
-        if (response == null
-                || !"FeatureCollection".equals(response.type())
-                || response.properties() == null) {
+        if (response == null || !"FeatureCollection".equals(response.type())) {
+            throw invalidResponse();
+        }
+        TmapApiResponseProperties properties = response.properties();
+        if (properties == null && response.features() != null && !response.features().isEmpty()) {
+            properties = response.features().getFirst().properties();
+        }
+        if (properties == null) {
             throw invalidResponse();
         }
         try {
-            long distanceMeters = Long.parseLong(response.properties().totalDistance());
-            long durationSeconds = Long.parseLong(response.properties().totalTime());
+            long distanceMeters = Long.parseLong(properties.totalDistance());
+            long durationSeconds = Long.parseLong(properties.totalTime());
             if (distanceMeters <= 0 || durationSeconds <= 0) {
                 throw invalidResponse();
             }
@@ -142,7 +162,7 @@ public class TmapRouteClient {
                 "TMAP 응답에 유효한 거리와 시간이 없습니다.");
     }
 
-    private record TmapApiRequest(
+    private record TmapMultiApiRequest(
             String reqCoordType,
             String resCoordType,
             String startName,
@@ -157,6 +177,17 @@ public class TmapRouteClient {
             List<TmapApiWaypoint> viaPoints) {
     }
 
+    private record TmapSingleApiRequest(
+            String reqCoordType,
+            String resCoordType,
+            String startX,
+            String startY,
+            String endX,
+            String endY,
+            int searchOption,
+            int carType) {
+    }
+
     private record TmapApiWaypoint(
             String viaPointId,
             String viaPointName,
@@ -164,7 +195,13 @@ public class TmapRouteClient {
             String viaY) {
     }
 
-    private record TmapApiResponse(String type, TmapApiResponseProperties properties) {
+    private record TmapApiResponse(
+            String type,
+            TmapApiResponseProperties properties,
+            List<TmapApiFeature> features) {
+    }
+
+    private record TmapApiFeature(TmapApiResponseProperties properties) {
     }
 
     private record TmapApiResponseProperties(String totalDistance, String totalTime) {

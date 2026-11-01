@@ -155,16 +155,55 @@ class TmapRouteClientTest {
     }
 
     /**
-     * 다중 경유지 API에 비어 있는 목록을 보내 쿼터를 낭비하지 않도록 사전 차단합니다.
+     * 경유지가 없는 편도는 공식 자동차 경로안내 API와 간소화 응답을 사용하는지 확인합니다.
      */
     @Test
-    void rejectsEmptyWaypointList() {
-        assertThatThrownBy(() -> new TmapRouteSearch(
-                new TmapCoordinate(BigDecimal.ZERO, BigDecimal.ZERO),
-                new TmapCoordinate(BigDecimal.ONE, BigDecimal.ONE),
-                List.of()))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("1개 이상 30개 이하");
+    void sendsSingleRouteRequestWhenWaypointListIsEmpty() {
+        RestClient.Builder builder = RestClient.builder()
+                .baseUrl(BASE_URL)
+                .defaultHeader("appKey", TEST_APP_KEY);
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        TmapRouteClient client = createClient(builder, 90);
+        TmapRouteSearch search = new TmapRouteSearch(
+                new TmapCoordinate(new BigDecimal("0.100000"), new BigDecimal("0.200000")),
+                new TmapCoordinate(new BigDecimal("0.300000"), new BigDecimal("0.400000")),
+                List.of());
+
+        server.expect(requestTo(BASE_URL + "/tmap/routes?version=1&totalValue=2"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header("appKey", TEST_APP_KEY))
+                .andExpect(content().json("""
+                        {
+                          "reqCoordType": "WGS84GEO",
+                          "resCoordType": "WGS84GEO",
+                          "startX": "0.200000",
+                          "startY": "0.100000",
+                          "endX": "0.400000",
+                          "endY": "0.300000",
+                          "searchOption": 0,
+                          "carType": 1
+                        }
+                        """, JsonCompareMode.LENIENT))
+                .andRespond(withSuccess("""
+                        {
+                          "type": "FeatureCollection",
+                          "features": [
+                            {
+                              "type": "Feature",
+                              "properties": {
+                                "totalDistance": 4200,
+                                "totalTime": 901
+                              }
+                            }
+                          ]
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        TmapRouteSummary result = client.findRoute(search);
+
+        assertThat(result.distanceMeters()).isEqualTo(4200L);
+        assertThat(result.durationSeconds()).isEqualTo(901L);
+        server.verify();
     }
 
     private TmapRouteClient createClient(RestClient.Builder builder, int dailyLimit) {

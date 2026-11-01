@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
  * 존재하지 않는 코스를 만들지 않고 빈 결과와 미연동 상태만 반환합니다.
  */
 @Component
-@Profile("!mock")
+@Profile("!mock & !tmap")
 public class UnavailableDrivingRouteProvider implements DrivingRouteProvider {
 
     /**

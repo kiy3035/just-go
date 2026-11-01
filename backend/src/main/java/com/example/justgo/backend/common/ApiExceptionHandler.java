@@ -3,6 +3,8 @@ package com.example.justgo.backend.common;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import com.example.justgo.backend.integration.routing.tmap.TmapClientErrorType;
+import com.example.justgo.backend.integration.routing.tmap.TmapRouteClientException;
 import com.example.justgo.backend.route.UnsupportedDrivingDurationException;
 import com.example.justgo.backend.spot.InvalidSpotLimitException;
 import org.springframework.http.HttpStatus;
@@ -44,6 +46,22 @@ public class ApiExceptionHandler {
                 "UNSUPPORTED_DURATION",
                 exception.getMessage(),
                 Map.of("desiredMinutes", exception.getMessage())));
+    }
+
+    /**
+     * TMAP 인증·쿼터·네트워크 오류를 비밀값이나 원시 응답 없이 안전한 API 오류로 변환합니다.
+     */
+    @ExceptionHandler(TmapRouteClientException.class)
+    public ResponseEntity<ApiErrorResponse> handleTmapFailure(TmapRouteClientException exception) {
+        boolean temporarilyUnavailable = exception.errorType() == TmapClientErrorType.AUTHENTICATION
+                || exception.errorType() == TmapClientErrorType.QUOTA_EXCEEDED;
+        HttpStatus status = temporarilyUnavailable
+                ? HttpStatus.SERVICE_UNAVAILABLE
+                : HttpStatus.BAD_GATEWAY;
+        return ResponseEntity.status(status).body(new ApiErrorResponse(
+                "ROUTE_PROVIDER_UNAVAILABLE",
+                "외부 자동차 경로 제공자 호출에 실패했습니다.",
+                Map.of()));
     }
 
     /**

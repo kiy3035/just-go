@@ -19,17 +19,17 @@
 | 저장소 구조 | 완료 | `backend`, `infra`, `docs`, Android 자리 구성 | `main` 및 기존 `origin` 사용 |
 | 백엔드 골격 | 완료 | Spring Boot 3.5.16, Gradle 8.14.6, MyBatis XML, Flyway, Actuator | 전체 자동 테스트 통과 |
 | 로컬 DB·인프라 | 완료 | PostgreSQL 17.11 Compose, 볼륨, healthcheck, loopback 바인딩 | 실제 컨테이너·Flyway V1/V2 검증 완료 |
-| 추천 REST 골격 | 완료 | 왕복·편도, 직접 시간, 테마 요청과 교체 가능한 Provider, `MOCK`/`UNAVAILABLE` 구분 | 직접 시간 범위는 임시 기준, 실제 외부 자동차 경로는 아직 미연동 |
+| 추천 REST 골격 | 완료 | 왕복·편도, 직접 시간, 테마 요청과 교체 가능한 Provider, `MOCK`/`LIVE`/`UNAVAILABLE` 구분 | 직접 시간 범위는 임시 기준 |
 | 경관 장소 후보 | 완료 | VERIFIED·활성·좌표 보유 후보만 MyBatis XML로 조회 | 실제 장소 데이터는 사용권·수동 검수 전이라 없음 |
 | 추천 후보 연결 | 완료 | 검수 완료 장소를 최대 20건 조회해 경로 제공자 요청 경계로 전달 | 외부 제공자 호출 없이 단위 테스트로 전달 구조 검증 |
 | 웹 입력 화면 시안 | 완료 | `/`에서 왕복·편도, 시간, 다섯 풍경 테마 선택과 요약 가능 | 화면 시안이며 Android 대체물·실제 추천 결과가 아님 |
 | Android Studio | 완료 | 프로그램 설치 확인 | Android SDK/API 34와 프로젝트는 아직 없음 |
 | Android SDK·프로젝트 | 보류 | 사용자 지시로 Java/Web 백엔드 작업을 우선함 | 재개 시 API 34 설치, Java/XML 프로젝트 생성, `assembleDebug` 필요 |
 | Pleos Emulator·NaviHelper | 차단 | 실제 연동 코드를 만들지 않음 | 공식 최소 GPU를 만족하는 장비, SDK/계정, 에뮬레이터 검증 필요 |
-| 실제 추천 알고리즘 | 진행 가능 | 후보 조회·Provider 경계까지 준비됨 | 목표 시간 정의·허용 오차 확정과 실제 경로 결과가 필요 |
+| 목표 시간 추천·순위 | 진행 가능 | TMAP 시간·거리 수집 경계까지 연결 | 허용 오차 확정, 후보 필터·정렬·경관 점수화 필요 |
 | 외부 경로 API 조사 | 완료 | TMAP·카카오모빌리티·NAVER 공식 기능·가격·쿼터·제약 비교 | `routing-provider-comparison.md`에 확인일과 근거 기록 |
-| TMAP HTTP 클라이언트 | 완료 | WGS84 다중 경유지 30 요청, timeout, 일일 로컬 상한 90건, 오류·응답 검증 | 모의 HTTP 테스트만 통과, 실제 TMAP 호출은 미실행 |
-| TMAP 추천 Provider 연동 | 차단 | TMAP Free 선택, 키·계정·결제 연동 없음 | 사용자 앱 키 발급과 왕복 정책 결정 필요 |
+| TMAP HTTP 클라이언트 | 완료 | WGS84 일반 자동차·다중 경유지 요청, timeout, 일일 로컬 상한 90건, 오류·응답 검증 | 모의 HTTP 테스트만 통과, 실제 TMAP 호출은 미실행 |
+| TMAP 추천 Provider 연동 | 완료 | 왕복=후보 경유 후 복귀, 편도=후보 도착, 요청당 최대 3건 계산 | 모의 테스트만 통과, 실제 앱 키·외부 호출 미검증 |
 | 원격 HTTPS 백엔드 | 미착수 | 로컬 개발만 구성 | 제출/시연 방식 확정 후 비용·보안 검토 필요 |
 | Release APK·서명 | 미착수 | 키 생성·커밋 없음 | Android 완성 후 고유 applicationId, 서명, 실제 실행 검증 필요 |
 
@@ -40,10 +40,12 @@
   → RouteRecommendationService
   → VERIFIED 경관 장소 후보 조회
   → DrivingRouteProvider 요청 모델로 후보 전달
-  → MOCK 또는 UNAVAILABLE 응답
+  → mock 프로필: MOCK 응답
+  → tmap 프로필: 후보 최대 3건의 TMAP 시간·거리 LIVE 응답
+  → 기본 프로필: UNAVAILABLE 응답
 ```
 
-현재 `MOCK` 결과는 화면·REST 연결 확인 전용 가짜 예시이며 실제 도로 경로, 시간, 거리로 간주하지 않습니다. 일반 프로필은 외부 제공자가 없으므로 실제 코스를 만들지 않습니다.
+현재 `MOCK` 결과는 화면·REST 연결 확인 전용 가짜 예시이며 실제 도로 경로, 시간, 거리로 간주하지 않습니다. `LIVE` 경로는 코드상 연결됐지만 실제 앱 키 호출은 아직 검증하지 않았습니다. 기본 프로필은 외부 제공자가 없으므로 실제 코스를 만들지 않습니다.
 
 ## 건너뛰거나 미룬 작업
 
@@ -51,16 +53,16 @@
 2. Android Java/XML 프로젝트 생성과 `assembleDebug`
 3. Pleos AVD 설치·Cold boot·화면 실행 검증
 4. NaviHelper 단일 목적지·다중 경유지 실제 호출 검증
-5. 실제 외부 자동차 경로 API 선정·계정·키 연동
+5. TMAP Free 계정·앱 키 발급과 실제 호출 검증
 6. 수동 검수된 실제 경관 장소/구간 데이터 등록
 7. 실제 경로 시간·거리 기반 0~3개 추천 및 실패 대안
 8. 원격 HTTPS 배포, 고유 applicationId, Release APK와 서명
 
 ## 바로 이어갈 다음 작업
 
-1. `ROUND_TRIP`/`ONE_WAY`별 출발·도착·경유지 구성 정책과 직접 입력 시간 범위의 최종값을 확정한다.
-2. 사용자가 SK open API Free 프로젝트·앱 키를 발급하고 로컬 `TMAP_APP_KEY` 환경변수로만 설정한다.
-3. 확정된 주행 정책으로 TMAP 클라이언트를 추천 Provider에 연결하고 가짜가 아닌 실제 테스트 응답을 검증한다.
+1. 목표 시간 허용 오차와 후보 필터·정렬 기준을 확정하고 추천 알고리즘을 구현한다.
+2. 사용자가 SK open API Free 프로젝트·앱 키를 발급하고 로컬 `TMAP_APP_KEY` 환경변수로만 설정한 뒤 실제 응답을 검증한다.
+3. 수동 검수·사용권 확인을 마친 실제 경관 후보 데이터를 준비한다.
 
 ## 갱신 규칙
 
