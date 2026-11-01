@@ -101,15 +101,16 @@ $env:SERVER_PORT = "18080"
 
 `tmap` 프로필은 TMAP Provider를 활성화합니다. 왕복은 검수 후보를 경유해 출발지로 복귀하는 다중 경유지 요청, 편도는 후보를 도착지로 사용하는 일반 자동차 경로 요청으로 구성됩니다. 프로필을 켠 상태에서 추천 API를 호출하면 외부 요청이 발생하므로 앱 키와 무료 쿼터를 확인해야 합니다.
 
-앱 키를 발급한 뒤에도 키를 파일이나 명령 이력에 저장하지 말고 IDE의 비공개 Run Configuration 또는 현재 PowerShell 세션의 환경변수로만 전달합니다.
+백엔드는 실행 디렉터리의 `backend/.env`를 선택적으로 읽습니다. `.env.example`을 복사한 뒤 실제 로컬 DB 비밀번호와 TMAP 앱 키만 입력합니다. 실제 `.env`는 Git에서 제외되며 저장소에는 예시 파일만 둡니다.
 
 ```powershell
-$env:SPRING_PROFILES_ACTIVE = "local,tmap"
-$env:TMAP_APP_KEY = "<로컬에서 발급한 키>"
-$env:TMAP_DAILY_CALL_LIMIT = "90"
+cd C:\myProject\just-go\backend
+Copy-Item .env.example .env
+# 메모장 또는 IDE에서 .env의 DB_PASSWORD와 TMAP_APP_KEY만 실제 로컬 값으로 변경
+.\gradlew.bat bootRun --args="--spring.profiles.active=local,tmap"
 ```
 
-기본 connect timeout은 2초, read timeout은 5초이며 자동 재시도는 하지 않습니다. Free 다중 경유지 일 100건보다 낮은 로컬 상한 90건과 추천 요청당 후보 최대 3건 제한을 적용합니다. 키를 Git, 문서, 로그, Android 앱에 넣지 않습니다. 이 저장소에서는 아직 실제 앱 키 호출을 검증하지 않았습니다.
+`backend/.env`는 백엔드 전용이고 `infra/.env`는 PostgreSQL Docker Compose 전용이므로 서로 다른 파일입니다. 기본 connect timeout은 2초, read timeout은 5초이며 자동 재시도는 하지 않습니다. Free 다중 경유지 일 100건보다 낮은 로컬 상한 90건과 추천 요청당 후보 최대 3건 제한을 적용합니다. 키를 Git, 문서, 로그, Android 앱에 넣지 않습니다. 이 저장소에서는 아직 실제 앱 키 호출을 검증하지 않았습니다.
 
 ## 3. 로컬 인프라 종료와 데이터 초기화
 

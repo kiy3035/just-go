@@ -249,3 +249,14 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - `.\gradlew.bat clean test --no-daemon`: 수정 후 전체 36개 테스트 통과, 실패·오류·건너뜀 0개.
 - `.\gradlew.bat build --no-daemon`: 성공. 경로 지점 DTO와 OpenAPI 0.5.0 계약을 포함한 실행 JAR을 생성했습니다.
 - 실제 TMAP 호출, API 키, 계정, 결제수단, 유료 서비스는 사용하지 않았습니다.
+
+## 18. 2026-11-01 백엔드 로컬 `.env` 로딩
+
+- Spring Boot 공식 Config Data import 방식으로 실행 디렉터리의 `backend/.env`를 properties 형식으로 선택 로드하도록 구성했습니다.
+- 실제 `.env`는 기존 `.gitignore`의 `**/.env` 규칙으로 계속 제외하고, 저장소에는 가짜 자리표시자만 있는 `backend/.env.example`을 추가했습니다.
+- `backend/.env`에는 백엔드 DB 접속값과 `TMAP_APP_KEY`를 두며, PostgreSQL Compose용 `infra/.env`와 용도를 분리했습니다.
+- `git check-ignore -v --no-index backend/.env`: `.gitignore`의 `**/.env` 규칙 적용을 확인했습니다.
+- 첫 빌드 명령은 Gradle Wrapper가 없는 저장소 루트에서 실행해 실패했고, `backend` 디렉터리에서 다시 실행했습니다.
+- `.\gradlew.bat clean test --no-daemon`: 전체 36개 테스트 통과, 실패·오류·건너뜀 0개.
+- `.\gradlew.bat build --no-daemon`: 백엔드 디렉터리에서 성공했습니다.
+- 실제 앱 키·비밀번호 파일은 생성하거나 읽지 않았습니다.
