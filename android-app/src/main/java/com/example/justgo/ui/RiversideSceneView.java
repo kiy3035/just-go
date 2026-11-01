@@ -2,14 +2,34 @@ package com.example.justgo.ui;
 
 import android.animation.ValueAnimator;
 import android.content.Context;
-import android.graphics.*;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.LinearGradient;
+import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.RadialGradient;
+import android.graphics.RectF;
+import android.graphics.Shader;
 import android.util.AttributeSet;
 import android.view.View;
 import android.view.animation.LinearInterpolator;
 
 /** Decorative, theme-specific illustrations, independent of real vehicle/location data. */
 public final class RiversideSceneView extends View {
-    public enum Theme { ANYWHERE, CITY, MOUNTAIN, SEA, WATER, PARK }
+    public enum Theme {
+        ANYWHERE("어디든 좋아"), CITY("도시"), MOUNTAIN("산"),
+        SEA("바다"), WATER("강/호수"), PARK("공원");
+
+        private final String label;
+
+        Theme(String label) { this.label = label; }
+
+        public String getLabel() { return label; }
+    }
+
+    private static final int SCENE_WIDTH = 600;
+    private static final int SCENE_HEIGHT = 1000;
+    private static final long ANIMATION_DURATION_MS = 24_000L;
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path path = new Path();
     private final RectF rect = new RectF();
@@ -23,7 +43,7 @@ public final class RiversideSceneView extends View {
         super(context, attrs);
         setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
         animator = ValueAnimator.ofFloat(0f, 1f);
-        animator.setDuration(24000);
+        animator.setDuration(ANIMATION_DURATION_MS);
         animator.setRepeatCount(ValueAnimator.INFINITE);
         animator.setInterpolator(new LinearInterpolator());
         animator.addUpdateListener(value -> {
@@ -79,7 +99,7 @@ public final class RiversideSceneView extends View {
     }
 
     private void buildBackground() {
-        background = Bitmap.createBitmap(600, 1000, Bitmap.Config.ARGB_8888);
+        background = Bitmap.createBitmap(SCENE_WIDTH, SCENE_HEIGHT, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(background);
         paint.setShader(new LinearGradient(0, 0, 0, 650, 0xFF82B8E2, 0xFFEBF5F5, Shader.TileMode.CLAMP));
         c.drawRect(0, 0, 600, 1000, paint); paint.setShader(null);
@@ -171,8 +191,6 @@ public final class RiversideSceneView extends View {
         hill(c, 650, 0xFF6D9282, 100);
         hill(c, 721, 0xFF507A65, 35);
         for (int i = 0; i < 38; i++) tree(c, i * 18 - 15, 730, 38 + i * 11 % 43, true);
-        box(c, 0, 724, 600, 4, 0xFFB3C4BD);
-        for (int i = 0; i < 15; i++) box(c, i * 48, 724, 4, 23, 0xFFB3C4BD);
     }
 
     private void drawSea(Canvas c) {
@@ -180,8 +198,6 @@ public final class RiversideSceneView extends View {
         paint.setShader(new LinearGradient(0, 545, 0, 734, 0xFF54A5CD, 0xFF2A6E9B, Shader.TileMode.CLAMP));
         c.drawRect(0, 545, 600, 734, paint); paint.setShader(null);
         ripples(c, 556, 150);
-        box(c, 0, 726, 600, 10, 0xFFB1B39A);
-        for (int i = 0; i < 17; i++) box(c, i * 42, 722, 4, 24, 0xFFA6BBB4);
     }
 
     private void drawWater(Canvas c) {
@@ -190,10 +206,6 @@ public final class RiversideSceneView extends View {
         paint.setShader(new LinearGradient(0, 636, 0, 734, 0xFF8EBBC9, 0xFFB0CCCC, Shader.TileMode.CLAMP));
         c.drawRect(0, 636, 600, 734, paint); paint.setShader(null);
         ripples(c, 643, 75);
-        for (int i = 0; i < 28; i++) {
-            paint.setColor(0xFF6C8B64); paint.setStrokeWidth(2);
-            c.drawLine(i * 24, 742, i * 24 + 4, 726 - i % 4 * 3, paint);
-        }
     }
 
     private void ripples(Canvas c, int top, int height) {
@@ -208,14 +220,13 @@ public final class RiversideSceneView extends View {
     private void drawPark(Canvas c) {
         hill(c, 640, 0xFFA3C49A, 70); hill(c, 697, 0xFF729C64, 35);
         for (int i = 0; i < 8; i++) tree(c, i * 87 - 8, 700 + i % 3 * 12, 34 + i % 3 * 15, false);
-        for (int i = 0; i < 35; i++) oval(c, i * 41 % 600, 710 + i * 13 % 22, 4, 4, 0xFFCCCE95);
     }
 
     @Override protected void onDraw(Canvas c) {
         super.onDraw(c);
         if (background == null) buildBackground();
         rect.set(0, 0, getWidth(), getHeight()); c.drawBitmap(background, null, rect, paint);
-        c.save(); c.scale(getWidth() / 600f, getHeight() / 1000f);
+        c.save(); c.scale(getWidth() / (float) SCENE_WIDTH, getHeight() / (float) SCENE_HEIGHT);
         float offset = phase * 720 % 60;
         for (int i = 0; i < 12; i++) box(c, i * 60 - offset, 753, 29, 3, 0xFFAFBFB7);
         drawCar(c);

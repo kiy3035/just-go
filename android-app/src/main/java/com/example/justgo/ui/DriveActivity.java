@@ -2,19 +2,21 @@ package com.example.justgo.ui;
 
 import android.app.Activity;
 import android.os.Bundle;
-import android.view.View;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.SpannableString;
 import android.text.Spanned;
-import android.text.style.RelativeSizeSpan;
 import android.text.style.ForegroundColorSpan;
+import android.text.style.RelativeSizeSpan;
+import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import com.example.justgo.R;
 import com.example.justgo.data.DriveSelection;
 import com.example.justgo.databinding.ActivityDriveBinding;
 
 public final class DriveActivity extends Activity {
+    private static final long PREVIEW_DURATION_MS = 1_800L;
+    private static final String SEARCH_PROMPT = "이 조건으로 코스 찾기  →";
     private ActivityDriveBinding binding;
     private String lastSummary;
     private final Handler uiHandler = new Handler(Looper.getMainLooper());
@@ -43,13 +45,17 @@ public final class DriveActivity extends Activity {
         updateTimeHint();
         syncScenery();
     }
+    private RiversideSceneView.Theme selectedTheme() {
+        if (binding.city.isChecked()) return RiversideSceneView.Theme.CITY;
+        if (binding.mountain.isChecked()) return RiversideSceneView.Theme.MOUNTAIN;
+        if (binding.sea.isChecked()) return RiversideSceneView.Theme.SEA;
+        if (binding.water.isChecked()) return RiversideSceneView.Theme.WATER;
+        if (binding.park.isChecked()) return RiversideSceneView.Theme.PARK;
+        return RiversideSceneView.Theme.ANYWHERE;
+    }
+
     private void syncScenery() {
-        RiversideSceneView.Theme theme = binding.city.isChecked() ? RiversideSceneView.Theme.CITY
-            : binding.mountain.isChecked() ? RiversideSceneView.Theme.MOUNTAIN
-            : binding.sea.isChecked() ? RiversideSceneView.Theme.SEA
-            : binding.water.isChecked() ? RiversideSceneView.Theme.WATER
-            : binding.park.isChecked() ? RiversideSceneView.Theme.PARK : RiversideSceneView.Theme.ANYWHERE;
-        binding.scenery.setTheme(theme);
+        binding.scenery.setTheme(selectedTheme());
     }
     private void syncCustomInput() {
         boolean custom = binding.timeCustom.isChecked();
@@ -70,9 +76,7 @@ public final class DriveActivity extends Activity {
             binding.customMinutes.requestFocus();
             return;
         }
-        String theme = binding.anywhere.isChecked() ? "어디든 좋아" : binding.city.isChecked() ? "도시"
-            : binding.mountain.isChecked() ? "산" : binding.sea.isChecked() ? "바다"
-            : binding.water.isChecked() ? "강/호수" : "공원";
+        String theme = selectedTheme().getLabel();
         lastSummary = (binding.roundTrip.isChecked() ? "왕복" : "편도") + " · " + minutes + "분 · " + theme;
         binding.customMinutes.clearFocus();
         ((InputMethodManager) getSystemService(INPUT_METHOD_SERVICE))
@@ -88,12 +92,12 @@ public final class DriveActivity extends Activity {
         binding.findRoute.setText(label);
         binding.findRoute.setContentDescription(prefix + lastSummary);
         // UI processing preview only. No route API is invoked or fabricated.
-        uiHandler.postDelayed(completePreview, 1800);
+        uiHandler.postDelayed(completePreview, PREVIEW_DURATION_MS);
     }
     private void resetSearchButton() {
         binding.findRoute.setActivated(false);
         binding.findRoute.setEnabled(true);
-        binding.findRoute.setText("이 조건으로 코스 찾기  →");
+        binding.findRoute.setText(SEARCH_PROMPT);
         binding.findRoute.setContentDescription(null);
     }
     @Override protected void onStop() {
