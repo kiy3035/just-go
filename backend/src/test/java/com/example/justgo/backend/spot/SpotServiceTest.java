@@ -1,0 +1,51 @@
+package com.example.justgo.backend.spot;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import java.math.BigDecimal;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
+/**
+ * 장소 후보 서비스의 조회 제한과 DB 모델 변환을 검증합니다.
+ */
+class SpotServiceTest {
+
+    private final SpotMapper spotMapper = mock(SpotMapper.class);
+    private final SpotService spotService = new SpotService(spotMapper);
+
+    /**
+     * Mapper가 반환한 검수 후보를 외부 응답 DTO로 변환하는지 확인합니다.
+     */
+    @Test
+    void returnsVerifiedCandidates() {
+        when(spotMapper.findVerifiedCandidatesByTheme(ScenicTheme.SEA, 10))
+                .thenReturn(List.of(new SpotCandidateRecord(
+                        1L,
+                        "VERIFIED_SPOT_TEST_ONLY",
+                        ScenicTheme.SEA,
+                        new BigDecimal("0.100000"),
+                        new BigDecimal("0.200000"))));
+
+        SpotCandidateListResponse response =
+                spotService.findVerifiedCandidates(ScenicTheme.SEA, 10);
+
+        assertThat(response.count()).isOne();
+        assertThat(response.spots().getFirst().name()).isEqualTo("VERIFIED_SPOT_TEST_ONLY");
+        assertThat(response.spots().getFirst().theme()).isEqualTo(ScenicTheme.SEA);
+    }
+
+    /**
+     * 과도한 조회로 DB와 응답이 커지지 않도록 1~50 범위를 강제하는지 확인합니다.
+     */
+    @Test
+    void rejectsInvalidLimit() {
+        assertThatThrownBy(() -> spotService.findVerifiedCandidates(ScenicTheme.CITY, 51))
+                .isInstanceOf(InvalidSpotLimitException.class)
+                .hasMessageContaining("1 이상 50 이하");
+    }
+}

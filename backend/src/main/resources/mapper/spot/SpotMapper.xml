@@ -11,6 +11,16 @@
         </constructor>
     </resultMap>
 
+    <resultMap id="spotCandidateRecordMap" type="com.example.justgo.backend.spot.SpotCandidateRecord">
+        <constructor>
+            <idArg column="id" javaType="java.lang.Long"/>
+            <arg column="name" javaType="java.lang.String"/>
+            <arg column="theme" javaType="com.example.justgo.backend.spot.ScenicTheme"/>
+            <arg column="latitude" javaType="java.math.BigDecimal"/>
+            <arg column="longitude" javaType="java.math.BigDecimal"/>
+        </constructor>
+    </resultMap>
+
     <insert id="insert">
         INSERT INTO spot (name, theme)
         VALUES (#{name}, #{theme}::varchar)
@@ -28,5 +38,35 @@
         WHERE name = #{name}
         ORDER BY id DESC
         LIMIT 1
+    </select>
+
+    <insert id="insertCandidate">
+        INSERT INTO spot (
+            name,
+            theme,
+            latitude,
+            longitude,
+            verification_status,
+            enabled
+        ) VALUES (
+            #{name},
+            #{theme}::varchar,
+            #{latitude},
+            #{longitude},
+            #{verificationStatus}::varchar,
+            #{enabled}
+        )
+    </insert>
+
+    <select id="findVerifiedCandidatesByTheme" resultMap="spotCandidateRecordMap">
+        SELECT id, name, theme, latitude, longitude
+        FROM spot
+        WHERE theme = #{theme}::varchar
+          AND verification_status = 'VERIFIED'
+          AND enabled = TRUE
+          AND latitude IS NOT NULL
+          AND longitude IS NOT NULL
+        ORDER BY id
+        LIMIT #{limit}
     </select>
 </mapper>

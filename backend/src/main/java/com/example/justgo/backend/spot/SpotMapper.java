@@ -1,5 +1,7 @@
 package com.example.justgo.backend.spot;
 
+import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import org.apache.ibatis.annotations.Mapper;
@@ -36,4 +38,29 @@ public interface SpotMapper {
      * @return 일치하는 최신 식별자, 없으면 빈 Optional
      */
     Optional<Long> findLatestIdByName(@Param("name") String name);
+
+    /**
+     * 테스트와 향후 관리 기능에서 좌표와 검수 상태가 있는 후보를 추가합니다.
+     * 공개 API에서는 이 쓰기 기능을 노출하지 않습니다.
+     *
+     * @return 추가된 행 수
+     */
+    int insertCandidate(
+            @Param("name") String name,
+            @Param("theme") ScenicTheme theme,
+            @Param("latitude") BigDecimal latitude,
+            @Param("longitude") BigDecimal longitude,
+            @Param("verificationStatus") SpotVerificationStatus verificationStatus,
+            @Param("enabled") boolean enabled);
+
+    /**
+     * 지정한 테마에서 활성화된 검수 완료 후보만 식별자 순으로 조회합니다.
+     *
+     * @param theme 풍경 테마
+     * @param limit 최대 조회 건수
+     * @return 검수 완료 장소 후보
+     */
+    List<SpotCandidateRecord> findVerifiedCandidatesByTheme(
+            @Param("theme") ScenicTheme theme,
+            @Param("limit") int limit);
 }

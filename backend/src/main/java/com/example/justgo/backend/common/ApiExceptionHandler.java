@@ -4,13 +4,16 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import com.example.justgo.backend.route.UnsupportedDrivingDurationException;
+import com.example.justgo.backend.spot.InvalidSpotLimitException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
  * 입력 오류를 민감정보 없는 공통 JSON 응답으로 변환합니다.
@@ -41,6 +44,33 @@ public class ApiExceptionHandler {
                 "UNSUPPORTED_DURATION",
                 exception.getMessage(),
                 Map.of("desiredMinutes", exception.getMessage())));
+    }
+
+    /**
+     * 장소 후보 조회 개수 위반을 필드 오류로 반환합니다.
+     */
+    @ExceptionHandler(InvalidSpotLimitException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidSpotLimit(InvalidSpotLimitException exception) {
+        return ResponseEntity.badRequest().body(new ApiErrorResponse(
+                "INVALID_LIMIT",
+                exception.getMessage(),
+                Map.of("limit", exception.getMessage())));
+    }
+
+    /**
+     * 필수 쿼리 파라미터 누락이나 알 수 없는 풍경 테마를 일관된 400 오류로 처리합니다.
+     */
+    @ExceptionHandler({
+            MethodArgumentTypeMismatchException.class,
+            MissingServletRequestParameterException.class
+    })
+    public ResponseEntity<ApiErrorResponse> handleInvalidQueryParameter(Exception exception) {
+        String parameterName = exception instanceof MethodArgumentTypeMismatchException mismatch
+                ? mismatch.getName()
+                : ((MissingServletRequestParameterException) exception).getParameterName();
+        String message = "쿼리 파라미터를 확인해 주세요: " + parameterName;
+        return ResponseEntity.badRequest().body(
+                new ApiErrorResponse("INVALID_PARAMETER", message, Map.of(parameterName, message)));
     }
 
     /**

@@ -7,6 +7,40 @@ info:
     mode=MOCK인 응답은 실제 도로·시간·거리 데이터가 아닙니다. 외부 경로 제공자는
     아직 확정하거나 연결하지 않았습니다.
 paths:
+  /api/v1/spots:
+    get:
+      summary: 검수 완료 경관 장소 후보 조회
+      description: >-
+        지정한 풍경 테마에서 활성 상태이고 WGS84 좌표가 등록된 VERIFIED 장소만
+        식별자 순으로 조회합니다. 실제 장소 데이터는 별도 수동 검수 후 등록합니다.
+      operationId: findVerifiedSpotCandidates
+      parameters:
+        - name: theme
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/ScenicTheme'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        '200':
+          description: 검수 완료 장소 후보 목록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpotCandidateListResponse'
+        '400':
+          description: 테마 또는 조회 개수 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
   /api/v1/routes/recommendations:
     post:
       summary: 주행 조건으로 코스 추천 요청
@@ -36,6 +70,40 @@ paths:
                 $ref: '#/components/schemas/ApiErrorResponse'
 components:
   schemas:
+    SpotCandidateListResponse:
+      type: object
+      required: [theme, count, spots]
+      properties:
+        theme:
+          $ref: '#/components/schemas/ScenicTheme'
+        count:
+          type: integer
+          minimum: 0
+        spots:
+          type: array
+          items:
+            $ref: '#/components/schemas/SpotCandidateResponse'
+    SpotCandidateResponse:
+      type: object
+      required: [id, name, theme, latitude, longitude]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        theme:
+          $ref: '#/components/schemas/ScenicTheme'
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+          description: WGS84 위도
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+          description: WGS84 경도
     RouteRecommendationRequest:
       type: object
       required: [latitude, longitude, desiredMinutes, theme]

@@ -17,6 +17,7 @@
         button { border: 0; background: #155eef; color: white; font-weight: 700; cursor: pointer; }
         pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 16px; border-radius: 10px; background: #111827; color: #d1fae5; }
         .mock { color: #9a3412; font-weight: 800; }
+        .divider { margin: 36px 0; border: 0; border-top: 1px solid #d9dee7; }
         @media (max-width: 600px) { .row { grid-template-columns: 1fr; } }
     </style>
 </head>
@@ -62,11 +63,35 @@
     <h2>응답</h2>
     <p id="mode"></p>
     <pre id="result">아직 요청하지 않았습니다.</pre>
+
+    <hr class="divider">
+    <h2>검수 완료 장소 후보 조회</h2>
+    <p>DB에 직접 등록되고 <code>VERIFIED</code> 처리된 활성 장소만 조회합니다. 저장소에는 실제 장소 시드를 포함하지 않습니다.</p>
+    <form id="spot-form">
+        <div class="row">
+            <label>풍경 테마
+                <select id="spot-theme">
+                    <option value="CITY">도시</option>
+                    <option value="MOUNTAIN">산</option>
+                    <option value="RIVER">강</option>
+                    <option value="LAKE">호수</option>
+                    <option value="SEA">바다</option>
+                </select>
+            </label>
+            <label>최대 조회 개수
+                <input id="spot-limit" type="number" value="10" min="1" max="50" required>
+            </label>
+        </div>
+        <button type="submit">검수 완료 장소 조회</button>
+    </form>
+    <pre id="spot-result">아직 조회하지 않았습니다.</pre>
 </main>
 <script>
     const form = document.querySelector('#recommendation-form');
     const mode = document.querySelector('#mode');
     const result = document.querySelector('#result');
+    const spotForm = document.querySelector('#spot-form');
+    const spotResult = document.querySelector('#spot-result');
 
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -93,6 +118,22 @@
         } catch (error) {
             mode.textContent = '요청 실패';
             result.textContent = '백엔드가 실행 중인지 확인해 주세요.';
+        }
+    });
+
+    spotForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        spotResult.textContent = '조회 중...';
+
+        const theme = encodeURIComponent(document.querySelector('#spot-theme').value);
+        const limit = encodeURIComponent(document.querySelector('#spot-limit').value);
+
+        try {
+            const response = await fetch(`/api/v1/spots?theme=${theme}&limit=${limit}`);
+            const body = await response.json();
+            spotResult.textContent = JSON.stringify(body, null, 2);
+        } catch (error) {
+            spotResult.textContent = '백엔드가 실행 중인지 확인해 주세요.';
         }
     });
 </script>

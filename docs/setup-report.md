@@ -150,3 +150,15 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - `POST /api/v1/routes/recommendations`: HTTP 200, `mock: true`, `mode: MOCK`, `X-Trace-Id` 유지 확인. 45분 요청은 HTTP 400과 `UNSUPPORTED_DURATION` 확인.
 - 첫 실제 기동은 기존 보존 볼륨의 비밀번호 불일치로 실패했고, 두 번째 시도는 `.env.example` 문자열을 잘못 입력해 실패했습니다. 기존 데이터는 삭제하지 않았고 별도 테스트 볼륨과 정확한 가짜 예시값으로 재검증했습니다.
 - `.\gradlew.bat build --no-daemon`: 성공, 실행 JAR 생성 확인.
+
+## 9. 2026-11-01 경관 장소 후보 조회 작업
+
+- 기존 V1 마이그레이션은 수정하지 않고 V2에서 WGS84 위도·경도, 검수 상태, 활성 여부를 추가했습니다.
+- 검수 상태는 `PENDING`, `VERIFIED`, `REJECTED`로 구분하며 추천 후보 조회는 `VERIFIED`·활성·좌표 존재 조건을 모두 적용합니다.
+- `GET /api/v1/spots?theme={THEME}&limit={1..50}` API와 Controller → Service → MyBatis XML 구조를 추가했습니다.
+- 실제 장소 시드와 외부 지도 응답은 추가하지 않았습니다. 향후 수동 검수와 라이선스 확인을 거쳐 별도 등록해야 합니다.
+- 개발용 웹 화면에서 장소 후보 조회 API를 확인할 수 있게 했습니다.
+- `.\gradlew.bat clean test --no-daemon`: 전체 12개 테스트 통과, 실패·오류 0개.
+- `.\gradlew.bat build --no-daemon`: 성공, V2 마이그레이션과 웹 정적 파일이 포함된 실행 JAR 생성 확인.
+- 보존된 PostgreSQL 17.11 테스트 DB에서 기존 V1 다음에 V2만 추가 적용되는 것을 확인했습니다. `flyway_schema_history`의 V1·V2 모두 `success=true`입니다.
+- 실제 HTTP 검증: `/` 200 및 장소 조회 폼 포함, `GET /api/v1/spots?theme=RIVER&limit=10` 200과 빈 목록, 알 수 없는 테마와 `limit=51`은 각각 400 오류 계약을 확인했습니다.
