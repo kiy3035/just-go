@@ -69,6 +69,15 @@ class SpotMapperIntegrationTest {
                 new BigDecimal("0.200000"),
                 SpotVerificationStatus.VERIFIED,
                 true));
+        spotMapper.insertCandidate(candidateWithScores(
+                "HIGH_QUALITY_RIVER_TEST_ONLY",
+                ScenicTheme.RIVER,
+                new BigDecimal("0.150000"),
+                new BigDecimal("0.250000"),
+                true,
+                5,
+                5,
+                5));
         spotMapper.insertCandidate(candidate(
                 "PENDING_RIVER_TEST_ONLY",
                 ScenicTheme.RIVER,
@@ -89,7 +98,7 @@ class SpotMapperIntegrationTest {
 
         assertThat(candidates)
                 .extracting(SpotCandidateRecord::name)
-                .contains("VERIFIED_RIVER_TEST_ONLY")
+                .containsExactly("HIGH_QUALITY_RIVER_TEST_ONLY", "VERIFIED_RIVER_TEST_ONLY")
                 .doesNotContain("PENDING_RIVER_TEST_ONLY", "DISABLED_RIVER_TEST_ONLY");
     }
 
@@ -106,9 +115,53 @@ class SpotMapperIntegrationTest {
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
+                null,
                 null);
 
         assertThatThrownBy(() -> spotMapper.insertCandidate(missingProvenance))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    /** 출처가 있어도 품질 점수와 근거가 없는 새 VERIFIED 후보는 거부하는지 확인합니다. */
+    @Test
+    void rejectsVerifiedCandidateWithoutQualityEvaluation() {
+        SpotCandidateRegistration missingQuality = new SpotCandidateRegistration(
+                "MISSING_QUALITY_TEST_ONLY",
+                ScenicTheme.MOUNTAIN,
+                new BigDecimal("0.710000"),
+                new BigDecimal("0.810000"),
+                SpotVerificationStatus.VERIFIED,
+                true,
+                "SOURCE_TEST_ONLY",
+                "https://example.invalid/source-test-only",
+                "USAGE_RIGHTS_TEST_ONLY",
+                OffsetDateTime.parse("2026-01-01T00:00:00Z"),
+                null,
+                null,
+                null,
+                null);
+
+        assertThatThrownBy(() -> spotMapper.insertCandidate(missingQuality))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    /** 세 품질 항목 중 하나라도 3점 미만이면 VERIFIED 상태를 거부하는지 확인합니다. */
+    @Test
+    void rejectsVerifiedCandidateBelowMinimumQuality() {
+        SpotCandidateRegistration lowQuality = candidateWithScores(
+                "LOW_QUALITY_TEST_ONLY",
+                ScenicTheme.LAKE,
+                new BigDecimal("0.720000"),
+                new BigDecimal("0.820000"),
+                true,
+                2,
+                5,
+                5);
+
+        assertThatThrownBy(() -> spotMapper.insertCandidate(lowQuality))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
@@ -131,18 +184,47 @@ class SpotMapperIntegrationTest {
                     null,
                     null,
                     null,
+                    null,
+                    null,
+                    null,
+                    null,
                     null);
         }
+        return candidateWithScores(
+                name,
+                theme,
+                latitude,
+                longitude,
+                enabled,
+                3,
+                3,
+                3);
+    }
+
+    /** 출처 검수와 품질 점수를 모두 가진 VERIFIED 테스트 후보를 생성합니다. */
+    private SpotCandidateRegistration candidateWithScores(
+            String name,
+            ScenicTheme theme,
+            BigDecimal latitude,
+            BigDecimal longitude,
+            boolean enabled,
+            int themeFitScore,
+            int scenicQualityScore,
+            int routeSuitabilityScore) {
         return new SpotCandidateRegistration(
                 name,
                 theme,
                 latitude,
                 longitude,
-                verificationStatus,
+                SpotVerificationStatus.VERIFIED,
                 enabled,
                 "SOURCE_TEST_ONLY",
                 "https://example.invalid/source-test-only",
                 "USAGE_RIGHTS_TEST_ONLY",
-                OffsetDateTime.parse("2026-01-01T00:00:00Z"));
+                OffsetDateTime.parse("2026-01-01T00:00:00Z"),
+                themeFitScore,
+                scenicQualityScore,
+                routeSuitabilityScore,
+                "QUALITY_REVIEW_TEST_ONLY");
     }
 }

@@ -302,3 +302,18 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - `.\gradlew.bat build --no-daemon`: 성공. V3 마이그레이션을 포함한 실행 JAR을 생성했습니다.
 - `docker compose --env-file .env.example --profile app config --quiet`: 성공.
 - `docker compose --env-file .env.example --profile app build backend`: 성공. V3가 포함된 로컬 백엔드 이미지를 생성했습니다.
+
+## 22. 2026-11-03 경관 후보 품질 점수
+
+- `docs/scenic-quality-rubric.md`에 테마 적합성, 풍경 품질, 경유지 적합성의 1~5점 수동 평가 기준을 추가했습니다.
+- 임시 PoC 기준으로 세 항목이 모두 3점 이상이어야 VERIFIED로 저장할 수 있으며, 1~2점 후보는 PENDING 또는 REJECTED로 관리합니다.
+- Flyway V4에 세 점수와 `quality_review_note`를 추가했습니다. 기존 V3 VERIFIED 행은 보존하되 품질 평가가 없으면 추천 조회에서 제외합니다.
+- 후보는 세 점수의 동일 가중치 합계가 높은 순, 같은 점수면 DB 식별자 순으로 조회됩니다. 이 순서는 외부 경로 계산 후보 우선순위이며 최종 목표 시간 ±15% 정책을 대체하지 않습니다.
+- `route_suitability_score`는 일반 승용차 경유지 사용 편의에 대한 검수값이며 실시간 안전·도로 통제·기상을 보증하지 않습니다.
+- 실제 장소나 좌표는 추가하지 않았고 모든 테스트 값은 명백한 TEST 전용 값과 `example.invalid`만 사용했습니다.
+- V3까지만 적용한 PostgreSQL 17에 출처가 있는 기존 VERIFIED 테스트 행을 만든 뒤 V4를 적용했습니다. 기존 행은 보존되고 새 품질 점수 없는 VERIFIED 저장과 3점 미만 점수가 있는 VERIFIED 저장은 SQLSTATE `23514`로 거부되는 것을 확인했습니다.
+- `.\gradlew.bat clean test --no-daemon`: 전체 42개 테스트 통과, 실패·오류·건너뜀 0개.
+- `.\gradlew.bat build --no-daemon`: 성공. V4 마이그레이션과 품질 점수 조회를 포함한 실행 JAR을 생성했습니다.
+- `docker compose --env-file .env.example --profile app config --quiet`: 성공.
+- `docker compose --env-file .env.example --profile app build backend`: 성공. V4가 포함된 `just-go-backend:local` 이미지를 생성했습니다.
+- 실제 TMAP 인증·외부 호출, 실제 위치 데이터, 결제수단이나 유료 서비스는 사용하지 않았습니다.

@@ -51,7 +51,11 @@
             source_name,
             source_reference,
             usage_rights_note,
-            verified_at
+            verified_at,
+            theme_fit_score,
+            scenic_quality_score,
+            route_suitability_score,
+            quality_review_note
         ) VALUES (
             #{name},
             #{theme}::varchar,
@@ -62,7 +66,11 @@
             #{sourceName},
             #{sourceReference},
             #{usageRightsNote},
-            #{verifiedAt}
+            #{verifiedAt},
+            #{themeFitScore},
+            #{scenicQualityScore},
+            #{routeSuitabilityScore},
+            #{qualityReviewNote}
         )
     </insert>
 
@@ -78,7 +86,12 @@
           AND NULLIF(BTRIM(source_reference), '') IS NOT NULL
           AND NULLIF(BTRIM(usage_rights_note), '') IS NOT NULL
           AND verified_at IS NOT NULL
-        ORDER BY id
+          AND theme_fit_score BETWEEN 3 AND 5
+          AND scenic_quality_score BETWEEN 3 AND 5
+          AND route_suitability_score BETWEEN 3 AND 5
+          AND NULLIF(BTRIM(quality_review_note), '') IS NOT NULL
+        ORDER BY (theme_fit_score + scenic_quality_score + route_suitability_score) DESC,
+                 id
         LIMIT #{limit}
     </select>
 </mapper>
