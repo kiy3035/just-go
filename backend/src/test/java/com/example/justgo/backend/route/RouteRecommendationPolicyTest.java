@@ -41,6 +41,19 @@ class RouteRecommendationPolicyTest {
                 .containsExactly("EXACT", "NEARER_DISTANCE", "FARTHER_DISTANCE");
     }
 
+    /** 실제 후보 시간을 지원 범위의 5분 단위로 중복 없이 제안하는지 확인합니다. */
+    @Test
+    void suggestsNearestSupportedDurationsFromCalculatedCandidates() {
+        var suggestions = policy.suggestAlternativeDurations(60, List.of(
+                candidate("NEAR_90_A", 88, 1_000),
+                candidate("NEAR_90_B", 91, 2_000),
+                candidate("NEAR_125", 123, 3_000),
+                candidate("SAME", 60, 4_000),
+                candidate("OUT_OF_RANGE", 241, 5_000)));
+
+        assertThat(suggestions).containsExactly(90, 125);
+    }
+
     /** 테스트 전용 후보를 명백한 가짜 값으로 생성합니다. */
     private DrivingRouteCandidate candidate(String id, int minutes, long distanceMeters) {
         return new DrivingRouteCandidate(

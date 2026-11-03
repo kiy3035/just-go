@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: just go backend API
-  version: 0.5.0-draft
+  version: 0.6.0-draft
   description: >-
     브라우저와 백엔드 연결 검증을 위한 추천 요청 초안입니다. mock=true 또는
     mode=MOCK인 응답은 실제 도로·시간·거리 데이터가 아닙니다. tmap 프로필의
@@ -146,7 +146,7 @@ components:
           $ref: '#/components/schemas/ScenicTheme'
     RouteRecommendationResponse:
       type: object
-      required: [mode, mock, routes, notice]
+      required: [mode, mock, routes, suggestions, notice]
       properties:
         mode:
           type: string
@@ -158,7 +158,30 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/RouteRecommendationItem'
+        suggestions:
+          type: array
+          description: >-
+            LIVE 계산 후보가 있지만 희망 시간 ±15%에 맞는 코스가 없을 때 반환하는
+            재검색 조건입니다. 실제 계산 후보의 예상 시간을 10~240분·5분 단위로
+            맞춘 값이며 경로나 예약 결과가 아닙니다. 그 밖의 응답에서는 빈 배열입니다.
+          items:
+            $ref: '#/components/schemas/RouteConditionSuggestion'
         notice:
+          type: string
+    RouteConditionSuggestion:
+      type: object
+      required: [desiredMinutes, tripType, theme, reason]
+      properties:
+        desiredMinutes:
+          type: integer
+          minimum: 10
+          maximum: 240
+          multipleOf: 5
+        tripType:
+          $ref: '#/components/schemas/TripType'
+        theme:
+          $ref: '#/components/schemas/ScenicTheme'
+        reason:
           type: string
     RouteRecommendationItem:
       type: object

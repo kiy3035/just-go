@@ -12,7 +12,11 @@ import com.example.justgo.backend.integration.routing.DrivingRouteCandidate;
 final class RouteRecommendationPolicy {
 
     static final int DURATION_TOLERANCE_PERCENT = 15;
+    private static final int MIN_DURATION_MINUTES = 10;
+    private static final int MAX_DURATION_MINUTES = 240;
+    private static final int DURATION_STEP_MINUTES = 5;
     private static final int MAX_RECOMMENDATIONS = 3;
+    private static final int MAX_DURATION_SUGGESTIONS = 3;
 
     /**
      * 희망 시간 ±15% 후보만 남겨 시간 차이, 거리, 경로 식별자 순으로 정렬합니다.
@@ -33,6 +37,28 @@ final class RouteRecommendationPolicy {
                 .toList();
     }
 
+    /**
+     * 허용 오차 밖의 실제 계산 후보 시간을 5분 단위로 맞춰 가까운 대체 시간부터 제안합니다.
+     * 지원 범위를 벗어나거나 같은 시간으로 겹치는 값은 제외합니다.
+     */
+    public List<Integer> suggestAlternativeDurations(
+            int desiredMinutes,
+            List<DrivingRouteCandidate> candidates) {
+        return candidates.stream()
+                .mapToInt(DrivingRouteCandidate::estimatedMinutes)
+                .filter(minutes -> minutes >= MIN_DURATION_MINUTES
+                        && minutes <= MAX_DURATION_MINUTES)
+                .map(this::roundToSupportedDuration)
+                .filter(minutes -> minutes != desiredMinutes)
+                .boxed()
+                .distinct()
+                .sorted(Comparator
+                        .comparingLong((Integer minutes) -> durationDifference(desiredMinutes, minutes))
+                        .thenComparingInt(Integer::intValue))
+                .limit(MAX_DURATION_SUGGESTIONS)
+                .toList();
+    }
+
     /** 부동소수점 오차 없이 목표 시간 대비 15% 이내인지 비교합니다. */
     private boolean isWithinDurationTolerance(int desiredMinutes, int estimatedMinutes) {
         if (estimatedMinutes <= 0) {
@@ -45,5 +71,11 @@ final class RouteRecommendationPolicy {
     /** 정수 오버플로 없이 분 단위 절대 차이를 계산합니다. */
     private long durationDifference(int desiredMinutes, int estimatedMinutes) {
         return Math.abs((long) estimatedMinutes - desiredMinutes);
+    }
+
+    /** 가장 가까운 지원 시간인 5분 단위로 반올림합니다. */
+    private int roundToSupportedDuration(int estimatedMinutes) {
+        return ((estimatedMinutes + DURATION_STEP_MINUTES / 2) / DURATION_STEP_MINUTES)
+                * DURATION_STEP_MINUTES;
     }
 }

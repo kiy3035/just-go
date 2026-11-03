@@ -75,7 +75,8 @@ class RouteRecommendationControllerTest {
                 .andExpect(jsonPath("$.mode").value("MOCK"))
                 .andExpect(jsonPath("$.mock").value(true))
                 .andExpect(jsonPath("$.routes[0].routeId").value("MOCK-ROUTE-001"))
-                .andExpect(jsonPath("$.routes[0].stops").isEmpty());
+                .andExpect(jsonPath("$.routes[0].stops").isEmpty())
+                .andExpect(jsonPath("$.suggestions").isEmpty());
     }
 
     /**

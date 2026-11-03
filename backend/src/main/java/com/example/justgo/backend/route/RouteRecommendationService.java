@@ -1,5 +1,7 @@
 package com.example.justgo.backend.route;
 
+import java.util.List;
+
 import com.example.justgo.backend.integration.routing.DrivingRouteCandidate;
 import com.example.justgo.backend.integration.routing.DrivingRouteMode;
 import com.example.justgo.backend.integration.routing.DrivingRouteProvider;
@@ -64,18 +66,41 @@ public class RouteRecommendationService {
                         request.desiredMinutes(),
                         result.routes())
                 : result.routes();
-        String notice = result.mode() == DrivingRouteMode.LIVE
+        boolean needsAlternativeConditions = result.mode() == DrivingRouteMode.LIVE
                 && !result.routes().isEmpty()
-                && recommendedRoutes.isEmpty()
-                ? "희망 주행 시간 ±%d%%에 맞는 검수 코스를 찾지 못했습니다. 시간이나 풍경 조건을 바꿔 주세요."
-                        .formatted(RouteRecommendationPolicy.DURATION_TOLERANCE_PERCENT)
+                && recommendedRoutes.isEmpty();
+        List<RouteConditionSuggestion> suggestions = needsAlternativeConditions
+                ? recommendationPolicy.suggestAlternativeDurations(
+                                request.desiredMinutes(),
+                                result.routes())
+                        .stream()
+                        .map(minutes -> new RouteConditionSuggestion(
+                                minutes,
+                                request.tripType(),
+                                request.theme(),
+                                "실제 계산 후보의 예상 시간과 가까운 조건입니다."))
+                        .toList()
+                : List.of();
+        String notice = needsAlternativeConditions
+                ? alternativeConditionNotice(suggestions)
                 : result.notice();
 
         return new RouteRecommendationResponse(
                 result.mode().name(),
                 result.mock(),
                 recommendedRoutes.stream().map(this::toResponseItem).toList(),
+                suggestions,
                 notice);
+    }
+
+    /** 대체 시간이 있으면 재검색을 안내하고, 없으면 일반적인 조건 변경을 안내합니다. */
+    private String alternativeConditionNotice(List<RouteConditionSuggestion> suggestions) {
+        if (suggestions.isEmpty()) {
+            return "희망 주행 시간 ±%d%%에 맞는 검수 코스를 찾지 못했습니다. 시간이나 풍경 조건을 바꿔 주세요."
+                    .formatted(RouteRecommendationPolicy.DURATION_TOLERANCE_PERCENT);
+        }
+        return "희망 주행 시간 ±%d%%에 맞는 검수 코스를 찾지 못했습니다. 제안된 시간으로 다시 검색해 주세요."
+                .formatted(RouteRecommendationPolicy.DURATION_TOLERANCE_PERCENT);
     }
 
     /**

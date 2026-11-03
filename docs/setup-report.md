@@ -275,3 +275,16 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - 컨테이너의 실행 사용자는 `uid=100(justgo)`로 확인했습니다. 샌드박스에서 첫 호스트 HTTP 요청과 일부 Docker 파이프 접근이 거부되어 승인된 동일 검증을 다시 실행했고 통과했습니다.
 - 검증 전용 컨테이너, 네트워크와 `just-go-container-check_postgres_data` 볼륨은 종료 후 삭제했습니다. 기존 `just-go-local_postgres_data` 볼륨은 건드리지 않았고 로컬 백엔드 이미지는 다음 실행을 위해 보존했습니다.
 - 실제 `.env`, TMAP 앱 키, 실제 위치, 외부 유료 서비스는 사용하지 않았습니다.
+
+## 20. 2026-11-03 결과 없음 대체 시간 제안
+
+- LIVE 계산 결과는 존재하지만 희망 시간 ±15% 안에 코스가 없을 때, 가짜 코스 대신 실제 후보의 예상 시간을 근거로 가까운 재검색 조건을 최대 3건 반환하도록 했습니다.
+- 후보 시간은 현재 API 입력 기준인 10~240분 범위만 사용하고 가장 가까운 5분 단위로 반올림합니다. 같은 시간과 중복 제안은 제거하고 목표 시간 차이가 작은 순으로 정렬합니다.
+- `RouteConditionSuggestion`에는 대체 희망 시간, 기존 왕복·편도 방식, 기존 풍경 테마와 근거만 포함합니다. 좌표·예상 거리·가짜 경로는 포함하지 않습니다.
+- MOCK, UNAVAILABLE, 정상 LIVE 추천에는 `suggestions: []`를 반환합니다. 실제 후보에서 만들 수 있는 지원 시간이 없을 때도 빈 제안과 일반 조건 변경 안내를 반환합니다.
+- 첫 `clean test`는 삼항식의 빈 목록이 `List<Object>`로 추론되어 컴파일 오류 2건으로 실패했습니다. `List<RouteConditionSuggestion>` 타입을 명시한 뒤 동일 명령을 다시 실행했습니다.
+- `.\gradlew.bat clean test --no-daemon`: 수정 후 전체 37개 테스트 통과, 실패·오류·건너뜀 0개.
+- `.\gradlew.bat build --no-daemon`: 성공. OpenAPI 0.6.0 계약과 대체 조건 DTO를 포함한 실행 JAR을 생성했습니다.
+- `docker compose --env-file .env.example --profile app config --quiet`: 성공.
+- `docker compose --env-file .env.example --profile app build backend`: 성공. 변경된 API를 포함한 `just-go-backend:local` 이미지를 다시 생성했습니다.
+- 실제 TMAP 인증·외부 호출은 사용자 지시에 따라 실행하지 않았습니다.

@@ -44,6 +44,7 @@ class RouteRecommendationServiceTest {
         assertThat(response.mode()).isEqualTo("MOCK");
         assertThat(response.mock()).isTrue();
         assertThat(response.routes()).hasSize(1);
+        assertThat(response.suggestions()).isEmpty();
         assertThat(response.routes().getFirst().routeId()).startsWith("MOCK-");
         assertThat(response.routes().getFirst().reason()).contains("실제 도로 경로");
     }
@@ -85,6 +86,7 @@ class RouteRecommendationServiceTest {
         assertThat(response.mode()).isEqualTo("UNAVAILABLE");
         assertThat(response.mock()).isFalse();
         assertThat(response.routes()).isEmpty();
+        assertThat(response.suggestions()).isEmpty();
     }
 
     /**
@@ -164,14 +166,16 @@ class RouteRecommendationServiceTest {
                 .containsExactly("FIRST", "SECOND", "THIRD");
     }
 
-    /** 허용 오차 안의 LIVE 후보가 없으면 가짜 대체 코스 대신 빈 결과를 반환합니다. */
+    /** 허용 오차 안의 LIVE 후보가 없으면 가짜 코스 대신 실제 후보 기반 대체 시간을 반환합니다. */
     @Test
     void returnsEmptyLiveResultWhenNoRouteMatchesDuration() {
         RouteRecommendationService liveService = new RouteRecommendationService(request ->
                 new DrivingRouteResult(
                         DrivingRouteMode.LIVE,
                         false,
-                        List.of(liveCandidate("OUTSIDE", 90, 1_000)),
+                        List.of(
+                                liveCandidate("OUTSIDE_NEAR", 90, 1_000),
+                                liveCandidate("OUTSIDE_FAR", 123, 2_000)),
                         "LIVE 테스트 결과"),
                 emptySpotCandidateQuery);
 
@@ -184,7 +188,14 @@ class RouteRecommendationServiceTest {
 
         assertThat(response.mode()).isEqualTo("LIVE");
         assertThat(response.routes()).isEmpty();
-        assertThat(response.notice()).contains("±15%", "조건을 바꿔");
+        assertThat(response.suggestions())
+                .extracting(RouteConditionSuggestion::desiredMinutes)
+                .containsExactly(90, 125);
+        assertThat(response.suggestions()).allSatisfy(suggestion -> {
+            assertThat(suggestion.tripType()).isEqualTo(TripType.ONE_WAY);
+            assertThat(suggestion.theme()).isEqualTo(ScenicTheme.LAKE);
+        });
+        assertThat(response.notice()).contains("±15%", "제안된 시간");
     }
 
     /** Provider 지점 모델을 Android가 사용할 수 있는 API 지점 DTO로 변환합니다. */
