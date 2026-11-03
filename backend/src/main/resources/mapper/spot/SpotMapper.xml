@@ -94,4 +94,23 @@
                  id
         LIMIT #{limit}
     </select>
+
+    <select id="findAvailableVerifiedThemes"
+            resultType="com.example.justgo.backend.spot.ScenicTheme">
+        SELECT DISTINCT theme
+        FROM spot
+        WHERE verification_status = 'VERIFIED'
+          AND enabled = TRUE
+          AND latitude IS NOT NULL
+          AND longitude IS NOT NULL
+          AND NULLIF(BTRIM(source_name), '') IS NOT NULL
+          AND NULLIF(BTRIM(source_reference), '') IS NOT NULL
+          AND NULLIF(BTRIM(usage_rights_note), '') IS NOT NULL
+          AND verified_at IS NOT NULL
+          AND theme_fit_score BETWEEN 3 AND 5
+          AND scenic_quality_score BETWEEN 3 AND 5
+          AND route_suitability_score BETWEEN 3 AND 5
+          AND NULLIF(BTRIM(quality_review_note), '') IS NOT NULL
+        ORDER BY theme
+    </select>
 </mapper>

@@ -16,4 +16,12 @@ public interface SpotCandidateQuery {
      * @return 추천에 전달할 검수 완료 장소 후보
      */
     List<SpotCandidateRecord> loadVerifiedCandidates(ScenicTheme theme, int limit);
+
+    /**
+     * 검수 완료 후보가 하나 이상 준비된 풍경 테마를 조회합니다.
+     * 간단한 테스트 대역은 이 기능을 구현하지 않아도 되도록 기본값을 빈 목록으로 둡니다.
+     */
+    default List<ScenicTheme> loadAvailableThemes() {
+        return List.of();
+    }
 }

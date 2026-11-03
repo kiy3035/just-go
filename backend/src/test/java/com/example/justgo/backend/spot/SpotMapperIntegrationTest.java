@@ -165,6 +165,29 @@ class SpotMapperIntegrationTest {
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
+    /** 검수·출처·품질 조건을 모두 만족하는 후보가 있는 테마만 반환하는지 확인합니다. */
+    @Test
+    void findsOnlyThemesWithAvailableVerifiedCandidates() {
+        spotMapper.insertCandidate(candidate(
+                "AVAILABLE_SEA_THEME_TEST_ONLY",
+                ScenicTheme.SEA,
+                new BigDecimal("0.730000"),
+                new BigDecimal("0.830000"),
+                SpotVerificationStatus.VERIFIED,
+                true));
+        spotMapper.insertCandidate(candidate(
+                "PENDING_CITY_THEME_TEST_ONLY",
+                ScenicTheme.CITY,
+                new BigDecimal("0.740000"),
+                new BigDecimal("0.840000"),
+                SpotVerificationStatus.PENDING,
+                true));
+
+        List<ScenicTheme> themes = spotMapper.findAvailableVerifiedThemes();
+
+        assertThat(themes).contains(ScenicTheme.SEA).doesNotContain(ScenicTheme.CITY);
+    }
+
     /** 실제 장소·권리 정보와 혼동되지 않는 테스트 전용 후보를 생성합니다. */
     private SpotCandidateRegistration candidate(
             String name,

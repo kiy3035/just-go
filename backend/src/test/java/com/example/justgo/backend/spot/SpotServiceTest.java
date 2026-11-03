@@ -66,4 +66,14 @@ class SpotServiceTest {
         assertThat(spotService.loadVerifiedCandidates(ScenicTheme.MOUNTAIN, 20))
                 .containsExactly(candidate);
     }
+
+    /** 후보가 준비된 테마를 화면의 확정 테마 순서로 정렬해 반환하는지 확인합니다. */
+    @Test
+    void loadsAvailableThemesInDefinedOrder() {
+        when(spotMapper.findAvailableVerifiedThemes())
+                .thenReturn(List.of(ScenicTheme.SEA, ScenicTheme.RIVER, ScenicTheme.CITY));
+
+        assertThat(spotService.loadAvailableThemes())
+                .containsExactly(ScenicTheme.CITY, ScenicTheme.RIVER, ScenicTheme.SEA);
+    }
 }

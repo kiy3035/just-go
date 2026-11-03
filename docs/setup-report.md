@@ -330,3 +330,15 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - `docker compose --env-file .env.example --profile app config --quiet`: 성공.
 - `docker compose --env-file .env.example --profile app build backend`: 성공. 선형 분석 구현이 포함된 `just-go-backend:local` 이미지를 생성했습니다.
 - 실제 TMAP 인증·외부 호출, 실제 위치 데이터, 결제수단이나 유료 서비스는 사용하지 않았습니다. GeoJSON 파싱 검증은 명백한 가짜 좌표를 사용한 MOCK HTTP 응답입니다.
+
+## 24. 2026-11-03 검수 후보 기반 대체 풍경 제안
+
+- 선택한 풍경에 검수 완료 후보가 없을 때만 DB에서 사용 가능한 다른 풍경을 조회해 최대 3개 재검색 조건으로 반환하도록 했습니다.
+- 대체 풍경 조회에도 활성 상태, WGS84 좌표, 출처·이용권한·검수 시각, 세 품질 점수 3점 이상과 검수 근거 조건을 동일하게 적용했습니다.
+- 제안 순서는 확정 테마 표시 순서로 고정하고 선택한 테마와 중복값을 제외합니다. 후보 존재만 확인하므로 실제 시간·경로 성공을 보장하지 않는다는 안내를 함께 반환합니다.
+- 시간 범위가 맞지 않는 LIVE 결과는 기존 실제 후보 기반 대체 시간 제안을 유지하며, 개발용 MOCK 결과에는 대체 풍경 로직을 적용하지 않습니다.
+- 실제 장소·좌표·TMAP 인증·외부 호출은 추가하지 않았습니다. 테스트 값은 명백한 TEST 전용 값만 사용했습니다.
+- `.\gradlew.bat clean test --no-daemon`: 전체 49개 테스트 통과, 실패·오류·건너뜀 0개.
+- `.\gradlew.bat build --no-daemon`: 성공. OpenAPI 0.8.0 계약과 대체 풍경 조회를 포함한 실행 JAR을 생성했습니다.
+- `docker compose --env-file .env.example --profile app config --quiet`: 성공.
+- `docker compose --env-file .env.example --profile app build backend`: 성공. 대체 풍경 제안이 포함된 `just-go-backend:local` 이미지를 생성했습니다.

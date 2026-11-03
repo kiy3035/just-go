@@ -90,6 +90,48 @@ class RouteRecommendationServiceTest {
         assertThat(response.suggestions()).isEmpty();
     }
 
+    /** 선택 테마 후보가 없으면 실제 검수 후보가 있는 다른 테마만 재검색 조건으로 제안합니다. */
+    @Test
+    void suggestsAvailableThemesWhenSelectedThemeHasNoCandidates() {
+        SpotCandidateQuery availableThemeQuery = new SpotCandidateQuery() {
+            @Override
+            public List<SpotCandidateRecord> loadVerifiedCandidates(ScenicTheme theme, int limit) {
+                return List.of();
+            }
+
+            @Override
+            public List<ScenicTheme> loadAvailableThemes() {
+                return List.of(
+                        ScenicTheme.SEA,
+                        ScenicTheme.MOUNTAIN,
+                        ScenicTheme.LAKE,
+                        ScenicTheme.RIVER,
+                        ScenicTheme.CITY);
+            }
+        };
+        RouteRecommendationService unavailableService = new RouteRecommendationService(
+                new UnavailableDrivingRouteProvider(),
+                availableThemeQuery);
+
+        RouteRecommendationResponse response = unavailableService.recommend(
+                new RouteRecommendationRequest(
+                        BigDecimal.ZERO,
+                        BigDecimal.ZERO,
+                        60,
+                        TripType.ROUND_TRIP,
+                        ScenicTheme.MOUNTAIN));
+
+        assertThat(response.suggestions())
+                .extracting(RouteConditionSuggestion::theme)
+                .containsExactly(ScenicTheme.CITY, ScenicTheme.RIVER, ScenicTheme.LAKE);
+        assertThat(response.suggestions()).allSatisfy(suggestion -> {
+            assertThat(suggestion.desiredMinutes()).isEqualTo(60);
+            assertThat(suggestion.tripType()).isEqualTo(TripType.ROUND_TRIP);
+            assertThat(suggestion.reason()).contains("재검색");
+        });
+        assertThat(response.notice()).contains("다른 풍경");
+    }
+
     /**
      * DB의 검수 완료 장소가 외부 제공자 경계에 필요한 최소 좌표로 전달되는지 확인합니다.
      */

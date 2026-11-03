@@ -2,7 +2,7 @@
 
 `just go`는 출발지, 희망 주행 시간, 풍경 테마를 바탕으로 드라이브 코스를 추천하는 Pleos Connect 차량용 앱 프로젝트입니다.
 
-초기 0~3단계 백엔드·인프라 구성 이후, 드라이브 조건을 고르는 반응형 웹 화면 시안과 추천 요청 API 초안을 추가했습니다. 외부 자동차 경로는 TMAP API Free로 결정했고 왕복·편도 Provider, 임시 ±15% 목표 시간 추천, 수동 경관 후보 품질 점수와 왕복 선분 중복률까지 구현했습니다. Android Java/XML 화면 골격도 저장소에 있으나 실제 API·Pleos 연동은 아직 구현하지 않았습니다. TMAP 실제 앱 키 호출, 실제 경관 데이터 검수와 실주행 기반 순환 품질 조정은 아직 진행하지 않았습니다.
+초기 0~3단계 백엔드·인프라 구성 이후, 드라이브 조건을 고르는 반응형 웹 화면 시안과 추천 요청 API 초안을 추가했습니다. 외부 자동차 경로는 TMAP API Free로 결정했고 왕복·편도 Provider, 임시 ±15% 목표 시간 추천, 검수 후보가 있는 대체 풍경 제안, 수동 경관 후보 품질 점수와 왕복 선분 중복률까지 구현했습니다. Android Java/XML 화면 골격도 저장소에 있으나 실제 API·Pleos 연동은 아직 구현하지 않았습니다. TMAP 실제 앱 키 호출, 실제 경관 데이터 검수와 실주행 기반 순환 품질 조정은 아직 진행하지 않았습니다.
 
 현재 완료·보류·차단 항목과 다음 작업은 [`docs/progress.md`](docs/progress.md)에서 확인합니다. 실제 실행 명령과 검증 이력은 [`docs/setup-report.md`](docs/setup-report.md)에 날짜순으로 기록합니다. 외부 경로 업체의 공식 가격·쿼터·제약 비교는 [`docs/routing-provider-comparison.md`](docs/routing-provider-comparison.md), 실제 경관 후보의 출처·이용권한 기준은 [`docs/scenic-data-policy.md`](docs/scenic-data-policy.md), 1~5점 품질 평가표는 [`docs/scenic-quality-rubric.md`](docs/scenic-quality-rubric.md), 왕복 선형 분석 기준은 [`docs/route-shape-quality.md`](docs/route-shape-quality.md)에 정리했습니다.
 

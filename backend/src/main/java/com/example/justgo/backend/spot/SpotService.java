@@ -1,5 +1,6 @@
 package com.example.justgo.backend.spot;
 
+import java.util.Comparator;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -48,6 +49,15 @@ public class SpotService implements SpotCandidateQuery {
         }
 
         return List.copyOf(spotMapper.findVerifiedCandidatesByTheme(theme, limit));
+    }
+
+    /** 검수 후보가 실제로 존재하는 테마를 확정된 화면 표시 순서로 반환합니다. */
+    @Override
+    @Transactional(readOnly = true)
+    public List<ScenicTheme> loadAvailableThemes() {
+        return spotMapper.findAvailableVerifiedThemes().stream()
+                .sorted(Comparator.comparingInt(ScenicTheme::ordinal))
+                .toList();
     }
 
     /**

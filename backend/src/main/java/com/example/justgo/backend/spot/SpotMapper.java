@@ -56,4 +56,7 @@ public interface SpotMapper {
     List<SpotCandidateRecord> findVerifiedCandidatesByTheme(
             @Param("theme") ScenicTheme theme,
             @Param("limit") int limit);
+
+    /** 검수·출처·품질 조건을 모두 만족하는 후보가 있는 테마만 조회합니다. */
+    List<ScenicTheme> findAvailableVerifiedThemes();
 }
