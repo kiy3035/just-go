@@ -2,7 +2,7 @@
 
 `just go`는 출발지, 희망 주행 시간, 풍경 테마를 바탕으로 드라이브 코스를 추천하는 Pleos Connect 차량용 앱 프로젝트입니다.
 
-초기 0~3단계 백엔드·인프라 구성 이후, 드라이브 조건을 고르는 반응형 웹 화면 시안과 추천 요청 API 초안을 추가했습니다. 외부 자동차 경로는 TMAP API Free로 결정했고 왕복·편도 Provider와 임시 ±15% 목표 시간 추천까지 구현했습니다. 실제 앱 키 호출과 세부 경관·순환 품질 점수는 아직 검증·구현하지 않았으며 Android 프로젝트와 Pleos SDK도 아직 구현하지 않았습니다.
+초기 0~3단계 백엔드·인프라 구성 이후, 드라이브 조건을 고르는 반응형 웹 화면 시안과 추천 요청 API 초안을 추가했습니다. 외부 자동차 경로는 TMAP API Free로 결정했고 왕복·편도 Provider와 임시 ±15% 목표 시간 추천까지 구현했습니다. Android Java/XML 화면 골격도 저장소에 있으나 실제 API·Pleos 연동은 아직 구현하지 않았습니다. TMAP 실제 앱 키 호출과 세부 경관·순환 품질 점수도 아직 검증·구현하지 않았습니다.
 
 현재 완료·보류·차단 항목과 다음 작업은 [`docs/progress.md`](docs/progress.md)에서 확인합니다. 실제 실행 명령과 검증 이력은 [`docs/setup-report.md`](docs/setup-report.md)에 날짜순으로 기록합니다. 외부 경로 업체의 공식 가격·쿼터·제약 비교는 [`docs/routing-provider-comparison.md`](docs/routing-provider-comparison.md)에 정리했습니다.
 
@@ -24,14 +24,14 @@ Android Studio, Android SDK, Pleos Emulator를 포함한 도구 설치와 공통
 - Local infrastructure: Docker Compose
 - Test: JUnit 5, Spring Boot Test, Testcontainers PostgreSQL
 
-Java 패키지 `com.example.justgo.backend`는 소유 도메인이 정해지기 전의 개발용 `PROVISIONAL` 네임스페이스입니다. Android `applicationId`를 정하거나 생성한 것은 아닙니다.
+Java 패키지 `com.example.justgo.backend`와 Android `applicationId`의 `com.example.justgo`는 소유 도메인이 정해지기 전의 개발용 `PROVISIONAL` 값입니다.
 
 ## 저장소 구조
 
 ```text
-android-app/   Android 후속 작업을 위한 자리(프로젝트 미생성)
-backend/       Spring Boot 백엔드
-infra/         로컬 PostgreSQL Compose
+android-app/   Java/XML Android 화면 골격(실제 API·Pleos 연동 전)
+backend/       Spring Boot 백엔드와 로컬 컨테이너 이미지
+infra/         로컬 PostgreSQL 및 선택적 백엔드 Compose
 docs/          요구사항, 아키텍처, API 초안, 설치 결과
 ```
 
@@ -112,24 +112,36 @@ Copy-Item .env.example .env
 
 `backend/.env`는 백엔드 전용이고 `infra/.env`는 PostgreSQL Docker Compose 전용이므로 서로 다른 파일입니다. 기본 connect timeout은 2초, read timeout은 5초이며 자동 재시도는 하지 않습니다. Free 다중 경유지 일 100건보다 낮은 로컬 상한 90건과 추천 요청당 후보 최대 3건 제한을 적용합니다. 키를 Git, 문서, 로그, Android 앱에 넣지 않습니다. 이 저장소에서는 아직 실제 앱 키 호출을 검증하지 않았습니다.
 
-## 3. 로컬 인프라 종료와 데이터 초기화
+## 3. Docker Compose로 PostgreSQL과 백엔드 함께 실행
+
+JDK를 호스트에 직접 설정하지 않고 전체 로컬 서버를 확인하려면 `app` 프로필을 사용합니다. 이 프로필은 `backend/Dockerfile`로 Java 21 백엔드 이미지를 빌드하고 PostgreSQL이 healthy가 된 뒤 서버를 시작합니다. TMAP 프로필과 앱 키는 활성화하지 않습니다.
+
+```powershell
+cd C:\myProject\just-go\infra
+docker compose --env-file .env --profile app up --build -d --wait
+docker compose --env-file .env --profile app ps
+```
+
+기본 확인 주소는 `http://127.0.0.1:18080/`과 `http://127.0.0.1:18080/actuator/health`입니다. 포트가 충돌하면 `infra/.env`의 `BACKEND_PORT`를 변경합니다. `--profile app`을 생략하면 기존처럼 PostgreSQL만 실행됩니다.
+
+## 4. 로컬 인프라 종료와 데이터 초기화
 
 컨테이너만 중지하고 DB 데이터를 유지하려면 다음을 실행합니다.
 
 ```powershell
-cd ..\infra
-docker compose --env-file .env down
+cd C:\myProject\just-go\infra
+docker compose --env-file .env --profile app down
 ```
 
 아래 명령은 `postgres_data` 볼륨과 모든 로컬 개발 데이터를 삭제합니다. 필요한 데이터가 없는지 확인한 뒤에만 실행합니다.
 
 ```powershell
-docker compose --env-file .env down -v
+docker compose --env-file .env --profile app down -v
 ```
 
 ## 아직 하지 않은 작업
 
-- Android 프로젝트 생성과 `assembleDebug`
+- Android 프로젝트의 `assembleDebug`, 단위 테스트, Lint 실제 검증
 - Pleos Emulator/NaviHelper 연동 및 검증
 - 실제 TMAP 앱 키를 사용한 외부 호출과 세부 경관·순환 품질 점수 (`mock` 프로필의 예시는 실제 추천이 아님)
 - 계정, 사용자 위치/주행 기록 저장

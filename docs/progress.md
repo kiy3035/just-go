@@ -1,6 +1,6 @@
 # just go 프로젝트 진척 현황
 
-> 마지막 갱신: 2026-11-01
+> 마지막 갱신: 2026-11-03
 > 이 문서는 완료·보류·차단 항목을 한눈에 확인하는 현황판입니다. 상세 실행 기록은 [`setup-report.md`](setup-report.md), 제품 범위는 [`requirements.md`](requirements.md), API 계약은 [`api-contract.yaml`](api-contract.yaml)을 기준으로 합니다.
 
 ## 상태 기준
@@ -18,13 +18,13 @@
 | 초기 사전 점검 | 완료 | Java 21, Git, Docker, 가상화, 메모리·저장공간, GPU 확인 | Radeon 780M 전용 VRAM 0.5GB는 공식 Pleos GPU 최소 기준 미달 |
 | 저장소 구조 | 완료 | `backend`, `infra`, `docs`, Android 자리 구성 | `main` 및 기존 `origin` 사용 |
 | 백엔드 골격 | 완료 | Spring Boot 3.5.16, Gradle 8.14.6, MyBatis XML, Flyway, Actuator | 전체 자동 테스트 통과 |
-| 로컬 DB·인프라 | 완료 | PostgreSQL 17.11 Compose, 볼륨, healthcheck, loopback 바인딩 | 실제 컨테이너·Flyway V1/V2 검증 완료 |
+| 로컬 DB·인프라 | 완료 | PostgreSQL 17.11과 선택적 백엔드 `app` 프로필, 볼륨, healthcheck, loopback 바인딩 | Java 21 이미지 빌드, 비루트 실행, Flyway V1/V2, `/`·health HTTP 200 검증 완료 |
 | 추천 REST 골격 | 완료 | 왕복·편도, 직접 시간, 테마 요청과 교체 가능한 Provider, `MOCK`/`LIVE`/`UNAVAILABLE` 구분 | 직접 시간 범위는 임시 기준 |
 | 경관 장소 후보 | 완료 | VERIFIED·활성·좌표 보유 후보만 MyBatis XML로 조회 | 실제 장소 데이터는 사용권·수동 검수 전이라 없음 |
 | 추천 후보 연결 | 완료 | 검수 완료 장소를 최대 20건 조회해 경로 제공자 요청 경계로 전달 | 외부 제공자 호출 없이 단위 테스트로 전달 구조 검증 |
 | 웹 입력 화면 시안 | 완료 | `/`에서 왕복·편도, 시간, 다섯 풍경 테마 선택과 요약 가능 | 화면 시안이며 Android 대체물·실제 추천 결과가 아님 |
-| Android Studio | 완료 | 프로그램 설치 확인 | Android SDK/API 34와 프로젝트는 아직 없음 |
-| Android SDK·프로젝트 | 보류 | 사용자 지시로 Java/Web 백엔드 작업을 우선함 | 재개 시 API 34 설치, Java/XML 프로젝트 생성, `assembleDebug` 필요 |
+| Android Studio | 완료 | 프로그램 설치 확인 | Android SDK/API 34 설치 상태는 별도 재확인 필요 |
+| Android SDK·프로젝트 | 진행 가능 | Java/XML 화면 골격과 Gradle Wrapper가 저장소에 존재 | 정도혜 담당: `assembleDebug`, 단위 테스트, Lint와 에뮬레이터 실행 검증 필요 |
 | Pleos Emulator·NaviHelper | 차단 | 실제 연동 코드를 만들지 않음 | 공식 최소 GPU를 만족하는 장비, SDK/계정, 에뮬레이터 검증 필요 |
 | 목표 시간 추천·순위 | 완료 | LIVE 후보를 임시 ±15%로 필터하고 시간 차이·거리·ID 순으로 최대 3건 반환 | 실제 주행 후 오차율 조정 필요 |
 | 추천 경유지·도착지 계약 | 완료 | 왕복은 경관 경유지→출발지 복귀, 편도는 경관 도착지 순서의 WGS84 지점 반환 | Android 표시와 NaviHelper 실제 전달은 정도혜 작업·Pleos 검증 필요 |
@@ -53,7 +53,7 @@
 ## 건너뛰거나 미룬 작업
 
 1. Android SDK API 34 설치 및 라이선스 확인
-2. Android Java/XML 프로젝트 생성과 `assembleDebug`
+2. 기존 Android Java/XML 프로젝트의 `assembleDebug`·단위 테스트·Lint 검증
 3. Pleos AVD 설치·Cold boot·화면 실행 검증
 4. NaviHelper 단일 목적지·다중 경유지 실제 호출 검증
 5. TMAP Free 계정·앱 키 발급과 실제 호출 검증
@@ -64,8 +64,10 @@
 ## 바로 이어갈 다음 작업
 
 1. 수동 검수·사용권 확인을 마친 실제 경관 후보 데이터를 준비한다.
-2. 사용자가 SK open API Free 프로젝트·앱 키를 발급하고 로컬 `TMAP_APP_KEY` 환경변수로만 설정한 뒤 실제 응답을 검증한다.
-3. 경관 품질과 왕복 중복 구간을 반영할 점수 기준을 정의한다.
+2. 경관 품질과 왕복 중복 구간을 반영할 점수 기준을 정의한다.
+3. 결과가 없을 때 제안할 대체 시간·테마 규칙을 확정하고 구현한다.
+
+TMAP 실제 인증·호출 검증은 사용자 지시에 따라 현재 순서에서 제외합니다. 로컬 컨테이너 구성은 `local` 프로필만 사용하므로 TMAP 앱 키 없이 동작합니다.
 
 ## 갱신 규칙
 

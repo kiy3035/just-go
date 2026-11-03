@@ -260,3 +260,18 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - `.\gradlew.bat clean test --no-daemon`: 전체 36개 테스트 통과, 실패·오류·건너뜀 0개.
 - `.\gradlew.bat build --no-daemon`: 백엔드 디렉터리에서 성공했습니다.
 - 실제 앱 키·비밀번호 파일은 생성하거나 읽지 않았습니다.
+
+## 19. 2026-11-03 백엔드 로컬 컨테이너 통합
+
+- `backend/Dockerfile`에 Java 21 JDK 빌드 단계와 JRE 실행 단계를 분리한 이미지를 추가했습니다. 실행 단계는 `justgo` 비루트 사용자를 사용합니다.
+- `backend/.dockerignore`에서 `.env`, Gradle 캐시, 빌드 결과와 로그를 빌드 컨텍스트에서 제외했습니다.
+- `infra/compose.yaml`에 선택적 `app` 프로필을 추가했습니다. 기본 Compose 실행은 기존처럼 PostgreSQL만 올리고, `--profile app`을 지정할 때만 백엔드 이미지 빌드·기동과 healthcheck를 수행합니다.
+- Compose 백엔드는 `local` 프로필만 활성화하며 TMAP 앱 키나 외부 호출을 요구하지 않습니다. PostgreSQL과 백엔드 포트는 모두 `127.0.0.1`에만 바인딩합니다.
+- `docker compose --env-file .env.example --profile app config`: 통과. DB 서비스명 연결, loopback 포트와 healthcheck 렌더링을 확인했습니다.
+- `.\gradlew.bat clean test --no-daemon`: 전체 36개 테스트 통과, 실패·오류·건너뜀 0개.
+- `docker compose --env-file .env.example --profile app build backend`: 통과. `eclipse-temurin` Java 21 기반 `just-go-backend:local` 이미지를 생성했습니다.
+- 별도 테스트 프로젝트와 가짜 전용 비밀번호, PostgreSQL 호스트 포트 55434, 백엔드 포트 18082로 `docker compose ... up --build -d --wait`를 실행했습니다. PostgreSQL과 백엔드가 모두 healthy 상태가 됐습니다.
+- Flyway `flyway_schema_history`에서 V1·V2가 모두 `success=true`임을 확인했습니다. 호스트에서 `/`와 `/actuator/health`가 HTTP 200이고 컨테이너 내부 health 응답이 `{"status":"UP"}`임을 확인했습니다.
+- 컨테이너의 실행 사용자는 `uid=100(justgo)`로 확인했습니다. 샌드박스에서 첫 호스트 HTTP 요청과 일부 Docker 파이프 접근이 거부되어 승인된 동일 검증을 다시 실행했고 통과했습니다.
+- 검증 전용 컨테이너, 네트워크와 `just-go-container-check_postgres_data` 볼륨은 종료 후 삭제했습니다. 기존 `just-go-local_postgres_data` 볼륨은 건드리지 않았고 로컬 백엔드 이미지는 다음 실행을 위해 보존했습니다.
+- 실제 `.env`, TMAP 앱 키, 실제 위치, 외부 유료 서비스는 사용하지 않았습니다.
