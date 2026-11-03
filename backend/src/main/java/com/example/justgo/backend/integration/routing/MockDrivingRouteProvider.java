@@ -26,6 +26,7 @@ public class MockDrivingRouteProvider implements DrivingRouteProvider {
                 request.desiredMinutes(),
                 request.desiredMinutes() * MOCK_METERS_PER_MINUTE,
                 request.theme(),
+                null,
                 List.of(),
                 "MOCK 예시이며 실제 도로 경로·예상 시간·거리가 아닙니다.");
 

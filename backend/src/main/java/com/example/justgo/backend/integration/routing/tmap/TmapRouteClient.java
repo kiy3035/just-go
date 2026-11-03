@@ -1,10 +1,13 @@
 package com.example.justgo.backend.integration.routing.tmap;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
@@ -27,6 +30,7 @@ public class TmapRouteClient {
     private final RestClient restClient;
     private final TmapDailyCallLimiter callLimiter;
     private final Clock clock;
+    private final TmapRouteShapeAnalyzer shapeAnalyzer = new TmapRouteShapeAnalyzer();
 
     public TmapRouteClient(
             RestClient restClient,
@@ -147,7 +151,10 @@ public class TmapRouteClient {
             if (distanceMeters <= 0 || durationSeconds <= 0) {
                 throw invalidResponse();
             }
-            return new TmapRouteSummary(distanceMeters, durationSeconds);
+            return new TmapRouteSummary(
+                    distanceMeters,
+                    durationSeconds,
+                    calculateRepeatedSegmentPercent(response.features()));
         } catch (NumberFormatException exception) {
             throw new TmapRouteClientException(
                     TmapClientErrorType.INVALID_RESPONSE,
@@ -160,6 +167,51 @@ public class TmapRouteClient {
         return new TmapRouteClientException(
                 TmapClientErrorType.INVALID_RESPONSE,
                 "TMAP 응답에 유효한 거리와 시간이 없습니다.");
+    }
+
+    /** GeoJSON LineString만 읽어 원시 좌표를 남기지 않고 왕복 중복 지표로 축약합니다. */
+    private Integer calculateRepeatedSegmentPercent(List<TmapApiFeature> features) {
+        if (features == null || features.isEmpty()) {
+            return null;
+        }
+
+        List<List<TmapCoordinate>> lineStrings = new ArrayList<>();
+        for (TmapApiFeature feature : features) {
+            if (feature.geometry() == null
+                    || !"LineString".equals(feature.geometry().type())) {
+                continue;
+            }
+            List<TmapCoordinate> lineString = toLineString(feature.geometry().coordinates());
+            if (lineString.size() >= 2) {
+                lineStrings.add(lineString);
+            }
+        }
+        return shapeAnalyzer.calculateRepeatedSegmentPercent(lineStrings);
+    }
+
+    /** 공식 GeoJSON의 [경도, 위도] 배열을 내부 [위도, 경도] 의미로 안전하게 변환합니다. */
+    private List<TmapCoordinate> toLineString(JsonNode coordinates) {
+        if (coordinates == null || !coordinates.isArray()) {
+            return List.of();
+        }
+
+        List<TmapCoordinate> lineString = new ArrayList<>();
+        try {
+            for (JsonNode coordinate : coordinates) {
+                if (!coordinate.isArray()
+                        || coordinate.size() < 2
+                        || !coordinate.get(0).isNumber()
+                        || !coordinate.get(1).isNumber()) {
+                    return List.of();
+                }
+                BigDecimal longitude = coordinate.get(0).decimalValue();
+                BigDecimal latitude = coordinate.get(1).decimalValue();
+                lineString.add(new TmapCoordinate(latitude, longitude));
+            }
+            return List.copyOf(lineString);
+        } catch (IllegalArgumentException exception) {
+            return List.of();
+        }
     }
 
     private record TmapMultiApiRequest(
@@ -201,7 +253,12 @@ public class TmapRouteClient {
             List<TmapApiFeature> features) {
     }
 
-    private record TmapApiFeature(TmapApiResponseProperties properties) {
+    private record TmapApiFeature(
+            TmapApiGeometry geometry,
+            TmapApiResponseProperties properties) {
+    }
+
+    private record TmapApiGeometry(String type, JsonNode coordinates) {
     }
 
     private record TmapApiResponseProperties(String totalDistance, String totalTime) {

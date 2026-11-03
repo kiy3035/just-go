@@ -29,7 +29,7 @@ class TmapDrivingRouteProviderTest {
     /** 왕복은 경관 후보를 경유하고 출발 좌표로 복귀하는지 확인합니다. */
     @Test
     void buildsRoundTripThroughScenicCandidate() {
-        when(client.findRoute(any())).thenReturn(new TmapRouteSummary(12_345L, 4_501L));
+        when(client.findRoute(any())).thenReturn(new TmapRouteSummary(12_345L, 4_501L, 18));
 
         var result = provider.calculate(request(TripType.ROUND_TRIP, List.of(candidate(7L))));
 
@@ -42,6 +42,7 @@ class TmapDrivingRouteProviderTest {
         assertThat(result.mode()).isEqualTo(DrivingRouteMode.LIVE);
         assertThat(result.routes().getFirst().estimatedMinutes()).isEqualTo(76);
         assertThat(result.routes().getFirst().distanceMeters()).isEqualTo(12_345L);
+        assertThat(result.routes().getFirst().repeatedSegmentPercent()).isEqualTo(18);
         assertThat(result.routes().getFirst().stops()).hasSize(2);
         assertThat(result.routes().getFirst().stops().getFirst().type())
                 .isEqualTo(DrivingRouteStopType.WAYPOINT);
@@ -54,7 +55,7 @@ class TmapDrivingRouteProviderTest {
     /** 편도는 경관 후보를 도착점으로 사용하고 경유지를 비우는지 확인합니다. */
     @Test
     void buildsOneWayTripEndingAtScenicCandidate() {
-        when(client.findRoute(any())).thenReturn(new TmapRouteSummary(4_200L, 900L));
+        when(client.findRoute(any())).thenReturn(new TmapRouteSummary(4_200L, 900L, null));
 
         var result = provider.calculate(request(TripType.ONE_WAY, List.of(candidate(8L))));
 
@@ -65,6 +66,7 @@ class TmapDrivingRouteProviderTest {
         assertThat(search.end().longitude()).isEqualByComparingTo("0.400000");
         assertThat(search.waypoints()).isEmpty();
         assertThat(result.routes().getFirst().routeId()).isEqualTo("TMAP-SPOT-8");
+        assertThat(result.routes().getFirst().repeatedSegmentPercent()).isNull();
         assertThat(result.routes().getFirst().stops()).singleElement()
                 .satisfies(stop -> {
                     assertThat(stop.type()).isEqualTo(DrivingRouteStopType.DESTINATION);
@@ -75,7 +77,7 @@ class TmapDrivingRouteProviderTest {
     /** 무료 쿼터 보호를 위해 한 요청에서 앞의 후보 세 건만 평가하는지 확인합니다. */
     @Test
     void evaluatesAtMostThreeCandidatesPerRequest() {
-        when(client.findRoute(any())).thenReturn(new TmapRouteSummary(1_000L, 600L));
+        when(client.findRoute(any())).thenReturn(new TmapRouteSummary(1_000L, 600L, null));
 
         var result = provider.calculate(request(TripType.ONE_WAY, List.of(
                 candidate(1L),

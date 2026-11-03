@@ -13,6 +13,7 @@ public record RouteRecommendationItem(
         int estimatedMinutes,
         long distanceMeters,
         ScenicTheme theme,
+        Integer repeatedSegmentPercent,
         List<RouteRecommendationStop> stops,
         String reason) {
 

@@ -124,6 +124,7 @@ public class RouteRecommendationService {
                 candidate.estimatedMinutes(),
                 candidate.distanceMeters(),
                 candidate.theme(),
+                candidate.repeatedSegmentPercent(),
                 candidate.stops().stream()
                         .map(stop -> new RouteRecommendationStop(
                                 stop.sequence(),

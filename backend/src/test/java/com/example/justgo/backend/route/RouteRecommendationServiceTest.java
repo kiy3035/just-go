@@ -46,6 +46,7 @@ class RouteRecommendationServiceTest {
         assertThat(response.routes()).hasSize(1);
         assertThat(response.suggestions()).isEmpty();
         assertThat(response.routes().getFirst().routeId()).startsWith("MOCK-");
+        assertThat(response.routes().getFirst().repeatedSegmentPercent()).isNull();
         assertThat(response.routes().getFirst().reason()).contains("실제 도로 경로");
     }
 
@@ -207,6 +208,7 @@ class RouteRecommendationServiceTest {
                 60,
                 10_000,
                 ScenicTheme.MOUNTAIN,
+                12,
                 List.of(new DrivingRouteStop(
                         1,
                         DrivingRouteStopType.DESTINATION,
@@ -236,6 +238,7 @@ class RouteRecommendationServiceTest {
                     assertThat(stop.name()).isEqualTo("DESTINATION_TEST_ONLY");
                     assertThat(stop.latitude()).isEqualByComparingTo("0.300000");
                 });
+        assertThat(response.routes().getFirst().repeatedSegmentPercent()).isEqualTo(12);
     }
 
     /** 서비스 테스트용 LIVE 후보를 실제 위치와 무관한 값으로 생성합니다. */
@@ -246,6 +249,7 @@ class RouteRecommendationServiceTest {
                 minutes,
                 distanceMeters,
                 ScenicTheme.RIVER,
+                null,
                 List.of(),
                 "LIVE_RANKING_TEST_ONLY");
     }

@@ -84,6 +84,9 @@ public class TmapDrivingRouteProvider implements DrivingRouteProvider {
                 toWholeMinutes(summary.durationSeconds()),
                 summary.distanceMeters(),
                 request.theme(),
+                request.tripType() == TripType.ROUND_TRIP
+                        ? summary.repeatedSegmentPercent()
+                        : null,
                 buildStops(request, candidate),
                 "검수된 경관 후보의 TMAP 자동차 경로 시간·거리 결과입니다.");
     }

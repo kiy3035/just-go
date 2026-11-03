@@ -77,7 +77,22 @@ class TmapRouteClientTest {
                             "totalTime": "2220",
                             "totalFare": "0"
                           },
-                          "features": []
+                          "features": [
+                            {
+                              "geometry": {
+                                "type": "LineString",
+                                "coordinates": [[0.0, 0.0], [0.01, 0.0], [0.02, 0.0]]
+                              },
+                              "properties": {"index": "1"}
+                            },
+                            {
+                              "geometry": {
+                                "type": "LineString",
+                                "coordinates": [[0.02, 0.0], [0.01, 0.0], [0.0, 0.0]]
+                              },
+                              "properties": {"index": "2"}
+                            }
+                          ]
                         }
                         """, MediaType.APPLICATION_JSON));
 
@@ -85,6 +100,7 @@ class TmapRouteClientTest {
 
         assertThat(result.distanceMeters()).isEqualTo(7271L);
         assertThat(result.durationSeconds()).isEqualTo(2220L);
+        assertThat(result.repeatedSegmentPercent()).isEqualTo(50);
         server.verify();
     }
 
@@ -203,6 +219,7 @@ class TmapRouteClientTest {
 
         assertThat(result.distanceMeters()).isEqualTo(4200L);
         assertThat(result.durationSeconds()).isEqualTo(901L);
+        assertThat(result.repeatedSegmentPercent()).isNull();
         server.verify();
     }
 

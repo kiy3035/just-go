@@ -317,3 +317,16 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - `docker compose --env-file .env.example --profile app config --quiet`: 성공.
 - `docker compose --env-file .env.example --profile app build backend`: 성공. V4가 포함된 `just-go-backend:local` 이미지를 생성했습니다.
 - 실제 TMAP 인증·외부 호출, 실제 위치 데이터, 결제수단이나 유료 서비스는 사용하지 않았습니다.
+
+## 23. 2026-11-03 왕복 선분 중복률
+
+- TMAP 공식 다중 경유지 샘플에서 응답 `features[].geometry`가 GeoJSON이며 `LineString` 좌표가 `[경도, 위도]` 배열임을 확인했습니다. 자동차 경로안내 문서에서는 `totalValue=1`이 전체 응답, `totalValue=2`가 거리·시간 등의 요약 응답임을 확인했습니다.
+- 왕복 다중 경유지 응답의 LineString을 WGS84 소수점 여섯 자리 선분으로 정규화하고, 방향이 반대인 복귀 선분도 같은 선분으로 인식하도록 구현했습니다.
+- 최초 통과 이후 재통과한 선분의 Haversine 거리 합계를 전체 분석 거리로 나눠 `repeatedSegmentPercent` 정수 백분율을 계산합니다. 원시 좌표는 DB·파일·로그에 저장하지 않습니다.
+- 유효한 선형이 없는 응답과 편도·MOCK 결과는 0으로 추측하지 않고 `null`을 반환합니다. 희망 시간 차이가 같은 LIVE 후보에서는 중복률이 낮은 왕복을 거리보다 먼저 정렬합니다.
+- 실제 중복률 상한은 임의로 두지 않았습니다. 실제 TMAP 응답 분포와 주행 검증 후 결정해야 합니다.
+- `.\gradlew.bat clean test --no-daemon`: 전체 46개 테스트 통과, 실패·오류·건너뜀 0개.
+- `.\gradlew.bat build --no-daemon`: 성공. OpenAPI 0.7.0 계약과 선형 분석 구현을 포함한 실행 JAR을 생성했습니다.
+- `docker compose --env-file .env.example --profile app config --quiet`: 성공.
+- `docker compose --env-file .env.example --profile app build backend`: 성공. 선형 분석 구현이 포함된 `just-go-backend:local` 이미지를 생성했습니다.
+- 실제 TMAP 인증·외부 호출, 실제 위치 데이터, 결제수단이나 유료 서비스는 사용하지 않았습니다. GeoJSON 파싱 검증은 명백한 가짜 좌표를 사용한 MOCK HTTP 응답입니다.

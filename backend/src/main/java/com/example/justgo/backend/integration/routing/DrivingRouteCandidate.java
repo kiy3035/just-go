@@ -14,11 +14,16 @@ public record DrivingRouteCandidate(
         int estimatedMinutes,
         long distanceMeters,
         ScenicTheme theme,
+        Integer repeatedSegmentPercent,
         List<DrivingRouteStop> stops,
         String reason) {
 
     /** 응답 변환 중 지점 목록이 바뀌지 않도록 방어적으로 복사합니다. */
     public DrivingRouteCandidate {
+        if (repeatedSegmentPercent != null
+                && (repeatedSegmentPercent < 0 || repeatedSegmentPercent > 100)) {
+            throw new IllegalArgumentException("경로 중복률은 0~100%여야 합니다.");
+        }
         stops = List.copyOf(stops);
     }
 }
