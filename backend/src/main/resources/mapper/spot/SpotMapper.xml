@@ -47,14 +47,22 @@
             latitude,
             longitude,
             verification_status,
-            enabled
+            enabled,
+            source_name,
+            source_reference,
+            usage_rights_note,
+            verified_at
         ) VALUES (
             #{name},
             #{theme}::varchar,
             #{latitude},
             #{longitude},
             #{verificationStatus}::varchar,
-            #{enabled}
+            #{enabled},
+            #{sourceName},
+            #{sourceReference},
+            #{usageRightsNote},
+            #{verifiedAt}
         )
     </insert>
 
@@ -66,6 +74,10 @@
           AND enabled = TRUE
           AND latitude IS NOT NULL
           AND longitude IS NOT NULL
+          AND NULLIF(BTRIM(source_name), '') IS NOT NULL
+          AND NULLIF(BTRIM(source_reference), '') IS NOT NULL
+          AND NULLIF(BTRIM(usage_rights_note), '') IS NOT NULL
+          AND verified_at IS NOT NULL
         ORDER BY id
         LIMIT #{limit}
     </select>

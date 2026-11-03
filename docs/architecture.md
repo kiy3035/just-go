@@ -93,7 +93,7 @@ MyBatis SQL은 Mapper XML에 둔다. 데이터 모델과 API DTO를 혼용하지
 
 ## 6. 데이터 저장 설계 (아직 확정하지 않은 논리 모델)
 
-- `SPOT`: 명소 기본 정보, 좌표, 테마.
+- `SPOT`: 명소 기본 정보, 좌표, 테마, 검수 상태와 원본·이용허락 근거. 출처 이력이 완전한 VERIFIED 행만 추천에 사용.
 - `SCENIC_SEGMENT`: 실제 운전 중 경관을 감상할 수 있는 검수 도로/경유 좌표.
 - `ROUTE_TEMPLATE`, `ROUTE_STOP`: 검수 코스 후보 / 순서.
 - `APP_USER`, `DRIVE_TRIP`: P1. 익명 계정·드라이브 이력 저장 범위 확정 후 생성.

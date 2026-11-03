@@ -1,13 +1,16 @@
 package com.example.justgo.backend.spot;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -59,27 +62,27 @@ class SpotMapperIntegrationTest {
      */
     @Test
     void findsOnlyEnabledAndVerifiedCandidates() {
-        spotMapper.insertCandidate(
+        spotMapper.insertCandidate(candidate(
                 "VERIFIED_RIVER_TEST_ONLY",
                 ScenicTheme.RIVER,
                 new BigDecimal("0.100000"),
                 new BigDecimal("0.200000"),
                 SpotVerificationStatus.VERIFIED,
-                true);
-        spotMapper.insertCandidate(
+                true));
+        spotMapper.insertCandidate(candidate(
                 "PENDING_RIVER_TEST_ONLY",
                 ScenicTheme.RIVER,
                 new BigDecimal("0.300000"),
                 new BigDecimal("0.400000"),
                 SpotVerificationStatus.PENDING,
-                true);
-        spotMapper.insertCandidate(
+                true));
+        spotMapper.insertCandidate(candidate(
                 "DISABLED_RIVER_TEST_ONLY",
                 ScenicTheme.RIVER,
                 new BigDecimal("0.500000"),
                 new BigDecimal("0.600000"),
                 SpotVerificationStatus.VERIFIED,
-                false);
+                false));
 
         List<SpotCandidateRecord> candidates =
                 spotMapper.findVerifiedCandidatesByTheme(ScenicTheme.RIVER, 10);
@@ -88,5 +91,58 @@ class SpotMapperIntegrationTest {
                 .extracting(SpotCandidateRecord::name)
                 .contains("VERIFIED_RIVER_TEST_ONLY")
                 .doesNotContain("PENDING_RIVER_TEST_ONLY", "DISABLED_RIVER_TEST_ONLY");
+    }
+
+    /** VERIFIED 후보에 출처·이용권한·검수 시각이 없으면 DB가 저장을 거부하는지 확인합니다. */
+    @Test
+    void rejectsVerifiedCandidateWithoutProvenance() {
+        SpotCandidateRegistration missingProvenance = new SpotCandidateRegistration(
+                "MISSING_PROVENANCE_TEST_ONLY",
+                ScenicTheme.CITY,
+                new BigDecimal("0.700000"),
+                new BigDecimal("0.800000"),
+                SpotVerificationStatus.VERIFIED,
+                true,
+                null,
+                null,
+                null,
+                null);
+
+        assertThatThrownBy(() -> spotMapper.insertCandidate(missingProvenance))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    /** 실제 장소·권리 정보와 혼동되지 않는 테스트 전용 후보를 생성합니다. */
+    private SpotCandidateRegistration candidate(
+            String name,
+            ScenicTheme theme,
+            BigDecimal latitude,
+            BigDecimal longitude,
+            SpotVerificationStatus verificationStatus,
+            boolean enabled) {
+        if (verificationStatus != SpotVerificationStatus.VERIFIED) {
+            return new SpotCandidateRegistration(
+                    name,
+                    theme,
+                    latitude,
+                    longitude,
+                    verificationStatus,
+                    enabled,
+                    null,
+                    null,
+                    null,
+                    null);
+        }
+        return new SpotCandidateRegistration(
+                name,
+                theme,
+                latitude,
+                longitude,
+                verificationStatus,
+                enabled,
+                "SOURCE_TEST_ONLY",
+                "https://example.invalid/source-test-only",
+                "USAGE_RIGHTS_TEST_ONLY",
+                OffsetDateTime.parse("2026-01-01T00:00:00Z"));
     }
 }

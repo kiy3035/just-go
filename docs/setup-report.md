@@ -288,3 +288,17 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - `docker compose --env-file .env.example --profile app config --quiet`: 성공.
 - `docker compose --env-file .env.example --profile app build backend`: 성공. 변경된 API를 포함한 `just-go-backend:local` 이미지를 다시 생성했습니다.
 - 실제 TMAP 인증·외부 호출은 사용자 지시에 따라 실행하지 않았습니다.
+
+## 21. 2026-11-03 경관 후보 출처·이용권한 검수
+
+- 공공데이터포털의 전국관광지정보표준데이터, 공공데이터 이용정책과 공공누리 유형 안내를 공식 자료로 확인하고 `docs/scenic-data-policy.md`에 후보 사용 기준을 정리했습니다.
+- 전국관광지 표준데이터는 위도·경도를 제공하고 메타데이터상 이용허락 제한 없음으로 표시되지만, 경관 주행 적합성·자동차 접근성·테마·좌표 최신성은 별도 수동 검수가 필요하다고 판단했습니다.
+- Flyway V3에서 `source_name`, `source_reference`, `usage_rights_note`, `verified_at`을 추가했습니다. 새 VERIFIED 행은 이 값이 모두 없으면 DB가 거부합니다.
+- 기존 V2 DB의 출처 없는 VERIFIED 행을 삭제하거나 임의 변경하지 않도록 제약을 `NOT VALID`로 추가했습니다. 대신 MyBatis 추천 후보 조회에서 출처 이력이 불완전한 행을 제외합니다.
+- `SpotCandidateRegistration`으로 후보 등록 파라미터를 묶고 중요한 클래스·메서드에 한글 주석을 추가했습니다.
+- 실제 장소·좌표·외부 API 키는 추가하지 않았고 테스트에는 `example.invalid`와 명백한 TEST 전용 값만 사용했습니다.
+- V2까지만 적용한 PostgreSQL 17에 출처 없는 기존 VERIFIED 테스트 행을 만든 뒤 V3를 적용했습니다. 기존 행은 보존되고 새 출처 없는 VERIFIED 저장은 SQLSTATE `23514`로 거부되는 것을 확인했습니다.
+- `.\gradlew.bat clean test --no-daemon`: 전체 39개 테스트 통과, 실패·오류·건너뜀 0개.
+- `.\gradlew.bat build --no-daemon`: 성공. V3 마이그레이션을 포함한 실행 JAR을 생성했습니다.
+- `docker compose --env-file .env.example --profile app config --quiet`: 성공.
+- `docker compose --env-file .env.example --profile app build backend`: 성공. V3가 포함된 로컬 백엔드 이미지를 생성했습니다.

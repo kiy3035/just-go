@@ -1,6 +1,5 @@
 package com.example.justgo.backend.spot;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -45,13 +44,7 @@ public interface SpotMapper {
      *
      * @return 추가된 행 수
      */
-    int insertCandidate(
-            @Param("name") String name,
-            @Param("theme") ScenicTheme theme,
-            @Param("latitude") BigDecimal latitude,
-            @Param("longitude") BigDecimal longitude,
-            @Param("verificationStatus") SpotVerificationStatus verificationStatus,
-            @Param("enabled") boolean enabled);
+    int insertCandidate(SpotCandidateRegistration candidate);
 
     /**
      * 지정한 테마에서 활성화된 검수 완료 후보만 식별자 순으로 조회합니다.
