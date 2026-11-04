@@ -12,6 +12,7 @@
 - 한 번에 1~500건, 파일 크기 1MB 이하만 처리합니다.
 - 전체 후보를 먼저 검증하고 한 트랜잭션으로 저장하므로 한 건이 잘못되면 일부만 저장하지 않습니다.
 - 후보명·출처명·참조가 모두 같은 기존 행은 중복으로 건너뜁니다.
+- 실제 등록 전에는 `dry-run`으로 형식과 DB·파일 내 중복 건수를 먼저 확인합니다.
 
 ## 2. 로컬 JSON 작성
 
@@ -40,7 +41,7 @@
 
 위도·경도와 점수는 문자열이 아니라 JSON 숫자로 입력합니다. 좌표는 WGS84 범위를 확인한 뒤 DB 정밀도인 소수점 여섯 자리로 반올림됩니다. 세 점수 중 하나라도 3점 미만이면 추천용 VERIFIED 후보로 가져오지 않습니다.
 
-## 3. 실행
+## 3. 저장 없는 사전 검증
 
 먼저 `infra/.env`와 `backend/.env`의 로컬 DB 값이 서로 맞는지 확인하고 PostgreSQL을 실행합니다. 실제 비밀번호 파일은 Git에 올리지 않습니다.
 
@@ -50,13 +51,29 @@ docker compose --env-file .env up -d postgres
 
 cd ..\backend
 $env:SCENIC_CANDIDATE_IMPORT_FILE = (Resolve-Path .\local-data\scenic-candidates.json).Path
+$env:SCENIC_CANDIDATE_IMPORT_DRY_RUN = "true"
 .\gradlew.bat bootRun --args="--spring.profiles.active=local,candidate-import"
+Remove-Item Env:\SCENIC_CANDIDATE_IMPORT_DRY_RUN
 Remove-Item Env:\SCENIC_CANDIDATE_IMPORT_FILE
 ```
 
-성공 로그에는 신규 저장 건수와 중복 제외 건수만 표시됩니다. 파일 경로, 후보명, 좌표와 출처 원문은 로그에 남기지 않습니다.
+`dry-run`도 현재 DB와 중복을 비교하므로 PostgreSQL 연결은 필요하지만 INSERT는 실행하지 않습니다. 성공 로그에는 전체, 등록 가능, DB 중복, 파일 내 중복 건수만 표시됩니다. 파일 경로, 후보명, 좌표와 출처 원문은 로그에 남기지 않습니다.
 
-## 4. 등록 후 확인
+## 4. 실제 등록
+
+사전 검증 결과를 확인한 뒤 `dry-run`을 `false`로 바꾸거나 환경변수를 제거하고 같은 프로필을 실행합니다.
+
+```powershell
+$env:SCENIC_CANDIDATE_IMPORT_FILE = (Resolve-Path .\local-data\scenic-candidates.json).Path
+$env:SCENIC_CANDIDATE_IMPORT_DRY_RUN = "false"
+.\gradlew.bat bootRun --args="--spring.profiles.active=local,candidate-import"
+Remove-Item Env:\SCENIC_CANDIDATE_IMPORT_DRY_RUN
+Remove-Item Env:\SCENIC_CANDIDATE_IMPORT_FILE
+```
+
+성공 로그에는 신규 저장 건수와 중복 제외 건수만 표시됩니다. 프로세스는 가져오기를 마친 뒤 종료합니다.
+
+## 5. 등록 후 확인
 
 - 같은 명령을 다시 실행했을 때 같은 후보가 중복 제외되는지 확인합니다.
 - `/api/v1/spots?theme=...` 조회는 출처·품질 기준을 모두 만족한 후보만 반환합니다.

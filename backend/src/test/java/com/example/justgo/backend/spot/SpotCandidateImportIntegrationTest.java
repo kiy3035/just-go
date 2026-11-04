@@ -3,8 +3,11 @@ package com.example.justgo.backend.spot;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.OffsetDateTime;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +34,9 @@ class SpotCandidateImportIntegrationTest {
     @Autowired
     private SpotMapper spotMapper;
 
+    @Autowired
+    private SpotCandidateImportService importService;
+
     /** 테스트 DB와 가짜 JSON 파일만 candidate-import 프로필에 전달합니다. */
     @DynamicPropertySource
     static void registerProperties(DynamicPropertyRegistry registry) {
@@ -46,6 +52,32 @@ class SpotCandidateImportIntegrationTest {
         assertThat(spotMapper.findVerifiedCandidatesByTheme(ScenicTheme.SEA, 10))
                 .extracting(SpotCandidateRecord::name)
                 .containsExactly("IMPORT_INTEGRATION_TEST_ONLY");
+    }
+
+    /** 사전 검증은 PostgreSQL 중복 조회만 수행하고 신규 후보를 저장하지 않습니다. */
+    @Test
+    void dryRunDoesNotWriteToPostgresql() {
+        SpotCandidateImportEntry entry = new SpotCandidateImportEntry(
+                "DRY_RUN_INTEGRATION_TEST_ONLY",
+                ScenicTheme.LAKE,
+                new BigDecimal("0.300000"),
+                new BigDecimal("0.400000"),
+                "SOURCE_TEST_ONLY",
+                "https://example.invalid/dry-run-integration-test",
+                "USAGE_RIGHTS_TEST_ONLY",
+                OffsetDateTime.parse("2026-11-01T00:00:00Z"),
+                3,
+                4,
+                5,
+                "QUALITY_REVIEW_TEST_ONLY");
+
+        SpotCandidateImportValidationResult result =
+                importService.validateCandidates(List.of(entry));
+
+        assertThat(result.readyCount()).isOne();
+        assertThat(spotMapper.countCandidateIdentity(
+                        entry.name(), entry.sourceName(), entry.sourceReference()))
+                .isZero();
     }
 
     /** 실제 위치와 혼동되지 않는 가짜 JSON을 임시 파일로 만들고 종료 시 제거합니다. */

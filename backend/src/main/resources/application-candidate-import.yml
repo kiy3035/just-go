@@ -5,3 +5,4 @@ spring:
 justgo:
   spot-import:
     path: ${SCENIC_CANDIDATE_IMPORT_FILE:}
+    dry-run: ${SCENIC_CANDIDATE_IMPORT_DRY_RUN:false}

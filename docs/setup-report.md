@@ -368,3 +368,15 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - `.\gradlew.bat build --no-daemon`: 성공. 후보 거리 필터를 포함한 실행 JAR을 생성했습니다.
 - `docker compose --env-file .env.example --profile app config --quiet`: 성공.
 - `docker compose --env-file .env.example --profile app build backend`: 성공. 후보 거리 필터가 포함된 `just-go-backend:local` 이미지를 생성했습니다.
+
+## 27. 2026-11-04 경관 후보 저장 없는 사전 검증
+
+- `candidate-import` 프로필에 `SCENIC_CANDIDATE_IMPORT_DRY_RUN=true` 옵션을 추가해 JSON 전체 형식과 현재 DB 중복을 확인하되 INSERT는 실행하지 않도록 했습니다.
+- 사전 검증 결과는 전체, 등록 가능, DB 중복, 파일 내 중복 건수만 로그로 남기며 후보명·좌표·출처·파일 경로는 출력하지 않습니다.
+- 같은 이름·출처·참조 조합이 파일 안에 반복되면 한 번만 DB 중복을 조회하고 별도의 파일 내 중복 건수로 집계합니다. 실제 등록에서도 같은 입력 중복을 건너뜁니다.
+- PostgreSQL 17 통합 테스트에서 사전 검증 전후 동일성 조회 결과가 0건으로 유지되어 DB에 저장되지 않는 것을 확인했습니다.
+- 실제 장소·개인 위치·TMAP 앱 키·외부 호출·유료 서비스는 사용하지 않았습니다.
+- `.\gradlew.bat clean test --no-daemon`: 전체 64개 테스트 통과, 실패·오류·건너뜀 0개.
+- `.\gradlew.bat build --no-daemon`: 성공. dry-run 검증 모드를 포함한 실행 JAR을 생성했습니다.
+- `docker compose --env-file .env.example --profile app config --quiet`: 성공.
+- `docker compose --env-file .env.example --profile app build backend`: 성공. dry-run 검증 모드가 포함된 `just-go-backend:local` 이미지를 생성했습니다.

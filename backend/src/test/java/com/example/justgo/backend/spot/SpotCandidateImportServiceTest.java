@@ -7,6 +7,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
@@ -64,6 +65,37 @@ class SpotCandidateImportServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("candidates[1]", "themeFitScore");
         verifyNoInteractions(spotMapper);
+    }
+
+    /** 사전 검증은 DB를 변경하지 않고 파일 안 중복을 한 번만 조회합니다. */
+    @Test
+    void validatesWithoutWritingAndCountsInputDuplicate() {
+        SpotCandidateImportEntry entry = validEntry(4);
+        when(spotMapper.countCandidateIdentity(any(), any(), any())).thenReturn(0);
+
+        SpotCandidateImportValidationResult result =
+                importService.validateCandidates(List.of(entry, entry));
+
+        assertThat(result.totalCount()).isEqualTo(2);
+        assertThat(result.readyCount()).isOne();
+        assertThat(result.existingDuplicateCount()).isZero();
+        assertThat(result.inputDuplicateCount()).isOne();
+        verify(spotMapper, times(1)).countCandidateIdentity(any(), any(), any());
+        verify(spotMapper, never()).insertCandidate(any());
+    }
+
+    /** 사전 검증은 DB에 이미 있는 후보를 등록 가능 건수에서 제외합니다. */
+    @Test
+    void reportsExistingCandidateDuringValidation() {
+        when(spotMapper.countCandidateIdentity(any(), any(), any())).thenReturn(1);
+
+        SpotCandidateImportValidationResult result =
+                importService.validateCandidates(List.of(validEntry(3)));
+
+        assertThat(result.readyCount()).isZero();
+        assertThat(result.existingDuplicateCount()).isOne();
+        assertThat(result.inputDuplicateCount()).isZero();
+        verify(spotMapper, never()).insertCandidate(any());
     }
 
     /** 실제 장소와 혼동되지 않는 가짜 출처·좌표의 테스트 후보를 만듭니다. */

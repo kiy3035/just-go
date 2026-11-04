@@ -2,7 +2,9 @@ package com.example.justgo.backend.spot;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 
 import org.springframework.context.annotation.Profile;
@@ -28,6 +30,41 @@ public class SpotCandidateImportService {
     /** 검수 완료 후보만 저장하고 같은 이름·출처·참조 조합은 중복으로 건너뜁니다. */
     @Transactional
     public SpotCandidateImportResult importCandidates(List<SpotCandidateImportEntry> entries) {
+        PreparedCandidates prepared = prepare(entries);
+        int insertedCount = 0;
+        int skippedDuplicateCount = prepared.inputDuplicateCount();
+        for (SpotCandidateRegistration registration : prepared.uniqueRegistrations()) {
+            if (exists(registration)) {
+                skippedDuplicateCount++;
+                continue;
+            }
+            spotMapper.insertCandidate(registration);
+            insertedCount++;
+        }
+        return new SpotCandidateImportResult(insertedCount, skippedDuplicateCount);
+    }
+
+    /** DB를 변경하지 않고 전체 입력의 형식과 기존·파일 내 중복 건수를 확인합니다. */
+    @Transactional(readOnly = true)
+    public SpotCandidateImportValidationResult validateCandidates(
+            List<SpotCandidateImportEntry> entries) {
+        PreparedCandidates prepared = prepare(entries);
+        int existingDuplicateCount = 0;
+        for (SpotCandidateRegistration registration : prepared.uniqueRegistrations()) {
+            if (exists(registration)) {
+                existingDuplicateCount++;
+            }
+        }
+        int readyCount = prepared.uniqueRegistrations().size() - existingDuplicateCount;
+        return new SpotCandidateImportValidationResult(
+                prepared.totalCount(),
+                readyCount,
+                existingDuplicateCount,
+                prepared.inputDuplicateCount());
+    }
+
+    /** 모든 행을 먼저 검증하고 파일 안의 같은 후보를 한 번만 처리하도록 묶습니다. */
+    private PreparedCandidates prepare(List<SpotCandidateImportEntry> entries) {
         if (entries == null || entries.isEmpty()) {
             throw new IllegalArgumentException("가져올 경관 후보가 한 건 이상 필요합니다.");
         }
@@ -40,21 +77,24 @@ public class SpotCandidateImportService {
                 .mapToObj(index -> toRegistration(entries.get(index), index))
                 .toList();
 
-        int insertedCount = 0;
-        int skippedDuplicateCount = 0;
+        Map<CandidateIdentity, SpotCandidateRegistration> uniqueRegistrations =
+                new LinkedHashMap<>();
         for (SpotCandidateRegistration registration : registrations) {
-            int existingCount = spotMapper.countCandidateIdentity(
-                    registration.name(),
-                    registration.sourceName(),
-                    registration.sourceReference());
-            if (existingCount > 0) {
-                skippedDuplicateCount++;
-                continue;
-            }
-            spotMapper.insertCandidate(registration);
-            insertedCount++;
+            uniqueRegistrations.putIfAbsent(CandidateIdentity.from(registration), registration);
         }
-        return new SpotCandidateImportResult(insertedCount, skippedDuplicateCount);
+        return new PreparedCandidates(
+                registrations.size(),
+                List.copyOf(uniqueRegistrations.values()),
+                registrations.size() - uniqueRegistrations.size());
+    }
+
+    /** 후보 원문을 노출하지 않고 동일성 조회 결과만 반환합니다. */
+    private boolean exists(SpotCandidateRegistration registration) {
+        return spotMapper.countCandidateIdentity(
+                        registration.name(),
+                        registration.sourceName(),
+                        registration.sourceReference())
+                > 0;
     }
 
     /** JSON 한 건을 DB 길이·좌표·품질 규칙에 맞는 VERIFIED 등록값으로 변환합니다. */
@@ -139,5 +179,23 @@ public class SpotCandidateImportService {
     /** 실제 후보값을 오류 메시지에 노출하지 않고 배열 위치와 필드만 알립니다. */
     private IllegalArgumentException invalid(int index, String message) {
         return new IllegalArgumentException("candidates[" + index + "]: " + message);
+    }
+
+    /** 후보 중복 판정에 사용하는 이름·출처·참조 조합입니다. */
+    private record CandidateIdentity(String name, String sourceName, String sourceReference) {
+
+        private static CandidateIdentity from(SpotCandidateRegistration registration) {
+            return new CandidateIdentity(
+                    registration.name(),
+                    registration.sourceName(),
+                    registration.sourceReference());
+        }
+    }
+
+    /** 전체 검증을 마친 고유 후보와 파일 내 중복 건수를 함께 보관합니다. */
+    private record PreparedCandidates(
+            int totalCount,
+            List<SpotCandidateRegistration> uniqueRegistrations,
+            int inputDuplicateCount) {
     }
 }

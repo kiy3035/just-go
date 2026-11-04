@@ -21,14 +21,17 @@ public class SpotCandidateImportRunner implements ApplicationRunner {
     private final SpotCandidateImportFileReader fileReader;
     private final SpotCandidateImportService importService;
     private final String configuredPath;
+    private final boolean dryRun;
 
     public SpotCandidateImportRunner(
             SpotCandidateImportFileReader fileReader,
             SpotCandidateImportService importService,
-            @Value("${justgo.spot-import.path:}") String configuredPath) {
+            @Value("${justgo.spot-import.path:}") String configuredPath,
+            @Value("${justgo.spot-import.dry-run:false}") boolean dryRun) {
         this.fileReader = fileReader;
         this.importService = importService;
         this.configuredPath = configuredPath;
+        this.dryRun = dryRun;
     }
 
     /** 파일 경로나 후보값은 로그에 남기지 않고 처리 건수만 기록합니다. */
@@ -38,6 +41,17 @@ public class SpotCandidateImportRunner implements ApplicationRunner {
             throw new IllegalArgumentException("SCENIC_CANDIDATE_IMPORT_FILE 설정이 필요합니다.");
         }
         SpotCandidateImportDocument document = fileReader.read(configuredFile());
+        if (dryRun) {
+            SpotCandidateImportValidationResult result =
+                    importService.validateCandidates(document.candidates());
+            LOGGER.info(
+                    "경관 후보 사전 검증 완료: 전체 {}건, 등록 가능 {}건, DB 중복 {}건, 파일 내 중복 {}건",
+                    result.totalCount(),
+                    result.readyCount(),
+                    result.existingDuplicateCount(),
+                    result.inputDuplicateCount());
+            return;
+        }
         SpotCandidateImportResult result = importService.importCandidates(document.candidates());
         LOGGER.info(
                 "경관 후보 가져오기 완료: 신규 {}건, 중복 제외 {}건",
