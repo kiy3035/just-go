@@ -1,5 +1,6 @@
 package com.example.justgo.backend.spot;
 
+import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
 
@@ -44,11 +45,32 @@ public class SpotService implements SpotCandidateQuery {
     @Override
     @Transactional(readOnly = true)
     public List<SpotCandidateRecord> loadVerifiedCandidates(ScenicTheme theme, int limit) {
-        if (limit < MIN_LIMIT || limit > MAX_LIMIT) {
-            throw new InvalidSpotLimitException(limit);
-        }
+        validateLimit(limit);
 
         return List.copyOf(spotMapper.findVerifiedCandidatesByTheme(theme, limit));
+    }
+
+    /** 출발 좌표를 저장하지 않고 직선거리 상한 안의 후보만 추천 계층에 전달합니다. */
+    @Override
+    @Transactional(readOnly = true)
+    public List<SpotCandidateRecord> loadNearbyVerifiedCandidates(
+            ScenicTheme theme,
+            BigDecimal originLatitude,
+            BigDecimal originLongitude,
+            long maxDistanceMeters,
+            int limit) {
+        validateLimit(limit);
+        validateCoordinate(originLatitude, -90, 90, "위도");
+        validateCoordinate(originLongitude, -180, 180, "경도");
+        if (maxDistanceMeters <= 0) {
+            throw new IllegalArgumentException("후보 직선거리 상한은 0m보다 커야 합니다.");
+        }
+        return List.copyOf(spotMapper.findNearbyVerifiedCandidatesByTheme(
+                theme,
+                originLatitude,
+                originLongitude,
+                maxDistanceMeters,
+                limit));
     }
 
     /** 검수 후보가 실제로 존재하는 테마를 확정된 화면 표시 순서로 반환합니다. */
@@ -58,6 +80,26 @@ public class SpotService implements SpotCandidateQuery {
         return spotMapper.findAvailableVerifiedThemes().stream()
                 .sorted(Comparator.comparingInt(ScenicTheme::ordinal))
                 .toList();
+    }
+
+    /** 공개 조회와 추천 조회에 같은 1~50건 제한을 적용합니다. */
+    private void validateLimit(int limit) {
+        if (limit < MIN_LIMIT || limit > MAX_LIMIT) {
+            throw new InvalidSpotLimitException(limit);
+        }
+    }
+
+    /** DB 거리 계산 전에 WGS84 좌표 범위를 다시 확인합니다. */
+    private void validateCoordinate(
+            BigDecimal coordinate,
+            int minimum,
+            int maximum,
+            String label) {
+        if (coordinate == null
+                || coordinate.compareTo(BigDecimal.valueOf(minimum)) < 0
+                || coordinate.compareTo(BigDecimal.valueOf(maximum)) > 0) {
+            throw new IllegalArgumentException(label + " WGS84 범위를 확인해 주세요.");
+        }
     }
 
     /**

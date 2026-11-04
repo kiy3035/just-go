@@ -53,7 +53,7 @@ public interface SpotMapper {
             @Param("sourceReference") String sourceReference);
 
     /**
-     * 지정한 테마에서 활성화된 검수 완료 후보만 식별자 순으로 조회합니다.
+     * 지정한 테마에서 활성화된 검수 완료 후보를 품질 합계와 식별자 순으로 조회합니다.
      *
      * @param theme 풍경 테마
      * @param limit 최대 조회 건수
@@ -61,6 +61,14 @@ public interface SpotMapper {
      */
     List<SpotCandidateRecord> findVerifiedCandidatesByTheme(
             @Param("theme") ScenicTheme theme,
+            @Param("limit") int limit);
+
+    /** 출발지와 직선거리 상한 안에서 품질이 높은 검수 후보를 조회합니다. */
+    List<SpotCandidateRecord> findNearbyVerifiedCandidatesByTheme(
+            @Param("theme") ScenicTheme theme,
+            @Param("originLatitude") java.math.BigDecimal originLatitude,
+            @Param("originLongitude") java.math.BigDecimal originLongitude,
+            @Param("maxDistanceMeters") long maxDistanceMeters,
             @Param("limit") int limit);
 
     /** 검수·출처·품질 조건을 모두 만족하는 후보가 있는 테마만 조회합니다. */

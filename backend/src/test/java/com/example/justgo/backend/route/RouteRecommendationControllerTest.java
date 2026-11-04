@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
@@ -49,7 +50,12 @@ class RouteRecommendationControllerTest {
      */
     @BeforeEach
     void setUpSpotCandidates() {
-        when(spotCandidateQuery.loadVerifiedCandidates(any(ScenicTheme.class), anyInt()))
+        when(spotCandidateQuery.loadNearbyVerifiedCandidates(
+                any(ScenicTheme.class),
+                any(java.math.BigDecimal.class),
+                any(java.math.BigDecimal.class),
+                anyLong(),
+                anyInt()))
                 .thenReturn(List.of());
     }
 

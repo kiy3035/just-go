@@ -21,6 +21,21 @@
         </constructor>
     </resultMap>
 
+    <sql id="verifiedCandidateEligibility">
+        verification_status = 'VERIFIED'
+        AND enabled = TRUE
+        AND latitude IS NOT NULL
+        AND longitude IS NOT NULL
+        AND NULLIF(BTRIM(source_name), '') IS NOT NULL
+        AND NULLIF(BTRIM(source_reference), '') IS NOT NULL
+        AND NULLIF(BTRIM(usage_rights_note), '') IS NOT NULL
+        AND verified_at IS NOT NULL
+        AND theme_fit_score BETWEEN 3 AND 5
+        AND scenic_quality_score BETWEEN 3 AND 5
+        AND route_suitability_score BETWEEN 3 AND 5
+        AND NULLIF(BTRIM(quality_review_note), '') IS NOT NULL
+    </sql>
+
     <insert id="insert">
         INSERT INTO spot (name, theme)
         VALUES (#{name}, #{theme}::varchar)
@@ -86,19 +101,43 @@
         SELECT id, name, theme, latitude, longitude
         FROM spot
         WHERE theme = #{theme}::varchar
-          AND verification_status = 'VERIFIED'
-          AND enabled = TRUE
-          AND latitude IS NOT NULL
-          AND longitude IS NOT NULL
-          AND NULLIF(BTRIM(source_name), '') IS NOT NULL
-          AND NULLIF(BTRIM(source_reference), '') IS NOT NULL
-          AND NULLIF(BTRIM(usage_rights_note), '') IS NOT NULL
-          AND verified_at IS NOT NULL
-          AND theme_fit_score BETWEEN 3 AND 5
-          AND scenic_quality_score BETWEEN 3 AND 5
-          AND route_suitability_score BETWEEN 3 AND 5
-          AND NULLIF(BTRIM(quality_review_note), '') IS NOT NULL
+          AND <include refid="verifiedCandidateEligibility"/>
         ORDER BY (theme_fit_score + scenic_quality_score + route_suitability_score) DESC,
+                 id
+        LIMIT #{limit}
+    </select>
+
+    <select id="findNearbyVerifiedCandidatesByTheme" resultMap="spotCandidateRecordMap">
+        WITH eligible_candidates AS (
+            SELECT id,
+                   name,
+                   theme,
+                   latitude,
+                   longitude,
+                   (theme_fit_score + scenic_quality_score + route_suitability_score)
+                       AS quality_score,
+                   2 * 6371008.8 * ASIN(SQRT(LEAST(
+                       1.0,
+                       POWER(SIN(RADIANS(
+                           (latitude::double precision
+                               - CAST(#{originLatitude} AS double precision)) / 2
+                       )), 2)
+                       + COS(RADIANS(CAST(#{originLatitude} AS double precision)))
+                       * COS(RADIANS(latitude::double precision))
+                       * POWER(SIN(RADIANS(
+                           (longitude::double precision
+                               - CAST(#{originLongitude} AS double precision)) / 2
+                       )), 2)
+                   ))) AS straight_line_distance_meters
+            FROM spot
+            WHERE theme = #{theme}::varchar
+              AND <include refid="verifiedCandidateEligibility"/>
+        )
+        SELECT id, name, theme, latitude, longitude
+        FROM eligible_candidates
+        WHERE straight_line_distance_meters &lt;= #{maxDistanceMeters}
+        ORDER BY quality_score DESC,
+                 straight_line_distance_meters,
                  id
         LIMIT #{limit}
     </select>
@@ -107,18 +146,7 @@
             resultType="com.example.justgo.backend.spot.ScenicTheme">
         SELECT DISTINCT theme
         FROM spot
-        WHERE verification_status = 'VERIFIED'
-          AND enabled = TRUE
-          AND latitude IS NOT NULL
-          AND longitude IS NOT NULL
-          AND NULLIF(BTRIM(source_name), '') IS NOT NULL
-          AND NULLIF(BTRIM(source_reference), '') IS NOT NULL
-          AND NULLIF(BTRIM(usage_rights_note), '') IS NOT NULL
-          AND verified_at IS NOT NULL
-          AND theme_fit_score BETWEEN 3 AND 5
-          AND scenic_quality_score BETWEEN 3 AND 5
-          AND route_suitability_score BETWEEN 3 AND 5
-          AND NULLIF(BTRIM(quality_review_note), '') IS NOT NULL
+        WHERE <include refid="verifiedCandidateEligibility"/>
         ORDER BY theme
     </select>
 </mapper>

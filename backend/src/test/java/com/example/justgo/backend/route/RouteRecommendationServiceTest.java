@@ -167,6 +167,43 @@ class RouteRecommendationServiceTest {
         assertThat(capturedRequest.get().tripType()).isEqualTo(TripType.ONE_WAY);
     }
 
+    /** 희망 시간과 왕복 방식으로 계산한 직선거리 상한을 후보 조회에 전달합니다. */
+    @Test
+    void limitsCandidateQueryByOriginAndDesiredDuration() {
+        AtomicReference<Long> capturedDistanceMeters = new AtomicReference<>();
+        SpotCandidateQuery nearbyQuery = new SpotCandidateQuery() {
+            @Override
+            public List<SpotCandidateRecord> loadVerifiedCandidates(ScenicTheme theme, int limit) {
+                return List.of();
+            }
+
+            @Override
+            public List<SpotCandidateRecord> loadNearbyVerifiedCandidates(
+                    ScenicTheme theme,
+                    BigDecimal originLatitude,
+                    BigDecimal originLongitude,
+                    long maxDistanceMeters,
+                    int limit) {
+                assertThat(originLatitude).isEqualByComparingTo("0.100000");
+                assertThat(originLongitude).isEqualByComparingTo("0.200000");
+                capturedDistanceMeters.set(maxDistanceMeters);
+                return List.of();
+            }
+        };
+        RouteRecommendationService nearbyService = new RouteRecommendationService(
+                new UnavailableDrivingRouteProvider(),
+                nearbyQuery);
+
+        nearbyService.recommend(new RouteRecommendationRequest(
+                new BigDecimal("0.100000"),
+                new BigDecimal("0.200000"),
+                60,
+                TripType.ROUND_TRIP,
+                ScenicTheme.LAKE));
+
+        assertThat(capturedDistanceMeters.get()).isEqualTo(75_000L);
+    }
+
     /**
      * 프리셋에 없는 직접 입력 시간도 임시 범위와 5분 단위를 만족하면 허용합니다.
      */

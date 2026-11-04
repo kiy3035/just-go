@@ -355,3 +355,16 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - `.\gradlew.bat build --no-daemon`: 성공. 후보 가져오기 프로필을 포함한 실행 JAR을 생성했습니다.
 - `docker compose --env-file .env.example --profile app config --quiet`: 성공.
 - `docker compose --env-file .env.example --profile app build backend`: 성공. 후보 가져오기 구현이 포함된 `just-go-backend:local` 이미지를 생성했습니다.
+
+## 26. 2026-11-04 출발지 기반 후보 거리 필터
+
+- TMAP 호출 전에 희망 시간과 왕복·편도 방식으로 후보 직선거리 상한을 계산하도록 했습니다. 임시 상한 속도는 실제 제한속도 판정이 아닌 호출 전 여유 필터로 150km/h를 사용합니다.
+- 편도는 희망 시간 전체, 왕복은 출발지 복귀를 고려해 절반 시간에 해당하는 직선거리를 상한으로 사용합니다. 60분 기준 편도 150km, 왕복 75km입니다.
+- PostgreSQL 17의 Haversine 계산으로 출발지 반경 밖 후보를 제외하고, 범위 안에서는 기존 품질 합계·직선거리·식별자 순으로 최대 20건을 Provider 경계에 전달합니다.
+- 실제 자동차 경로 시간은 직선거리로 확정하지 않으며 기존 TMAP 결과의 목표 시간 ±15% 정책으로 최종 판정합니다.
+- 출발 좌표와 계산 거리는 DB에 저장하거나 로그로 남기지 않습니다. 테스트에는 0도 부근의 명백한 가짜 좌표만 사용했습니다.
+- 실제 TMAP 인증·외부 호출과 실제 장소 데이터는 사용하지 않았습니다.
+- `.\gradlew.bat clean test --no-daemon`: 전체 60개 테스트 통과, 실패·오류·건너뜀 0개.
+- `.\gradlew.bat build --no-daemon`: 성공. 후보 거리 필터를 포함한 실행 JAR을 생성했습니다.
+- `docker compose --env-file .env.example --profile app config --quiet`: 성공.
+- `docker compose --env-file .env.example --profile app build backend`: 성공. 후보 거리 필터가 포함된 `just-go-backend:local` 이미지를 생성했습니다.

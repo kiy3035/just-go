@@ -30,6 +30,8 @@ public class RouteRecommendationService {
     private final DrivingRouteProvider drivingRouteProvider;
     private final SpotCandidateQuery spotCandidateQuery;
     private final RouteRecommendationPolicy recommendationPolicy = new RouteRecommendationPolicy();
+    private final RouteCandidateDistancePolicy candidateDistancePolicy =
+            new RouteCandidateDistancePolicy();
 
     public RouteRecommendationService(
             DrivingRouteProvider drivingRouteProvider,
@@ -51,8 +53,15 @@ public class RouteRecommendationService {
             throw new UnsupportedDrivingDurationException(request.desiredMinutes());
         }
 
+        long maxCandidateDistanceMeters = candidateDistancePolicy
+                .maxStraightLineDistanceMeters(request.desiredMinutes(), request.tripType());
         var waypointCandidates = spotCandidateQuery
-                .loadVerifiedCandidates(request.theme(), MAX_WAYPOINT_CANDIDATES)
+                .loadNearbyVerifiedCandidates(
+                        request.theme(),
+                        request.latitude(),
+                        request.longitude(),
+                        maxCandidateDistanceMeters,
+                        MAX_WAYPOINT_CANDIDATES)
                 .stream()
                 .map(this::toWaypointCandidate)
                 .toList();

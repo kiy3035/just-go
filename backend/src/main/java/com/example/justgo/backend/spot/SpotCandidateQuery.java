@@ -1,5 +1,6 @@
 package com.example.justgo.backend.spot;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -16,6 +17,19 @@ public interface SpotCandidateQuery {
      * @return 추천에 전달할 검수 완료 장소 후보
      */
     List<SpotCandidateRecord> loadVerifiedCandidates(ScenicTheme theme, int limit);
+
+    /**
+     * 출발지에서 직선거리 상한 안에 있는 검수 완료 후보를 조회합니다.
+     * 단순 테스트 대역은 기존 테마 조회로 대체할 수 있도록 기본 구현을 제공합니다.
+     */
+    default List<SpotCandidateRecord> loadNearbyVerifiedCandidates(
+            ScenicTheme theme,
+            BigDecimal originLatitude,
+            BigDecimal originLongitude,
+            long maxDistanceMeters,
+            int limit) {
+        return loadVerifiedCandidates(theme, limit);
+    }
 
     /**
      * 검수 완료 후보가 하나 이상 준비된 풍경 테마를 조회합니다.

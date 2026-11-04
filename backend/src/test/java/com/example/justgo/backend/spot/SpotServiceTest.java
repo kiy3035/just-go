@@ -67,6 +67,30 @@ class SpotServiceTest {
                 .containsExactly(candidate);
     }
 
+    /** 추천 조회가 출발 좌표와 거리 상한을 Mapper에 그대로 전달하는지 확인합니다. */
+    @Test
+    void loadsNearbyCandidatesForRecommendation() {
+        SpotCandidateRecord candidate = new SpotCandidateRecord(
+                3L,
+                "NEARBY_ROUTE_CANDIDATE_TEST_ONLY",
+                ScenicTheme.RIVER,
+                new BigDecimal("0.010000"),
+                new BigDecimal("0.020000"));
+        when(spotMapper.findNearbyVerifiedCandidatesByTheme(
+                ScenicTheme.RIVER,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                25_000L,
+                20)).thenReturn(List.of(candidate));
+
+        assertThat(spotService.loadNearbyVerifiedCandidates(
+                ScenicTheme.RIVER,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                25_000L,
+                20)).containsExactly(candidate);
+    }
+
     /** 후보가 준비된 테마를 화면의 확정 테마 순서로 정렬해 반환하는지 확인합니다. */
     @Test
     void loadsAvailableThemesInDefinedOrder() {

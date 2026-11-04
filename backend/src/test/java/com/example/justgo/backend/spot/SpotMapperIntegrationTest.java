@@ -188,6 +188,41 @@ class SpotMapperIntegrationTest {
         assertThat(themes).contains(ScenicTheme.SEA).doesNotContain(ScenicTheme.CITY);
     }
 
+    /** PostgreSQL Haversine 계산으로 거리 상한 밖의 같은 테마 후보를 제외하는지 확인합니다. */
+    @Test
+    void findsOnlyCandidatesWithinStraightLineDistance() {
+        spotMapper.insertCandidate(candidateWithScores(
+                "NEARBY_MOUNTAIN_TEST_ONLY",
+                ScenicTheme.MOUNTAIN,
+                new BigDecimal("0.010000"),
+                new BigDecimal("0.000000"),
+                true,
+                4,
+                4,
+                4));
+        spotMapper.insertCandidate(candidateWithScores(
+                "FAR_MOUNTAIN_TEST_ONLY",
+                ScenicTheme.MOUNTAIN,
+                new BigDecimal("1.000000"),
+                new BigDecimal("0.000000"),
+                true,
+                5,
+                5,
+                5));
+
+        List<SpotCandidateRecord> candidates = spotMapper.findNearbyVerifiedCandidatesByTheme(
+                ScenicTheme.MOUNTAIN,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                5_000L,
+                10);
+
+        assertThat(candidates)
+                .extracting(SpotCandidateRecord::name)
+                .containsExactly("NEARBY_MOUNTAIN_TEST_ONLY")
+                .doesNotContain("FAR_MOUNTAIN_TEST_ONLY");
+    }
+
     /** 실제 장소·권리 정보와 혼동되지 않는 테스트 전용 후보를 생성합니다. */
     private SpotCandidateRegistration candidate(
             String name,
