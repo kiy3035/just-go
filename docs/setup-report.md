@@ -380,3 +380,16 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - `.\gradlew.bat build --no-daemon`: 성공. dry-run 검증 모드를 포함한 실행 JAR을 생성했습니다.
 - `docker compose --env-file .env.example --profile app config --quiet`: 성공.
 - `docker compose --env-file .env.example --profile app build backend`: 성공. dry-run 검증 모드가 포함된 `just-go-backend:local` 이미지를 생성했습니다.
+
+## 28. 2026-11-04 TMAP 호출 상한 영속화
+
+- 기존 메모리 호출 제한은 서버 재시작 시 사용량이 초기화되는 빈틈이 있어 Flyway V5와 MyBatis XML 기반 PostgreSQL 날짜별 호출 예약으로 교체했습니다.
+- 외부 HTTP 요청 직전에 서울 날짜의 사용량을 원자적으로 증가시키며 기본 90건 상한에 도달하면 TMAP 요청을 보내기 전에 중단합니다.
+- DB에는 날짜·예약 건수·갱신 시각만 저장하고 앱 키, 출발지·도착지·경유지 좌표, 경로와 응답은 저장하지 않습니다.
+- 호출권 예약 SQL은 한 문장으로 끝나며 그 뒤에 외부 HTTP를 수행하므로 네트워크 I/O를 DB 트랜잭션 안에 오래 묶지 않습니다.
+- PostgreSQL 17에서 제한기 인스턴스를 새로 만들어도 1건 상한이 유지되고, 동시 10개 예약에서 설정한 3건만 성공하는 것을 검증했습니다.
+- 테스트에서는 `TEST_APP_KEY_ONLY`와 고정 시각만 사용했고 실제 TMAP 인증·외부 호출·유료 서비스는 사용하지 않았습니다.
+- `.\gradlew.bat clean test --no-daemon`: 전체 69개 테스트 통과, 실패·오류·건너뜀 0개. `tmap` 프로필의 실제 Spring 배선도 함께 로딩했습니다.
+- `.\gradlew.bat build --no-daemon`: 성공. Flyway V5와 영속 호출 제한을 포함한 실행 JAR을 생성했습니다.
+- `docker compose --env-file .env.example --profile app config --quiet`: 성공.
+- `docker compose --env-file .env.example --profile app build backend`: 성공. V5와 영속 호출 제한이 포함된 `just-go-backend:local` 이미지를 생성했습니다.

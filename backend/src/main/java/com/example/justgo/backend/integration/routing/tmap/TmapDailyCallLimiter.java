@@ -4,10 +4,10 @@ import java.time.Clock;
 import java.time.LocalDate;
 
 /**
- * TMAP Free의 일일 한도보다 낮은 로컬 상한을 적용하는 단일 서버용 호출량 보호 장치입니다.
- * 여러 서버로 확장할 경우에는 공유 저장소 기반 제한으로 교체해야 합니다.
+ * DB가 없는 HTTP 단위 테스트에서 TMAP 일일 상한을 검증하는 메모리 보호 장치입니다.
+ * 실제 tmap 프로필은 서버 재시작에도 사용량을 유지하는 영속 제한기를 사용합니다.
  */
-public class TmapDailyCallLimiter {
+public class TmapDailyCallLimiter implements TmapCallLimiter {
 
     private final int dailyLimit;
     private final Clock clock;
@@ -26,6 +26,7 @@ public class TmapDailyCallLimiter {
     /**
      * 외부 요청 직전에 호출권을 예약하고 날짜가 바뀌면 로컬 집계를 초기화합니다.
      */
+    @Override
     public synchronized void acquire() {
         LocalDate today = LocalDate.now(clock);
         if (!today.equals(currentDate)) {

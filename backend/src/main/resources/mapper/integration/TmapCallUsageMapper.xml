@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.justgo.backend.integration.routing.tmap.TmapCallUsageMapper">
+    <select id="reserveCall"
+            resultType="java.lang.Integer"
+            affectData="true"
+            flushCache="true">
+        INSERT INTO tmap_daily_call_usage (usage_date, used_calls)
+        VALUES (#{usageDate}, 1)
+        ON CONFLICT (usage_date) DO UPDATE
+        SET used_calls = tmap_daily_call_usage.used_calls + 1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE tmap_daily_call_usage.used_calls &lt; #{dailyLimit}
+        RETURNING used_calls
+    </select>
+
+    <select id="findUsedCalls" resultType="java.lang.Integer">
+        SELECT used_calls
+        FROM tmap_daily_call_usage
+        WHERE usage_date = #{usageDate}
+    </select>
+</mapper>

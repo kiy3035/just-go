@@ -110,7 +110,7 @@ Copy-Item .env.example .env
 .\gradlew.bat bootRun --args="--spring.profiles.active=local,tmap"
 ```
 
-`backend/.env`는 백엔드 전용이고 `infra/.env`는 PostgreSQL Docker Compose 전용이므로 서로 다른 파일입니다. 기본 connect timeout은 2초, read timeout은 5초이며 자동 재시도는 하지 않습니다. Free 다중 경유지 일 100건보다 낮은 로컬 상한 90건과 추천 요청당 후보 최대 3건 제한을 적용합니다. 키를 Git, 문서, 로그, Android 앱에 넣지 않습니다. 이 저장소에서는 아직 실제 앱 키 호출을 검증하지 않았습니다.
+`backend/.env`는 백엔드 전용이고 `infra/.env`는 PostgreSQL Docker Compose 전용이므로 서로 다른 파일입니다. 기본 connect timeout은 2초, read timeout은 5초이며 자동 재시도는 하지 않습니다. Free 다중 경유지 일 100건보다 낮은 로컬 상한 90건과 추천 요청당 후보 최대 3건 제한을 적용합니다. 호출권은 외부 요청 직전에 PostgreSQL에 서울 날짜와 건수만 원자적으로 예약하므로 서버 재시작·동시 요청에도 상한을 유지합니다. 키·좌표·경로·응답은 이 사용량 테이블에 저장하지 않습니다. 키를 Git, 문서, 로그, Android 앱에 넣지 않습니다. 이 저장소에서는 아직 실제 앱 키 호출을 검증하지 않았습니다.
 
 ## 3. Docker Compose로 PostgreSQL과 백엔드 함께 실행
 

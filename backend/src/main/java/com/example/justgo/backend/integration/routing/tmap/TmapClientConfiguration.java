@@ -27,7 +27,8 @@ public class TmapClientConfiguration {
     @Bean
     TmapRouteClient tmapRouteClient(
             RestClient.Builder restClientBuilder,
-            TmapClientProperties properties) {
+            TmapClientProperties properties,
+            TmapCallUsageMapper callUsageMapper) {
         validateTimeout(properties.getConnectTimeout(), "connect timeout");
         validateTimeout(properties.getReadTimeout(), "read timeout");
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
@@ -42,7 +43,8 @@ public class TmapClientConfiguration {
                 .build();
         return new TmapRouteClient(
                 restClient,
-                new TmapDailyCallLimiter(properties.getDailyCallLimit(), clock),
+                new PersistentTmapDailyCallLimiter(
+                        properties.getDailyCallLimit(), clock, callUsageMapper),
                 clock);
     }
 

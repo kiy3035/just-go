@@ -28,13 +28,13 @@ public class TmapRouteClient {
             DateTimeFormatter.ofPattern("yyyyMMddHHmm");
 
     private final RestClient restClient;
-    private final TmapDailyCallLimiter callLimiter;
+    private final TmapCallLimiter callLimiter;
     private final Clock clock;
     private final TmapRouteShapeAnalyzer shapeAnalyzer = new TmapRouteShapeAnalyzer();
 
     public TmapRouteClient(
             RestClient restClient,
-            TmapDailyCallLimiter callLimiter,
+            TmapCallLimiter callLimiter,
             Clock clock) {
         this.restClient = restClient;
         this.callLimiter = callLimiter;

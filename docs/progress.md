@@ -36,7 +36,7 @@
 | 왕복 선분 중복률 | 완료 | TMAP GeoJSON의 역방향 포함 재통과 선분 거리 비율을 계산해 동일 시간 후보 정렬에 적용 | MOCK HTTP·단위 테스트만 통과, 실제 응답 분포로 기준 조정 필요 |
 | 순환 품질 실측 | 보류 | 중복률 탈락 상한은 임의로 두지 않음 | TMAP 실제 호출과 실제 또는 에뮬레이터 경로 검수 필요 |
 | 외부 경로 API 조사 | 완료 | TMAP·카카오모빌리티·NAVER 공식 기능·가격·쿼터·제약 비교 | `routing-provider-comparison.md`에 확인일과 근거 기록 |
-| TMAP HTTP 클라이언트 | 완료 | WGS84 일반 자동차·다중 경유지 요청, timeout, 일일 로컬 상한 90건, 오류·응답 검증 | 모의 HTTP 테스트만 통과, 실제 TMAP 호출은 미실행 |
+| TMAP HTTP 클라이언트 | 완료 | WGS84 일반 자동차·다중 경유지 요청, timeout, PostgreSQL 영속 일일 상한 90건, 오류·응답 검증 | 재시작·동시 예약은 PostgreSQL 17에서 통과, 실제 TMAP 호출은 미실행 |
 | TMAP 추천 Provider 연동 | 완료 | 왕복=후보 경유 후 복귀, 편도=후보 도착, 요청당 최대 3건 계산 | 모의 테스트만 통과, 실제 앱 키·외부 호출 미검증 |
 | 원격 HTTPS 백엔드 | 미착수 | 로컬 개발만 구성 | 제출/시연 방식 확정 후 비용·보안 검토 필요 |
 | Release APK·서명 | 미착수 | 키 생성·커밋 없음 | Android 완성 후 고유 applicationId, 서명, 실제 실행 검증 필요 |
@@ -50,7 +50,8 @@
   → 출발지·희망 시간 기반 직선거리 상한 적용
   → DrivingRouteProvider 요청 모델로 후보 전달
   → mock 프로필: MOCK 응답
-  → tmap 프로필: 후보 최대 3건의 TMAP 시간·거리와 왕복 선분 중복률 LIVE 응답
+  → tmap 프로필: PostgreSQL 일일 호출권 예약 후 후보 최대 3건의 TMAP 계산
+  → TMAP 시간·거리와 왕복 선분 중복률 LIVE 응답
   → LIVE 코스별 WAYPOINT/DESTINATION 순서 반환
   → 기본 프로필: UNAVAILABLE 응답
 ```
