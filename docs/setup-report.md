@@ -342,3 +342,16 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - `.\gradlew.bat build --no-daemon`: 성공. OpenAPI 0.8.0 계약과 대체 풍경 조회를 포함한 실행 JAR을 생성했습니다.
 - `docker compose --env-file .env.example --profile app config --quiet`: 성공.
 - `docker compose --env-file .env.example --profile app build backend`: 성공. 대체 풍경 제안이 포함된 `just-go-backend:local` 이미지를 생성했습니다.
+
+## 25. 2026-11-04 경관 후보 로컬 가져오기
+
+- 공개 관리 API 없이 `candidate-import` 프로필에서만 로컬 JSON 후보를 PostgreSQL에 등록하도록 구성했습니다.
+- 실제 파일은 Git과 Docker 빌드 컨텍스트에서 제외되는 `backend/local-data/`에 두며, 파일 경로·후보명·좌표·출처 원문은 로그에 남기지 않고 신규·중복 건수만 기록합니다.
+- 1MB·500건 상한, 알 수 없는 JSON 필드 거부, DB 문자열 길이, WGS84 좌표 범위와 소수점 여섯 자리 정규화, 출처 이력과 세 품질 점수 3~5점을 검증합니다.
+- 파일 전체를 DB 작업 전에 검증하고 한 트랜잭션으로 저장합니다. 후보명·출처명·참조가 같은 기존 행은 재실행 시 중복으로 건너뜁니다.
+- PostgreSQL 17 Testcontainers에서 명백한 TEST 전용 JSON을 실제 `candidate-import` 프로필로 읽고 VERIFIED 추천 조회까지 연결되는 것을 확인했습니다.
+- 실제 장소·개인 위치·TMAP 앱 키·외부 호출은 사용하지 않았습니다.
+- `.\gradlew.bat clean test --no-daemon`: 전체 55개 테스트 통과, 실패·오류·건너뜀 0개.
+- `.\gradlew.bat build --no-daemon`: 성공. 후보 가져오기 프로필을 포함한 실행 JAR을 생성했습니다.
+- `docker compose --env-file .env.example --profile app config --quiet`: 성공.
+- `docker compose --env-file .env.example --profile app build backend`: 성공. 후보 가져오기 구현이 포함된 `just-go-backend:local` 이미지를 생성했습니다.

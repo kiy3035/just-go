@@ -46,6 +46,12 @@ public interface SpotMapper {
      */
     int insertCandidate(SpotCandidateRegistration candidate);
 
+    /** 로컬 가져오기 재실행 시 같은 이름·출처·참조 조합이 이미 있는지 확인합니다. */
+    int countCandidateIdentity(
+            @Param("name") String name,
+            @Param("sourceName") String sourceName,
+            @Param("sourceReference") String sourceReference);
+
     /**
      * 지정한 테마에서 활성화된 검수 완료 후보만 식별자 순으로 조회합니다.
      *

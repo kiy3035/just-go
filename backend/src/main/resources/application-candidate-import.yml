@@ -1,0 +1,7 @@
+spring:
+  main:
+    web-application-type: none
+
+justgo:
+  spot-import:
+    path: ${SCENIC_CANDIDATE_IMPORT_FILE:}

@@ -74,6 +74,14 @@
         )
     </insert>
 
+    <select id="countCandidateIdentity" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM spot
+        WHERE name = #{name}
+          AND source_name = #{sourceName}
+          AND source_reference = #{sourceReference}
+    </select>
+
     <select id="findVerifiedCandidatesByTheme" resultMap="spotCandidateRecordMap">
         SELECT id, name, theme, latitude, longitude
         FROM spot

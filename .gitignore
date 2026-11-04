@@ -21,6 +21,7 @@ local.properties
 # Logs and local runtime files
 *.log
 logs/
+/backend/local-data/
 
 # Android artifacts (future work)
 *.apk
