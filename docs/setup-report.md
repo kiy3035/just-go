@@ -388,8 +388,9 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - DB에는 날짜·예약 건수·갱신 시각만 저장하고 앱 키, 출발지·도착지·경유지 좌표, 경로와 응답은 저장하지 않습니다.
 - 호출권 예약 SQL은 한 문장으로 끝나며 그 뒤에 외부 HTTP를 수행하므로 네트워크 I/O를 DB 트랜잭션 안에 오래 묶지 않습니다.
 - PostgreSQL 17에서 제한기 인스턴스를 새로 만들어도 1건 상한이 유지되고, 동시 10개 예약에서 설정한 3건만 성공하는 것을 검증했습니다.
+- V4까지만 적용한 PostgreSQL 17 DB에 기존 장소 행을 만든 뒤 V5를 적용해 장소 데이터가 유지되고 빈 호출량 테이블과 100건 DB 제약이 추가되는 업그레이드 경로를 자동 검증했습니다.
 - 테스트에서는 `TEST_APP_KEY_ONLY`와 고정 시각만 사용했고 실제 TMAP 인증·외부 호출·유료 서비스는 사용하지 않았습니다.
-- `.\gradlew.bat clean test --no-daemon`: 전체 69개 테스트 통과, 실패·오류·건너뜀 0개. `tmap` 프로필의 실제 Spring 배선도 함께 로딩했습니다.
+- `.\gradlew.bat clean test --no-daemon`: 전체 70개 테스트 통과, 실패·오류·건너뜀 0개. V4→V5 업그레이드와 `tmap` 프로필의 실제 Spring 배선도 함께 검증했습니다.
 - `.\gradlew.bat build --no-daemon`: 성공. Flyway V5와 영속 호출 제한을 포함한 실행 JAR을 생성했습니다.
 - `docker compose --env-file .env.example --profile app config --quiet`: 성공.
 - `docker compose --env-file .env.example --profile app build backend`: 성공. V5와 영속 호출 제한이 포함된 `just-go-backend:local` 이미지를 생성했습니다.

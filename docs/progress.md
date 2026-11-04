@@ -18,7 +18,7 @@
 | 초기 사전 점검 | 완료 | Java 21, Git, Docker, 가상화, 메모리·저장공간, GPU 확인 | Radeon 780M 전용 VRAM 0.5GB는 공식 Pleos GPU 최소 기준 미달 |
 | 저장소 구조 | 완료 | `backend`, `infra`, `docs`, Android 자리 구성 | `main` 및 기존 `origin` 사용 |
 | 백엔드 골격 | 완료 | Spring Boot 3.5.16, Gradle 8.14.6, MyBatis XML, Flyway, Actuator | 전체 자동 테스트 통과 |
-| 로컬 DB·인프라 | 완료 | PostgreSQL 17.11과 선택적 백엔드 `app` 프로필, 볼륨, healthcheck, loopback 바인딩 | Java 21 이미지 빌드, 비루트 실행, Flyway V1/V2, `/`·health HTTP 200 검증 완료 |
+| 로컬 DB·인프라 | 완료 | PostgreSQL 17.11과 선택적 백엔드 `app` 프로필, 볼륨, healthcheck, loopback 바인딩 | Java 21 이미지 빌드, 비루트 실행, Flyway V1~V5, `/`·health HTTP 200 검증 완료 |
 | 추천 REST 골격 | 완료 | 왕복·편도, 직접 시간, 테마 요청과 교체 가능한 Provider, `MOCK`/`LIVE`/`UNAVAILABLE` 구분 | 직접 시간 범위는 임시 기준 |
 | 경관 장소 후보 | 완료 | VERIFIED·활성·좌표 보유 후보만 MyBatis XML로 조회 | 실제 장소 데이터는 사용권·수동 검수 전이라 없음 |
 | 경관 데이터 출처 검수 | 완료 | V3에서 원본·참조·이용권한·검수 시각을 추가하고 새 VERIFIED 저장과 추천 조회에 강제 | 실제 후보를 넣기 전 데이터셋별 최종 이용조건 재확인 필요 |
