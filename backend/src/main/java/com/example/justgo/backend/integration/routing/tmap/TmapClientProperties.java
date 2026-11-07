@@ -22,6 +22,9 @@ public class TmapClientProperties {
     private String baseUrl = "https://apis.openapi.sk.com";
 
     @NotBlank
+    @Pattern(
+            regexp = "^(?!replace-with-local-tmap-app-key$).+$",
+            message = "TMAP 예시 앱 키를 실제 값으로 변경해야 합니다.")
     private String appKey;
 
     @NotNull

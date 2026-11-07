@@ -19,7 +19,7 @@
 | 저장소 구조 | 완료 | `backend`, `infra`, `docs`, Android 자리 구성 | `main` 및 기존 `origin` 사용 |
 | 백엔드 골격 | 완료 | Spring Boot 3.5.16, Gradle 8.14.6, MyBatis XML, Flyway, Actuator | 전체 자동 테스트 통과 |
 | 로컬 DB·인프라 | 완료 | PostgreSQL 17.11과 선택적 백엔드 `app` 프로필, 볼륨, healthcheck, loopback 바인딩 | Java 21 이미지 빌드, 비루트 실행, Flyway V1~V6, `/`·health HTTP 200 검증 완료 |
-| 추천 REST 골격 | 완료 | 왕복·편도, 직접 시간, 테마 요청과 교체 가능한 Provider, `MOCK`/`LIVE`/`UNAVAILABLE` 구분 | 직접 시간 범위는 임시 기준 |
+| 추천 REST 골격 | 완료 | 왕복·편도, 직접 시간, 테마 요청과 교체 가능한 Provider, `MOCK`/`LIVE`/`UNAVAILABLE` 구분 | mock·tmap 동시 실행 차단, 직접 시간 범위는 임시 기준 |
 | 경관 장소 후보 | 완료 | 서울·수도권 초기 후보 10건을 로컬 파일로 준비하고 테마별 2건씩 PostgreSQL에 등록 | Git 제외 로컬 데이터이며 실제 주행·경관 최종 검수 필요 |
 | 경관 데이터 출처 검수 | 완료 | V3·V4에서 출처·품질 근거를 추가하고 V6에서 불완전 레거시 행을 PENDING 전환 후 제약 완전 검증 | 실제 후보의 현장 경관·접근성 최종 검수 필요 |
 | 경관 후보 로컬 등록 | 완료 | dry-run 10건 통과, 실제 10건 등록, 재실행 10건 중복 제외 확인 | 각 개발자의 영구 로컬 DB에는 별도 등록 필요 |
@@ -37,7 +37,7 @@
 | 순환 품질 실측 | 보류 | 중복률 탈락 상한은 임의로 두지 않음 | TMAP 실제 호출과 실제 또는 에뮬레이터 경로 검수 필요 |
 | 외부 경로 API 조사 | 완료 | TMAP·카카오모빌리티·NAVER 공식 기능·가격·쿼터·제약 비교 | `routing-provider-comparison.md`에 확인일과 근거 기록 |
 | TMAP HTTP 클라이언트 | 완료 | WGS84 일반 자동차·다중 경유지 요청, timeout, PostgreSQL 영속 일일 상한 90건, 오류·응답 검증 | 실제 요청은 TMAP 서버에서 HTTP 403 인증 거부, 성공 응답 미검증 |
-| TMAP 추천 Provider 연동 | 완료 | 왕복=후보 경유 후 복귀, 편도=후보 도착, 요청당 최대 3건 계산 | 실제 키 로딩·외부 도달 확인, 앱의 경로 API 권한 활성화 필요 |
+| TMAP 추천 Provider 연동 | 완료 | 왕복=후보 경유 후 복귀, 편도=후보 도착, 요청당 최대 3건 계산 | 실제 키 로딩·외부 도달 확인, 두 경로 API 모두 403으로 앱 권한 활성화 필요 |
 | 원격 HTTPS 백엔드 | 미착수 | 로컬 개발만 구성 | 제출/시연 방식 확정 후 비용·보안 검토 필요 |
 | Release APK·서명 | 미착수 | 키 생성·커밋 없음 | Android 완성 후 고유 applicationId, 서명, 실제 실행 검증 필요 |
 

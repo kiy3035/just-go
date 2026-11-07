@@ -125,6 +125,7 @@ public interface DrivingRouteProvider {
 
 - 위 인터페이스는 현재 코드의 실제 교체 경계이며, `tmap` 프로필에서 Spring `RestClient` 기반 Provider가 활성화됩니다.
 - `MockDrivingRouteProvider`는 `mock` 프로파일에서만 사용하고 UI에 `MOCK` 표시.
+- `mock`과 `tmap` 프로필은 동시에 활성화할 수 없으며, 예시 앱 키는 tmap 프로필 시작 단계에서 거부한다.
 - 현재 구현은 같은 테마의 검수 완료 `SPOT`을 최대 20건 Provider 요청에 전달합니다.
 - TMAP 클라이언트는 경유지가 있는 왕복에 다중 경유지 30 API를, 경유지가 없는 편도에 일반 자동차 경로안내 API를 사용합니다. WGS84 좌표, timeout, 오류 분류, 거리·시간 응답 검증을 적용했습니다.
 - 외부 HTTP 요청 직전에 PostgreSQL의 서울 날짜별 예약 건수를 원자적으로 증가시킵니다. 기본 90건 상한은 서버 재시작·동시 요청에도 유지되며 DB 예약이 끝난 뒤 HTTP를 호출해 외부 I/O를 DB 트랜잭션 안에 묶지 않습니다.

@@ -437,3 +437,14 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - `docker compose --env-file .env.example --profile app build backend`: 성공. V6가 포함된 `just-go-backend:local` 이미지를 생성했습니다.
 - 별도 임시 포트 55436/18083에서 PostgreSQL과 백엔드 컨테이너를 기동해 health `UP`, Flyway V6 성공 1건, 완전 검증된 VERIFIED 제약 2건, `uid=100(justgo)` 비루트 실행을 확인했습니다.
 - 검증용 `just-go-v6-check` 컨테이너·네트워크·볼륨은 종료 후 삭제했으며 다른 Docker 프로젝트와 영구 볼륨은 건드리지 않았습니다.
+
+## 33. 2026-11-07 경로 제공자 실행 안전장치
+
+- `mock`과 `tmap` 프로필을 동시에 활성화하면 서버 시작 단계에서 거부하도록 `RoutingProfileGuard`를 추가했습니다. 개발용 MOCK 결과를 LIVE로 오인하는 실행 구성을 막습니다.
+- `backend/.env.example`의 `replace-with-local-tmap-app-key` 자리표시자는 Bean Validation에서 거부하고, 실제 키 형식을 임의로 추측하지 않도록 그 외 비어 있지 않은 값은 허용합니다.
+- TMAP 인증 오류의 MVC 계약 테스트를 추가해 HTTP 503, `ROUTE_PROVIDER_UNAVAILABLE`, 요청 `X-Trace-Id` 유지, 비밀 예외 메시지 비노출을 검증했습니다.
+- 일반 자동차 경로안내의 `carType=1`은 승용차, 다중 경유지 30의 `carType=1`도 승용차라는 공식 정의를 2026-11-07 재확인했습니다. 현재 요청 모델과 일치해 코드는 변경하지 않았습니다.
+- 프로필 조합, 예시 키 거부, MVC 장애 계약의 표적 테스트가 모두 통과했습니다.
+- `./gradlew.bat clean test build --no-daemon`: 전체 78개 테스트 통과, 실패·오류·건너뜀 0개이며 실행 JAR 빌드 성공.
+- `docker compose --env-file .env.example --profile app config --quiet`: 성공.
+- `docker compose --env-file .env.example --profile app build backend`: 성공. 프로필·키 안전장치가 포함된 로컬 이미지를 생성했습니다.
