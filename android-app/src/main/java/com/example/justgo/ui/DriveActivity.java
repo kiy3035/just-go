@@ -257,10 +257,13 @@ public final class DriveActivity extends Activity {
         binding.resultTitle.setText(title);
         binding.selectionSummary.setText(details);
         binding.selectionResult.setVisibility(View.VISIBLE);
-        binding.resultTitle.post(() -> {
+        binding.selectionResult.post(() -> {
             if (binding == null) return;
-            View header = binding.resultTitle;
-            header.requestRectangleOnScreen(new Rect(0, 0, header.getWidth(), header.getHeight()));
+            View result = binding.selectionResult;
+            int visibleHeight = Math.min(result.getHeight(), binding.scroll.getHeight());
+            // 짧은 오류·추천 결과는 제목뿐 아니라 카드 본문까지 차량 하단 바 위로 올립니다.
+            result.requestRectangleOnScreen(
+                    new Rect(0, 0, result.getWidth(), visibleHeight), true);
         });
     }
 
