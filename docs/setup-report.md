@@ -516,3 +516,39 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - `.\gradlew.bat clean test build --no-daemon`: 전체 93개 테스트 통과, 실패·오류·건너뜀 0개이며 실행 JAR 생성 성공.
 - `docker compose --env-file .env.example --profile app config --quiet`와 Java 21 백엔드 이미지 빌드가 성공했습니다. 별도 포트의 전체 Compose도 healthy 상태에서 host loopback의 health·정적 화면 HTTP 200과 보안 헤더를 확인했습니다. 검증용 `just-go-security-check`, `just-go-security-compose` 백엔드·PostgreSQL 컨테이너·네트워크·볼륨은 종료·삭제했습니다.
 - 공개 배포 전 남은 조치는 HTTPS 프록시의 chunked 본문 제한, 고정 서버 송신 IP의 TMAP 콘솔 허용 목록 등록, APK 추출에 의존하지 않는 기기·사용자 인증 방식 결정입니다. 유료 서비스나 결제수단은 추가하지 않았습니다.
+
+## 40. 2026-11-07 Android NaviHelper 경로 전달 구현
+
+- 공식 NaviHelper 3.0.5 Maven 저장소와 의존성을 Android 프로젝트에 추가하고 실제 AAR의 공개 시그니처를 확인했습니다. 문서 예시만 추측해 사용하지 않고 `RouteInfo`, `RequestWaypointInfo`, `RouteWithWaypointsRequest`, `NavigationScreenRequest.Foreground` 생성자와 메서드를 로컬 아티팩트에서 재확인했습니다.
+- 추천 응답에서 버리던 WGS84 지점 좌표와 `routeId`를 Android 모델에 보존했습니다. LIVE 코스만 사용자가 명시적으로 선택할 수 있고 MOCK 결과는 내비 시작을 허용하지 않습니다.
+- `NavigationGateway`와 `PleosNavigationGateway`를 추가했습니다. 단일 목적지는 `requestRoute()`, 최대 두 경유지가 있으면 `requestRouteWithWaypoints()`를 사용하고 `onRoutingCompleted()` 뒤 Pleos Navigation 전면 화면을 요청합니다.
+- `NAVI_ROUTE_SEARCH`, `NAVI_CUSTOM_MAP` 권한만 추가했으며 `APP_MAPS` 카테고리는 선언하지 않았습니다. 경로 지점 순서·좌표·단일 목적지·경유지 최대 두 곳 검증을 별도 순수 Java 경계로 분리하고 자동 테스트 5건을 추가했습니다.
+- 앱 표시명과 웹 시안의 표시명을 확정 명칭 `just go`로 통일했습니다.
+- `android-app`에서 `.\gradlew.bat testDebugUnitTest lintDebug assembleDebug --no-daemon`: 성공. 단위 테스트, Lint, NaviHelper 포함 디버그 APK 생성이 모두 통과했습니다.
+- 생성 APK를 연결된 `crp_avd` Pleos Connect Emulator에 재설치하고 콜드 스타트 성공, `just go` 표시, AndroidRuntime 치명 오류 없음까지 확인했습니다.
+- 실제 LIVE 코스로 내비 목적지·경유지 전달을 확인하려 했으나 로컬 PostgreSQL의 `justgo` 사용자 비밀번호와 `backend/.env` 설정이 일치하지 않아 백엔드 기동이 실패했습니다. 비밀번호를 임의 변경하지 않았으며 실제 NaviHelper 경로 전달과 화면 전환은 `NOT VERIFIED`입니다. TMAP 외부 호출권은 사용하지 않았습니다.
+
+## 41. 2026-11-07 Android 주행 규제 연동
+
+- 공식 Pleos 주행 규제 가이드와 Android Automotive 문서에 따라 `android.car` 선택 라이브러리와 `CarUxRestrictionsManager`를 연결했습니다. 절대 속도나 기어 값을 직접 해석하지 않고 플랫폼이 전달하는 `isRequiresDistractionOptimization()`만 사용합니다.
+- 주행 규제가 활성화되면 왕복·편도, 시간, 풍경, 직접 입력, 추천 검색, 코스 선택과 내비 시작을 비활성화하고 풍경 애니메이션을 중지합니다. 정차 상태로 돌아오면 현재 선택 상태를 유지한 채 다시 활성화합니다.
+- 차량 서비스나 규제 값을 읽지 못한 Automotive 환경에서는 안전하게 입력을 잠그며, 비차량 Android에서는 제한하지 않습니다. 리스너는 Activity `onStart`/`onStop`에 맞춰 등록·해제합니다.
+- `.\gradlew.bat testDebugUnitTest lintDebug assembleDebug --no-daemon`: 성공. `android.car`와 NaviHelper를 함께 포함한 디버그 APK를 생성했습니다.
+- APK를 `crp_avd` Pleos Connect Emulator에 재설치해 정차 상태 콜드 스타트와 화면 표시를 확인했고 AndroidRuntime 치명 오류는 없었습니다. 실제 주행 상태로 전환했을 때 입력 잠금과 애니메이션 정지는 `NOT VERIFIED`입니다.
+
+## 42. 2026-11-07 Spot Mapper 통합 테스트 격리
+
+- 전체 백엔드 테스트에서 `SpotMapperIntegrationTest`의 다른 테스트가 먼저 삽입한 RIVER 후보가 남아 `findsOnlyEnabledAndVerifiedCandidates()`의 정확한 목록 검증에 섞이는 순서 의존 실패를 확인했습니다.
+- 통합 테스트 클래스에 테스트별 트랜잭션 롤백을 적용해 각 테스트 데이터가 다음 테스트로 누출되지 않도록 했습니다. 운영 SQL과 마이그레이션은 변경하지 않았습니다.
+- `.\gradlew.bat test --tests "com.example.justgo.backend.spot.SpotMapperIntegrationTest" --no-daemon`: 성공.
+- `.\gradlew.bat test --no-daemon`: 전체 94개 테스트 통과, 실패·오류·건너뜀 0개. 외부 TMAP 호출은 실행하지 않았습니다.
+
+## 43. 2026-11-08 로컬 LIVE 경로와 앱 시작 위치 검증
+
+- 다른 로컬 프로젝트의 PostgreSQL이 호스트 `5432` 포트를 사용하고 있어 `just go` PostgreSQL을 Git 제외 로컬 설정에서 `55432`로 옮겼습니다. 기존 볼륨을 보존한 채 DB 사용자 비밀번호를 두 환경 파일과 동기화했고 PostgreSQL `healthy`, Flyway v7, 백엔드 health `UP`을 확인했습니다.
+- 검수 후보 로컬 파일을 dry-run한 뒤 13건을 등록했습니다. 서울 출발 120분 편도 기준 도시 2건, 산 3건, 강 3건, 호수 3건, 바다 2건이 후보 거리 안에 있음을 확인했습니다.
+- Pleos Emulator의 기본 GPS가 미국 위치라 서울·수도권 후보가 모두 거리 필터에서 제외되는 원인을 확인했습니다. 공개 테스트 위치를 서울로 설정한 뒤 `편도·120분·바다` 추천 API가 HTTP 200, LIVE 코스 1건을 반환했습니다. 이 검증은 TMAP Free 호출 3건을 사용했습니다.
+- Android 앱은 시작 시 위치 권한을 확인하고 현재 기기 위치를 한 번 선확보해 최대 30초 동안 메모리에서만 재사용하도록 보강했습니다. 에뮬레이터에는 호스트 PC 위치가 아니라 설정된 가상 GPS가 전달되며, 위치를 미리 서버에 보내거나 이동 이력을 저장하지 않습니다.
+- `.\gradlew.bat testDebugUnitTest assembleDebug`: 성공. 새 APK를 Pleos Emulator에 설치하고 앱 시작 직후 GPS 위치가 전달되는 것을 확인했습니다.
+- 추천 API의 로컬 기본 제한은 클라이언트별 분당 4회입니다. 테마를 연속 시험해 발생한 HTTP 429는 TMAP 일일 한도가 아니라 이 요청 보호 제한이었으며, TMAP 쿼터 오류는 백엔드에서 HTTP 503으로 구분됩니다.
+- 앱에서 반환된 LIVE 코스를 선택해 NaviHelper에 목적지·경유지를 전달하고 Navigation 화면으로 전환하는 최종 단계는 아직 `NOT VERIFIED`입니다.

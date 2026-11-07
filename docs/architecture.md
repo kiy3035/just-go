@@ -19,7 +19,8 @@ flowchart TB
     subgraph Pleos[차량 환경 / Pleos Emulator]
       UI --> Repo[Android Repository]
       UI --> NaviGateway[NavigationGateway]
-      NaviGateway -. 공식 SDK 검증 뒤 연동 .-> NaviHelper[Pleos NaviHelper]
+      UI --> UxRestrictions[CarUxRestrictions monitor]
+      NaviGateway --> NaviHelper[Pleos NaviHelper 3.0.5]
       NaviHelper --> CarNav[차량 내장 내비게이션]
     end
     Repo <-->|JSON / HTTP 개발, HTTPS 배포| Api[Spring Boot REST API]
@@ -86,7 +87,7 @@ android-app/app/src/main/java/.../
   ui/                 # Activity/Fragment/XML ViewBinding
   data/               # API / DTO
   repository/         # UI ↔ 데이터 공급
-  pleos/              # NavigationGateway 및 공식 SDK adapter (PoC 후)
+  pleos/              # NavigationGateway 및 NaviHelper 3.0.5 adapter (실경로 호출은 NOT VERIFIED)
 ```
 
 MyBatis SQL은 Mapper XML에 둔다. 데이터 모델과 API DTO를 혼용하지 않는다.

@@ -82,12 +82,19 @@ public final class RouteRecommendationClient {
             List<Stop> stops = new ArrayList<>();
             for (int stopIndex = 0; stopIndex < stopsJson.length(); stopIndex++) {
                 JSONObject stop = stopsJson.getJSONObject(stopIndex);
+                double latitude = stop.getDouble("latitude");
+                double longitude = stop.getDouble("longitude");
+                if (!Double.isFinite(latitude) || latitude < -90 || latitude > 90
+                        || !Double.isFinite(longitude) || longitude < -180 || longitude > 180) {
+                    throw new InvalidResponse();
+                }
                 stops.add(new Stop(stop.getInt("sequence"), StopType.valueOf(stop.getString("type")),
-                        stop.getString("name")));
+                        stop.getString("name"), latitude, longitude));
             }
             stops.sort(Comparator.comparingInt(Stop::sequence));
-            routes.add(new Route(route.getString("title"), route.getInt("estimatedMinutes"),
-                    route.getLong("distanceMeters"), route.getString("reason"), stops));
+            routes.add(new Route(route.getString("routeId"), route.getString("title"),
+                    route.getInt("estimatedMinutes"), route.getLong("distanceMeters"),
+                    route.getString("reason"), stops));
         }
         JSONArray suggestionsJson = json.getJSONArray("suggestions");
         List<Suggestion> suggestions = new ArrayList<>();
@@ -102,8 +109,10 @@ public final class RouteRecommendationClient {
 
     public enum Mode { MOCK, LIVE, UNAVAILABLE }
     public enum StopType { WAYPOINT, DESTINATION }
-    public record Stop(int sequence, StopType type, String name) { }
-    public record Route(String title, int minutes, long meters, String reason, List<Stop> stops) { }
+    public record Stop(int sequence, StopType type, String name,
+                       double latitude, double longitude) { }
+    public record Route(String routeId, String title, int minutes, long meters,
+                        String reason, List<Stop> stops) { }
     public record Suggestion(int minutes, String tripType, String theme, String reason) { }
     public record Recommendation(Mode mode, List<Route> routes, List<Suggestion> suggestions,
                                  String notice) { }

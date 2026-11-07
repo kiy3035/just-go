@@ -5,7 +5,9 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import com.example.justgo.data.CurrentLocationProvider;
 import android.graphics.Rect;
+import android.location.Location;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.Editable;
@@ -15,32 +17,60 @@ import android.text.style.RelativeSizeSpan;
 import android.text.style.StyleSpan;
 import android.graphics.Typeface;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import com.example.justgo.BuildConfig;
 import com.example.justgo.R;
 import com.example.justgo.data.DriveSelection;
 import com.example.justgo.data.RouteRecommendationClient;
 import com.example.justgo.data.RouteRecommendationClient.Recommendation;
 import com.example.justgo.databinding.ActivityDriveBinding;
+import com.example.justgo.pleos.NavigationGateway;
+import com.example.justgo.pleos.PleosNavigationGateway;
+import com.example.justgo.pleos.DrivingRestrictionsMonitor;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public final class DriveActivity extends Activity {
     private static final String SEARCH_PROMPT = "이 조건으로 코스 찾기 →";
+    private static final int LOCATION_PERMISSION_REQUEST = 1;
+    private static final long PREFETCHED_LOCATION_MAX_AGE_NANOS = 30_000_000_000L;
     private final ExecutorService routeExecutor = Executors.newSingleThreadExecutor();
     private final RouteRecommendationClient routeClient =
             new RouteRecommendationClient(BuildConfig.ROUTE_API_BASE_URL);
     private ActivityDriveBinding binding;
     private CurrentLocationProvider locationProvider;
+    private NavigationGateway navigationGateway;
+    private DrivingRestrictionsMonitor restrictionsMonitor;
+    private RouteRecommendationClient.Route selectedRoute;
+    private boolean navigationConnectionFailed;
+    private boolean drivingRestricted;
+    private boolean searchInProgress;
+    private boolean liveRoutesDisplayed;
+    private boolean searchAfterLocationPermission;
+    private Location prefetchedLocation;
 
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
         locationProvider = new CurrentLocationProvider(this);
+        navigationGateway = new PleosNavigationGateway(this);
+        restrictionsMonitor = new DrivingRestrictionsMonitor(this);
         binding = ActivityDriveBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         binding.findRoute.setOnClickListener(v -> chooseOrigin());
+        binding.startNavigation.setOnClickListener(v -> startNavigation());
+        binding.routeChoices.setOnCheckedChangeListener((group, checkedId) -> {
+            View checked = group.findViewById(checkedId);
+            selectedRoute = checked == null ? null : (RouteRecommendationClient.Route) checked.getTag();
+            refreshNavigationControl();
+        });
         binding.theme.setOnCheckedChangeListener((group, id) -> { syncScenery(); syncConditions(); });
         binding.duration.setOnCheckedChangeListener((g, id) -> { syncCustomInput(); syncConditions(); });
         binding.tripMode.setOnCheckedChangeListener((g, id) -> { updateTimeHint(); syncConditions(); });
@@ -59,6 +89,87 @@ public final class DriveActivity extends Activity {
         updateTimeHint();
         syncScenery();
         syncConditions();
+        initializeNavigation();
+        requestLocationPermissionOnStartup();
+    }
+
+    private boolean hasLocationPermission() {
+        return checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED
+                || checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void requestLocationPermissionOnStartup() {
+        if (!hasLocationPermission()) {
+            requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION}, LOCATION_PERMISSION_REQUEST);
+        }
+    }
+
+    private void prefetchCurrentLocation() {
+        if (!hasLocationPermission()) return;
+        locationProvider.request(new CurrentLocationProvider.Callback() {
+            @Override public void onLocation(Location location) {
+                prefetchedLocation = location;
+            }
+
+            @Override public void onError(String message) {
+                prefetchedLocation = null;
+            }
+        });
+    }
+
+    private Location freshPrefetchedLocation() {
+        if (prefetchedLocation == null) return null;
+        long age = SystemClock.elapsedRealtimeNanos()
+                - prefetchedLocation.getElapsedRealtimeNanos();
+        if (age < 0 || age > PREFETCHED_LOCATION_MAX_AGE_NANOS) {
+            prefetchedLocation = null;
+        }
+        return prefetchedLocation;
+    }
+
+    private void initializeNavigation() {
+        navigationGateway.initialize(new NavigationGateway.Listener() {
+            @Override public void onConnected() {
+                runOnUiThread(() -> {
+                    navigationConnectionFailed = false;
+                    refreshNavigationControl();
+                });
+            }
+
+            @Override public void onConnectionFailed() {
+                runOnUiThread(() -> {
+                    navigationConnectionFailed = true;
+                    refreshNavigationControl();
+                });
+            }
+
+            @Override public void onRouteStarted() {
+                showNavigationStatus("차량 내비가 경로 탐색을 시작했습니다.");
+            }
+
+            @Override public void onRoutingCompleted() {
+                runOnUiThread(() -> {
+                    showNavigationStatusOnUi("차량 내비에서 경로 탐색을 완료했습니다.");
+                    if (binding != null) {
+                        binding.startNavigation.setEnabled(!drivingRestricted && selectedRoute != null);
+                    }
+                });
+            }
+
+            @Override public void onError(String message) {
+                runOnUiThread(() -> {
+                    showNavigationStatusOnUi(message);
+                    if (binding != null) {
+                        binding.startNavigation.setEnabled(
+                                !drivingRestricted && navigationGateway.isConnected()
+                                        && selectedRoute != null);
+                    }
+                });
+            }
+        });
     }
     private RiversideSceneView.Theme selectedTheme() {
         if (binding.city.isChecked()) return RiversideSceneView.Theme.CITY;
@@ -84,16 +195,17 @@ public final class DriveActivity extends Activity {
     private void syncCustomInput() {
         boolean custom = binding.timeCustom.isChecked();
         binding.customTime.setVisibility(custom ? View.VISIBLE : View.GONE);
-        binding.customMinutes.setEnabled(custom);
+        binding.customMinutes.setEnabled(custom && !drivingRestricted);
     }
     private void updateTimeHint() {
         binding.timeHint.setText((binding.roundTrip.isChecked() ? "출발지 복귀" : "목적지 도착") + "까지 · 체류 시간 제외");
     }
     private void chooseOrigin() {
-        if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED
-                && checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        if (drivingRestricted) return;
+        if (!hasLocationPermission()) {
+            searchAfterLocationPermission = true;
             requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION}, 1);
+                    Manifest.permission.ACCESS_COARSE_LOCATION}, LOCATION_PERMISSION_REQUEST);
             return;
         }
         if (BuildConfig.ROUTE_API_BASE_URL.isEmpty()) {
@@ -115,22 +227,33 @@ public final class DriveActivity extends Activity {
 
     @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
         super.onRequestPermissionsResult(requestCode, permissions, results);
-        if (requestCode != 1) return;
-        if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-                || checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            chooseOrigin();
-        } else {
+        if (requestCode != LOCATION_PERMISSION_REQUEST) return;
+        boolean continueSearch = searchAfterLocationPermission;
+        searchAfterLocationPermission = false;
+        if (hasLocationPermission()) {
+            if (continueSearch) chooseOrigin();
+            else prefetchCurrentLocation();
+        } else if (continueSearch) {
             renderResult("위치 권한 필요", "현재 위치에서 코스를 찾으려면 위치 권한을 허용해 주세요.");
         }
     }
 
     private void enterOrigin(int minutes, boolean roundTrip, String theme) {
+        clearRouteResults();
+        searchInProgress = true;
         binding.selectionResult.setVisibility(View.GONE);
         binding.findRoute.setEnabled(false);
         binding.findRoute.setText("현재 위치를 확인하고 있어요…");
+        Location location = freshPrefetchedLocation();
+        if (location != null) {
+            requestRecommendations(location.getLatitude(), location.getLongitude(),
+                    minutes, roundTrip, theme);
+            return;
+        }
         locationProvider.request(new CurrentLocationProvider.Callback() {
-            @Override public void onLocation(android.location.Location location) {
+            @Override public void onLocation(Location location) {
                 if (binding == null) return;
+                prefetchedLocation = location;
                 requestRecommendations(location.getLatitude(), location.getLongitude(),
                         minutes, roundTrip, theme);
             }
@@ -160,20 +283,35 @@ public final class DriveActivity extends Activity {
             try {
                 Recommendation result = routeClient.recommend(latitude, longitude, minutes,
                         tripType, theme);
-                runOnUiThread(() -> showRecommendation(conditions, result));
+                runOnUiThread(() -> {
+                    if (binding != null) showRecommendation(conditions, result);
+                });
             } catch (IOException error) {
                 String message = describeError(error);
-                runOnUiThread(() -> renderResult("추천 요청 실패", conditions + "\n\n" + message));
+                runOnUiThread(() -> {
+                    if (binding != null) {
+                        renderResult("추천 요청 실패", conditions + "\n\n" + message);
+                    }
+                });
             }
         });
     }
     private void resetSearchButton() {
+        searchInProgress = false;
         binding.findRoute.setActivated(false);
-        binding.findRoute.setEnabled(true);
+        binding.findRoute.setEnabled(!drivingRestricted);
         binding.findRoute.setText(SEARCH_PROMPT);
         binding.findRoute.setContentDescription(null);
     }
+    @Override protected void onStart() {
+        super.onStart();
+        if (hasLocationPermission()) prefetchCurrentLocation();
+        restrictionsMonitor.start(restricted -> runOnUiThread(
+                () -> applyDrivingRestrictions(restricted)));
+    }
+
     @Override protected void onStop() {
+        restrictionsMonitor.stop();
         if (locationProvider.cancel()) resetSearchButton();
         super.onStop();
     }
@@ -181,11 +319,15 @@ public final class DriveActivity extends Activity {
     @Override protected void onDestroy() {
         locationProvider.cancel();
         routeExecutor.shutdownNow();
+        restrictionsMonitor.stop();
+        navigationGateway.release();
         binding = null;
         super.onDestroy();
     }
 
     private void showRecommendation(String conditions, Recommendation result) {
+        clearRouteResults();
+        liveRoutesDisplayed = result.mode() == RouteRecommendationClient.Mode.LIVE;
         String heading = switch (result.mode()) {
             case MOCK -> "MOCK · 개발용 추천 예시";
             case LIVE -> result.routes().isEmpty() ? "추천 코스 없음" : "추천 코스";
@@ -193,17 +335,21 @@ public final class DriveActivity extends Activity {
         };
         StringBuilder details = new StringBuilder(conditions);
         for (RouteRecommendationClient.Route route : result.routes()) {
-            details.append("\n\n").append(route.title());
-            details.append(String.format(Locale.KOREA, "\n%d분 · %.1f km",
-                    route.minutes(), route.meters() / 1000.0));
-            for (RouteRecommendationClient.Stop stop : route.stops()) {
-                details.append("\n").append(stop.sequence()).append(". ")
-                        .append(stop.type() == RouteRecommendationClient.StopType.WAYPOINT
-                                ? "경유 · " : "도착 · ")
-                        .append(stop.name());
-            }
-            details.append("\n").append(route.reason());
+            RadioButton choice = new RadioButton(this, null, 0, R.style.RouteChoice);
+            choice.setId(View.generateViewId());
+            choice.setTag(route);
+            choice.setText(routeSummary(route));
+            choice.setEnabled(result.mode() == RouteRecommendationClient.Mode.LIVE
+                    && !route.stops().isEmpty());
+            choice.setLayoutParams(new RadioGroup.LayoutParams(
+                    RadioGroup.LayoutParams.MATCH_PARENT, RadioGroup.LayoutParams.WRAP_CONTENT));
+            binding.routeChoices.addView(choice);
         }
+        binding.routeChoices.setVisibility(result.routes().isEmpty() ? View.GONE : View.VISIBLE);
+        refreshRouteChoiceAvailability();
+        binding.startNavigation.setVisibility(
+                result.mode() == RouteRecommendationClient.Mode.LIVE && !result.routes().isEmpty()
+                        ? View.VISIBLE : View.GONE);
         if (!result.suggestions().isEmpty()) {
             details.append("\n\n다시 검색할 조건");
             for (RouteRecommendationClient.Suggestion suggestion : result.suggestions()) {
@@ -216,6 +362,113 @@ public final class DriveActivity extends Activity {
             details.append("\n\n").append(result.notice());
         }
         renderResult(heading, details.toString());
+        refreshNavigationControl();
+    }
+
+    private String routeSummary(RouteRecommendationClient.Route route) {
+        StringBuilder summary = new StringBuilder(route.title());
+        summary.append(String.format(Locale.KOREA, "\n%d분 · %.1f km",
+                route.minutes(), route.meters() / 1000.0));
+        for (RouteRecommendationClient.Stop stop : route.stops()) {
+            summary.append("\n").append(stop.sequence()).append(". ")
+                    .append(stop.type() == RouteRecommendationClient.StopType.WAYPOINT
+                            ? "경유 · " : "도착 · ")
+                    .append(stop.name());
+        }
+        summary.append("\n").append(route.reason());
+        return summary.toString();
+    }
+
+    private void startNavigation() {
+        if (drivingRestricted) return;
+        if (selectedRoute == null) {
+            showNavigationStatusOnUi("먼저 출발할 코스를 선택해 주세요.");
+            return;
+        }
+        List<NavigationGateway.Stop> stops = new ArrayList<>();
+        for (RouteRecommendationClient.Stop stop : selectedRoute.stops()) {
+            stops.add(new NavigationGateway.Stop(
+                    stop.sequence(),
+                    stop.type() == RouteRecommendationClient.StopType.WAYPOINT
+                            ? NavigationGateway.StopType.WAYPOINT
+                            : NavigationGateway.StopType.DESTINATION,
+                    stop.name(), stop.latitude(), stop.longitude()));
+        }
+        binding.startNavigation.setEnabled(false);
+        showNavigationStatusOnUi("선택한 코스를 차량 내비로 전달하고 있어요…");
+        navigationGateway.startRoute(stops);
+    }
+
+    private void refreshNavigationControl() {
+        if (binding == null || binding.startNavigation.getVisibility() != View.VISIBLE) return;
+        boolean connected = navigationGateway.isConnected();
+        binding.startNavigation.setEnabled(!drivingRestricted && connected && selectedRoute != null);
+        if (navigationConnectionFailed) {
+            showNavigationStatusOnUi("Pleos Navigation 서비스에 연결하지 못했습니다. 에뮬레이터와 SDK 권한을 확인해 주세요.");
+        } else if (!connected) {
+            showNavigationStatusOnUi("차량 내비 연결을 확인하고 있습니다.");
+        } else if (selectedRoute == null) {
+            showNavigationStatusOnUi("내비로 출발할 코스를 하나 선택해 주세요.");
+        } else {
+            binding.navigationStatus.setVisibility(View.GONE);
+        }
+    }
+
+    private void showNavigationStatus(String message) {
+        runOnUiThread(() -> showNavigationStatusOnUi(message));
+    }
+
+    private void showNavigationStatusOnUi(String message) {
+        if (binding == null) return;
+        binding.navigationStatus.setText(message);
+        binding.navigationStatus.setVisibility(View.VISIBLE);
+    }
+
+    private void clearRouteResults() {
+        if (binding == null) return;
+        liveRoutesDisplayed = false;
+        selectedRoute = null;
+        binding.routeChoices.clearCheck();
+        binding.routeChoices.removeAllViews();
+        binding.routeChoices.setVisibility(View.GONE);
+        binding.startNavigation.setVisibility(View.GONE);
+        binding.startNavigation.setEnabled(false);
+        binding.navigationStatus.setVisibility(View.GONE);
+    }
+
+    private void applyDrivingRestrictions(boolean restricted) {
+        if (binding == null) return;
+        drivingRestricted = restricted;
+        binding.drivingRestrictionNotice.setVisibility(restricted ? View.VISIBLE : View.GONE);
+        binding.scenery.setMotionAllowed(!restricted);
+        setChildrenEnabled(binding.tripMode, !restricted);
+        setChildrenEnabled(binding.duration, !restricted);
+        setChildrenEnabled(binding.theme, !restricted);
+        binding.customMinutes.setEnabled(!restricted && binding.timeCustom.isChecked());
+        binding.findRoute.setEnabled(!restricted && !searchInProgress);
+        refreshRouteChoiceAvailability();
+        refreshNavigationControl();
+        if (restricted) {
+            if (locationProvider.cancel()) resetSearchButton();
+            ((InputMethodManager) getSystemService(INPUT_METHOD_SERVICE))
+                    .hideSoftInputFromWindow(binding.getRoot().getWindowToken(), 0);
+        }
+    }
+
+    private void refreshRouteChoiceAvailability() {
+        for (int index = 0; index < binding.routeChoices.getChildCount(); index++) {
+            View child = binding.routeChoices.getChildAt(index);
+            RouteRecommendationClient.Route route =
+                    (RouteRecommendationClient.Route) child.getTag();
+            child.setEnabled(!drivingRestricted && liveRoutesDisplayed
+                    && route != null && !route.stops().isEmpty());
+        }
+    }
+
+    private static void setChildrenEnabled(ViewGroup group, boolean enabled) {
+        for (int index = 0; index < group.getChildCount(); index++) {
+            group.getChildAt(index).setEnabled(enabled);
+        }
     }
 
     private static String themeLabel(String theme) {

@@ -19,4 +19,9 @@
 <item name="android:minHeight">140dp</item><item name="android:textSize">26sp</item>
 <item name="android:paddingLeft">8dp</item><item name="android:paddingRight">8dp</item>
 </style>
+<style name="RouteChoice" parent="Choice">
+<item name="android:layout_width">match_parent</item><item name="android:layout_height">wrap_content</item>
+<item name="android:layout_weight">0</item><item name="android:minHeight">112dp</item>
+<item name="android:gravity">start|center_vertical</item><item name="android:textSize">24sp</item>
+</style>
 </resources>

@@ -38,6 +38,7 @@ public final class RiversideSceneView extends View {
     private Bitmap background;
     private Theme theme = Theme.ANYWHERE;
     private float phase;
+    private boolean motionAllowed = true;
 
     public RiversideSceneView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -56,6 +57,13 @@ public final class RiversideSceneView extends View {
         if (next == theme) return;
         theme = next;
         releaseBackground();
+        invalidate();
+    }
+
+    public void setMotionAllowed(boolean allowed) {
+        if (motionAllowed == allowed) return;
+        motionAllowed = allowed;
+        syncAnimation();
         invalidate();
     }
 
@@ -300,7 +308,8 @@ public final class RiversideSceneView extends View {
     }
     private void syncAnimation() {
         if (animator == null) return;
-        if (isAttachedToWindow() && isShown() && getWindowVisibility() == VISIBLE && ValueAnimator.areAnimatorsEnabled()) {
+        if (motionAllowed && isAttachedToWindow() && isShown()
+                && getWindowVisibility() == VISIBLE && ValueAnimator.areAnimatorsEnabled()) {
             if (!animator.isStarted()) animator.start();
         } else animator.cancel();
     }

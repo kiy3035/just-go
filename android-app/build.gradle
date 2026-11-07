@@ -2,6 +2,7 @@ plugins { id 'com.android.application' version '8.10.1' }
 android {
     namespace 'com.example.justgo'
     compileSdk 34
+    useLibrary 'android.car'
     defaultConfig {
         applicationId 'com.example.justgo' // PROVISIONAL: 제출 전 고유 ID 확정
         minSdk 28
@@ -24,4 +25,7 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 }
-dependencies { testImplementation 'junit:junit:4.13.2' }
+dependencies {
+    implementation 'ai.pleos.playground:NaviHelper:3.0.5'
+    testImplementation 'junit:junit:4.13.2'
+}
