@@ -1,13 +1,13 @@
 openapi: 3.1.0
 info:
   title: just go backend API
-  version: 0.9.2-draft
+  version: 0.9.3-draft
   description: >-
     브라우저와 백엔드 연결 검증을 위한 추천 요청 초안입니다. mock=true 또는
     mode=MOCK인 응답은 실제 도로·시간·거리 데이터가 아닙니다. tmap 프로필의
-    mode=LIVE 응답만 TMAP 시간·거리·왕복 선형 분석 결과입니다. 실제 앱 키는
-    백엔드에서 로딩됐지만 2026-11-07 자동차 경로안내와 다중 경유지 30 요청이
-    모두 HTTP 403으로 거부되어 LIVE 성공 응답은 아직 미검증입니다.
+    mode=LIVE 응답만 TMAP 시간·거리·왕복 선형 분석 결과입니다. 2026-11-07
+    Free TMAP 상품 활성화 후 실제 일반 자동차 경로와 다중 경유지 왕복 경로의
+    LIVE 처리 및 실제 계산 시간 기반 대체 조건 응답을 검증했습니다.
 paths:
   /api/v1/spots:
     get:

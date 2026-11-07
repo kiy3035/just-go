@@ -470,3 +470,13 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - `docker compose --env-file .env.example --profile app config --quiet`: 성공.
 - `docker compose --env-file .env.example --profile app build backend`: 성공. 변경된 Provider를 포함한 `just-go-backend:local` 이미지를 생성했습니다.
 - 실제 TMAP 호출과 유료 서비스·결제·과금 리소스는 사용하지 않았습니다.
+
+## 36. 2026-11-07 Free TMAP 상품 활성화 후 LIVE 재검증
+
+- 기존 앱키는 정상적으로 발급·활성화되어 있었지만 앱의 상품 관리가 비어 있어 일반 자동차 경로와 다중 경유지 30이 모두 HTTP 403으로 거부된 상태였습니다.
+- 사용자가 같은 앱에 `Free TMAP` 상품을 등록하고 활성화한 뒤 기존 키를 변경하지 않고 재검증했습니다. 별도 유료 상품, 결제수단, 종량제·정액제 전환은 사용하지 않았습니다.
+- 임시 PostgreSQL 17.11에 Flyway V1~V6와 Git 제외 로컬 후보 10건을 적용했습니다. 외부 호출을 줄이기 위해 이 임시 DB에서만 테마별 후보를 1건으로 제한했습니다.
+- `local,tmap` 백엔드의 health `UP`을 확인하고 개인 위치가 아닌 공개 테스트 좌표로 편도 일반 자동차 경로와 왕복 다중 경유지 경로를 실행했습니다. 외부 호출권은 총 3건만 예약했습니다.
+- 최종 엄격 검증에서 왕복 요청은 HTTP 200, `mode=LIVE`, `mock=false`였고 traceId가 유지됐습니다. 요청한 120분과 실제 계산된 약 50분이 ±15% 범위를 벗어나 코스를 꾸며내지 않고 50분 대체 조건 1건을 반환했습니다.
+- 앱 키, 지점명, 좌표, 원시 TMAP 요청·응답은 출력하거나 저장소에 기록하지 않았습니다.
+- 검증용 백엔드 프로세스를 종료하고 `just-go-tmap-recheck` PostgreSQL 컨테이너·네트워크·볼륨을 모두 삭제했습니다.

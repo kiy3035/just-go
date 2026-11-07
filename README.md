@@ -2,7 +2,7 @@
 
 `just go`는 출발지, 희망 주행 시간, 풍경 테마를 바탕으로 드라이브 코스를 추천하는 Pleos Connect 차량용 앱 프로젝트입니다.
 
-초기 0~3단계 백엔드·인프라 구성 이후, 드라이브 조건을 고르는 반응형 웹 화면 시안과 추천 요청 API 초안을 추가했습니다. 외부 자동차 경로는 TMAP API Free로 결정했고 왕복·편도 Provider, 출발지·희망 시간 기반 후보 거리 필터, 임시 ±15% 목표 시간 추천, 검수 후보가 있는 대체 풍경 제안, 수동 경관 후보 품질 점수와 왕복 선분 중복률까지 구현했습니다. 서울·수도권 테마별 2건씩 총 10건의 초기 후보는 Git 제외 로컬 파일로 준비하고 PostgreSQL 등록·중복 검증을 마쳤습니다. Android Java/XML 화면 골격은 일반 Automotive API 34 에뮬레이터에서 실행했으나 실제 API·Pleos 연동은 아직 구현하지 않았습니다. TMAP 실제 요청은 발급 키가 HTTP 403으로 거부되어 성공 응답과 실주행 기반 순환 품질 조정은 아직 진행하지 못했습니다.
+초기 0~3단계 백엔드·인프라 구성 이후, 드라이브 조건을 고르는 반응형 웹 화면 시안과 추천 요청 API 초안을 추가했습니다. 외부 자동차 경로는 TMAP API Free로 결정했고 왕복·편도 Provider, 출발지·희망 시간 기반 후보 거리 필터, 임시 ±15% 목표 시간 추천, 검수 후보가 있는 대체 풍경 제안, 수동 경관 후보 품질 점수와 왕복 선분 중복률까지 구현했습니다. 서울·수도권 테마별 2건씩 총 10건의 초기 후보는 Git 제외 로컬 파일로 준비하고 PostgreSQL 등록·중복 검증을 마쳤습니다. Android Java/XML 화면 골격은 일반 Automotive API 34 에뮬레이터에서 실행했으나 실제 API·Pleos 연동은 아직 구현하지 않았습니다. TMAP Free 상품 활성화 후 실제 일반 자동차·다중 경유지 요청의 LIVE 처리를 확인했으며, 실주행 기반 순환 품질 조정은 아직 남아 있습니다.
 
 현재 완료·보류·차단 항목과 다음 작업은 [`docs/progress.md`](docs/progress.md)에서 확인합니다. 실제 실행 명령과 검증 이력은 [`docs/setup-report.md`](docs/setup-report.md)에 날짜순으로 기록합니다. 외부 경로 업체의 공식 가격·쿼터·제약 비교는 [`docs/routing-provider-comparison.md`](docs/routing-provider-comparison.md), 실제 경관 후보의 출처·이용권한 기준은 [`docs/scenic-data-policy.md`](docs/scenic-data-policy.md), 1~5점 품질 평가표는 [`docs/scenic-quality-rubric.md`](docs/scenic-quality-rubric.md), 로컬 후보 등록 절차는 [`docs/scenic-candidate-import.md`](docs/scenic-candidate-import.md), 왕복 선형 분석 기준은 [`docs/route-shape-quality.md`](docs/route-shape-quality.md)에 정리했습니다.
 
@@ -112,11 +112,11 @@ Copy-Item .env.example .env
 .\gradlew.bat bootRun --args="--spring.profiles.active=local,tmap"
 ```
 
-`backend/.env`는 백엔드 전용이고 `infra/.env`는 PostgreSQL Docker Compose 전용이므로 서로 다른 파일입니다. 기본 connect timeout은 2초, read timeout은 5초이며 자동 재시도는 하지 않습니다. Free 다중 경유지 일 100건보다 낮은 로컬 상한 90건과 추천 요청당 후보 최대 3건 제한을 적용합니다. 호출권은 외부 요청 직전에 PostgreSQL에 서울 날짜와 건수만 원자적으로 예약하므로 서버 재시작·동시 요청에도 상한을 유지합니다. 키·좌표·경로·응답은 이 사용량 테이블에 저장하지 않습니다. 키를 Git, 문서, 로그, Android 앱에 넣지 않습니다. 실제 요청은 수행했지만 인증 거부로 성공 응답은 아직 검증하지 못했습니다.
+`backend/.env`는 백엔드 전용이고 `infra/.env`는 PostgreSQL Docker Compose 전용이므로 서로 다른 파일입니다. 기본 connect timeout은 2초, read timeout은 5초이며 자동 재시도는 하지 않습니다. Free 다중 경유지 일 100건보다 낮은 로컬 상한 90건과 추천 요청당 후보 최대 3건 제한을 적용합니다. 호출권은 외부 요청 직전에 PostgreSQL에 서울 날짜와 건수만 원자적으로 예약하므로 서버 재시작·동시 요청에도 상한을 유지합니다. 키·좌표·경로·응답은 이 사용량 테이블에 저장하지 않습니다. 키를 Git, 문서, 로그, Android 앱에 넣지 않습니다. 실제 일반 자동차·다중 경유지 요청의 LIVE 처리를 검증했습니다.
 
-2026-11-07 실제 키로 요청이 TMAP 서버까지 도달했지만 HTTP 403으로 거부됐습니다. 이 경우 같은 요청을 반복하지 말고 TMAP 마이페이지의 해당 앱에서 `앱키(appKey)` 값을 사용했는지, 자동차 경로안내와 다중 경유지 30 API 사용 권한이 활성화됐는지 확인합니다. 유료 플랜 전환이나 결제수단 등록은 사용자 승인 전에는 진행하지 않습니다.
+2026-11-07 최초 요청은 앱에 연결된 상품이 없어 HTTP 403으로 거부됐습니다. 같은 앱에 `Free TMAP` 상품을 활성화한 뒤 기존 `appKey`로 일반 자동차 경로와 다중 경유지 왕복 경로가 LIVE 처리되는 것을 확인했습니다. 유료 플랜 전환이나 결제수단 등록은 사용자 승인 전에는 진행하지 않습니다.
 
-권한을 수정한 뒤에는 백엔드를 `local,tmap`으로 실행하고 다음 스크립트로 공개 테스트 좌표의 LIVE 응답을 재검증합니다. 스크립트는 앱 키·지점명·좌표·원시 응답을 출력하지 않으며, LIVE 실행에는 쿼터 사용 확인 스위치가 필요합니다.
+권한이나 후보 데이터를 변경한 뒤에는 백엔드를 `local,tmap`으로 실행하고 다음 스크립트로 공개 테스트 좌표의 LIVE 응답을 재검증합니다. 스크립트는 앱 키·지점명·좌표·원시 응답을 출력하지 않으며, LIVE 실행에는 쿼터 사용 확인 스위치가 필요합니다.
 
 ```powershell
 cd C:\myProject\just-go\backend
