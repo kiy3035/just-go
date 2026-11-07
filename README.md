@@ -4,7 +4,7 @@
 
 초기 0~3단계 백엔드·인프라 구성 이후, 드라이브 조건을 고르는 반응형 웹 화면 시안과 추천 요청 API 초안을 추가했습니다. 외부 자동차 경로는 TMAP API Free로 결정했고 왕복·편도 Provider, 출발지·희망 시간 기반 후보 거리 필터, 설정 가능한 -20%~+15% 목표 시간 추천, 검수 후보가 있는 대체 풍경 제안, 수동 경관 후보 품질 점수와 왕복 선분 중복률까지 구현했습니다. 서울·수도권 총 13건의 초기 후보는 Git 제외 로컬 파일로 준비하고 PostgreSQL 등록·중복 검증을 마쳤습니다. Android Java/XML 화면 골격은 일반 Automotive API 34 에뮬레이터에서 실행했으나 실제 API·Pleos 연동은 아직 구현하지 않았습니다. TMAP Free 상품 활성화 후 실제 일반 자동차·다중 경유지 요청의 LIVE 처리를 확인했으며, 실주행 기반 순환 품질 조정은 아직 남아 있습니다.
 
-현재 완료·보류·차단 항목과 다음 작업은 [`docs/progress.md`](docs/progress.md)에서 확인합니다. 실제 실행 명령과 검증 이력은 [`docs/setup-report.md`](docs/setup-report.md)에 날짜순으로 기록합니다. 외부 경로 업체의 공식 가격·쿼터·제약 비교는 [`docs/routing-provider-comparison.md`](docs/routing-provider-comparison.md), 실제 경관 후보의 출처·이용권한 기준은 [`docs/scenic-data-policy.md`](docs/scenic-data-policy.md), 1~5점 품질 평가표는 [`docs/scenic-quality-rubric.md`](docs/scenic-quality-rubric.md), 로컬 후보 등록 절차는 [`docs/scenic-candidate-import.md`](docs/scenic-candidate-import.md), 왕복 선형 분석 기준은 [`docs/route-shape-quality.md`](docs/route-shape-quality.md)에 정리했습니다.
+현재 완료·보류·차단 항목과 다음 작업은 [`docs/progress.md`](docs/progress.md)에서 확인합니다. 실제 실행 명령과 검증 이력은 [`docs/setup-report.md`](docs/setup-report.md)에 날짜순으로 기록합니다. 외부 경로 업체의 공식 가격·쿼터·제약 비교는 [`docs/routing-provider-comparison.md`](docs/routing-provider-comparison.md), 키·쿼터·공개 배포 보호 기준은 [`docs/security.md`](docs/security.md), 실제 경관 후보의 출처·이용권한 기준은 [`docs/scenic-data-policy.md`](docs/scenic-data-policy.md), 1~5점 품질 평가표는 [`docs/scenic-quality-rubric.md`](docs/scenic-quality-rubric.md), 로컬 후보 등록 절차는 [`docs/scenic-candidate-import.md`](docs/scenic-candidate-import.md), 왕복 선형 분석 기준은 [`docs/route-shape-quality.md`](docs/route-shape-quality.md)에 정리했습니다.
 
 ## 역할 분담
 
@@ -103,7 +103,7 @@ $env:SERVER_PORT = "18080"
 
 `tmap` 프로필은 TMAP Provider를 활성화합니다. 왕복은 한두 곳의 검수 후보를 경유해 출발지로 복귀하고, 편도 조합은 첫 후보를 경유해 마지막 후보에서 종료합니다. 후보가 한 곳인 편도만 일반 자동차 경로 API를 사용하고, 나머지는 다중 경유지 API를 사용합니다. 프로필을 켠 상태에서 추천 API를 호출하면 외부 요청이 발생하므로 앱 키와 무료 쿼터를 확인해야 합니다.
 
-백엔드는 실행 디렉터리의 `backend/.env`를 선택적으로 읽습니다. `.env.example`을 복사한 뒤 실제 로컬 DB 비밀번호와 TMAP 앱 키만 입력합니다. 실제 `.env`는 Git에서 제외되며 저장소에는 예시 파일만 둡니다.
+백엔드는 실행 디렉터리의 `backend/.env`를 선택적으로 읽습니다. `.env.example`을 복사한 뒤 로컬 실행에는 DB 비밀번호와 TMAP 앱 키를 입력하고, 공개 `production` 실행에는 별도 추천 API 접근 토큰도 입력합니다. 실제 `.env`는 Git에서 제외되며 저장소에는 예시 파일만 둡니다.
 
 ```powershell
 cd C:\myProject\just-go\backend
@@ -113,6 +113,8 @@ Copy-Item .env.example .env
 ```
 
 `backend/.env`는 백엔드 전용이고 `infra/.env`는 PostgreSQL Docker Compose 전용이므로 서로 다른 파일입니다. 기본 connect timeout은 2초, read timeout은 5초이며 자동 재시도는 하지 않습니다. Free 다중 경유지 일 100건보다 낮은 로컬 상한 90건과 추천 요청당 경로 계산 최대 3건 제한을 적용합니다. 호출권은 외부 요청 직전에 PostgreSQL에 서울 날짜와 건수만 원자적으로 예약하므로 서버 재시작·동시 요청에도 상한을 유지합니다. 키·좌표·경로·응답은 이 사용량 테이블에 저장하지 않습니다. 키를 Git, 문서, 로그, Android 앱에 넣지 않습니다. 실제 일반 자동차·다중 경유지 요청의 LIVE 처리를 검증했습니다.
+
+로컬 서버는 기본 `127.0.0.1`로만 열립니다. 공개 배포에서는 `production` 프로필을 추가하고 32자 이상의 무작위 `ROUTE_API_ACCESS_TOKEN`을 비밀 환경변수로 설정해야 하며, 없으면 서버가 시작되지 않습니다. 추천 요청은 `X-Just-Go-Client-Token` 헤더로 이 별도 토큰을 전달합니다. 기본 분당 4회·동시 2회 제한과 API 응답 캐시 차단이 적용됩니다. 자세한 생성·교체·프록시 설정은 [`docs/security.md`](docs/security.md)를 따릅니다.
 
 2026-11-07 최초 요청은 앱에 연결된 상품이 없어 HTTP 403으로 거부됐습니다. 같은 앱에 `Free TMAP` 상품을 활성화한 뒤 기존 `appKey`로 일반 자동차 경로와 다중 경유지 왕복 경로가 LIVE 처리되는 것을 확인했습니다. 유료 플랜 전환이나 결제수단 등록은 사용자 승인 전에는 진행하지 않습니다.
 

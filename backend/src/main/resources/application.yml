@@ -8,6 +8,18 @@ justgo:
   recommendation:
     allowed-underrun-percent: ${ROUTE_ALLOWED_UNDERRUN_PERCENT:20}
     allowed-overrun-percent: ${ROUTE_ALLOWED_OVERRUN_PERCENT:15}
+  security:
+    route-api:
+      access-token-required: ${ROUTE_API_ACCESS_TOKEN_REQUIRED:false}
+      access-token: ${ROUTE_API_ACCESS_TOKEN:}
+      requests-per-minute: ${ROUTE_API_REQUESTS_PER_MINUTE:4}
+      max-concurrent-requests: ${ROUTE_API_MAX_CONCURRENT_REQUESTS:2}
+      max-request-body-bytes: ${ROUTE_API_MAX_REQUEST_BODY_BYTES:8192}
+      max-tracked-clients: ${ROUTE_API_MAX_TRACKED_CLIENTS:2048}
+
+server:
+  address: ${SERVER_ADDRESS:127.0.0.1}
+  forward-headers-strategy: none
 
 mybatis:
   mapper-locations: classpath*:mapper/**/*.xml

@@ -1,0 +1,9 @@
+spring:
+  config:
+    activate:
+      on-profile: production
+
+justgo:
+  security:
+    route-api:
+      access-token-required: true

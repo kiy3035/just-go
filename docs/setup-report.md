@@ -502,3 +502,17 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - `docker compose --env-file .env.example --profile app config --quiet`와 `docker compose --env-file .env.example --profile app build backend`: 성공. Java 21 백엔드 이미지를 생성했습니다.
 - 확장 후보 13건과 새 기본 시간 범위로 공개 테스트 좌표의 60분 왕복을 실제 Free TMAP에서 다시 확인했습니다. 응답은 `HTTP 200`, `mode=LIVE`, `mock=false`, 코스 1건이었고 이번 확인에는 외부 호출권 3건만 사용했습니다. TMAP의 24시간 데이터 사용 제한을 지키기 위해 세부 시간·거리와 원시 응답은 기록하지 않았습니다.
 - 두 검증의 임시 백엔드와 `just-go-candidate-check`, `just-go-policy-check` PostgreSQL 컨테이너·네트워크·볼륨은 모두 종료·삭제했습니다. 앱 키·DB 비밀번호·개인 위치는 출력하거나 저장소에 기록하지 않았습니다.
+
+## 39. 2026-11-07 TMAP 키·Free 쿼터 보호
+
+- 실제 `backend/.env`의 TMAP 앱 키를 출력하지 않고 전체 Git 패치 이력과 대조했습니다. 실제 키 일치 항목은 없었고 `backend/.env`도 Git 추적 대상이 아님을 확인했습니다.
+- 같은 점검에서 현재 로컬 DB 비밀번호가 Git에 공개된 예시용 약한 값과 같음을 확인했습니다. 실제 비밀번호가 과거 커밋된 것은 아니지만 로컬 파일과 PostgreSQL 사용자의 비밀번호 교체가 필요하며, 기존 볼륨과의 일치 문제 때문에 자동 변경하지 않았습니다.
+- 호스트에서 직접 실행하는 Spring Boot는 기본 `127.0.0.1`에만 바인딩합니다. Docker Compose는 컨테이너 내부 `0.0.0.0`과 호스트 `127.0.0.1` 포트 바인딩을 함께 사용해 로컬 접근성과 외부 차단을 유지합니다.
+- 공개 `production` 프로필은 TMAP 키와 별개인 32~128자 추천 API 접근 토큰을 필수화했습니다. 누락·약한 값·예시값이면 실제 토큰을 출력하지 않고 시작을 중단합니다.
+- 추천 API에 직접 연결 주소 기준 분당 4회, 서버 전체 동시 2회, `Content-Length` 8KiB 제한을 추가했습니다. 위조 가능한 `X-Forwarded-For`는 기본적으로 무시하며 기존 PostgreSQL 일일 TMAP 90건과 요청당 최대 3건 제한을 유지합니다.
+- API 캐시 차단, 콘텐츠 추론 차단, 프레임 차단, referrer·카메라·마이크·위치 브라우저 권한 제한 헤더를 추가했습니다. 접근 토큰·IP는 로그나 DB에 기록하지 않습니다.
+- `production` 프로필의 실제 HTTP 검증 결과 health 200, 무토큰 추천 401, 정상 테스트 토큰 MOCK 200, 과대 본문 413, 분당 초과 429였고 traceId와 보안 헤더도 유지됐습니다. 이 검증은 MOCK만 사용해 TMAP 외부 호출권을 소비하지 않았습니다.
+- `backend/scripts/Test-RouteRecommendation.ps1`은 선택적으로 `ROUTE_API_ACCESS_TOKEN`을 헤더에 넣되 출력하지 않도록 변경했고 PowerShell AST 구문 오류 0건을 확인했습니다.
+- `.\gradlew.bat clean test build --no-daemon`: 전체 93개 테스트 통과, 실패·오류·건너뜀 0개이며 실행 JAR 생성 성공.
+- `docker compose --env-file .env.example --profile app config --quiet`와 Java 21 백엔드 이미지 빌드가 성공했습니다. 별도 포트의 전체 Compose도 healthy 상태에서 host loopback의 health·정적 화면 HTTP 200과 보안 헤더를 확인했습니다. 검증용 `just-go-security-check`, `just-go-security-compose` 백엔드·PostgreSQL 컨테이너·네트워크·볼륨은 종료·삭제했습니다.
+- 공개 배포 전 남은 조치는 HTTPS 프록시의 chunked 본문 제한, 고정 서버 송신 IP의 TMAP 콘솔 허용 목록 등록, APK 추출에 의존하지 않는 기기·사용자 인증 방식 결정입니다. 유료 서비스나 결제수단은 추가하지 않았습니다.

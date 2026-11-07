@@ -15,6 +15,8 @@ param(
     [ValidateRange(10, 240)]
     [int]$DesiredMinutes = 60,
 
+    [string]$AccessToken = $env:ROUTE_API_ACCESS_TOKEN,
+
     [switch]$ConfirmExternalCall
 )
 
@@ -43,11 +45,16 @@ $requestBody = @{
 } | ConvertTo-Json
 
 try {
+    $requestHeaders = @{ 'X-Trace-Id' = $traceId }
+    if (-not [string]::IsNullOrWhiteSpace($AccessToken)) {
+        # 접근 토큰은 요청 헤더에만 넣고 콘솔이나 예외 메시지에는 출력하지 않습니다.
+        $requestHeaders['X-Just-Go-Client-Token'] = $AccessToken
+    }
     $response = Invoke-RestMethod `
         -Uri $requestUri `
         -Method Post `
         -ContentType 'application/json' `
-        -Headers @{ 'X-Trace-Id' = $traceId } `
+        -Headers $requestHeaders `
         -Body $requestBody `
         -TimeoutSec 30
 } catch {

@@ -30,6 +30,8 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-justgo}
       DB_USERNAME: ${POSTGRES_USER:-justgo}
       DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in infra/.env}
+      # 컨테이너 내부에서는 모든 인터페이스로 듣되 호스트 공개는 아래 loopback 포트로 제한합니다.
+      SERVER_ADDRESS: 0.0.0.0
       SERVER_PORT: 8080
     ports:
       - "127.0.0.1:${BACKEND_PORT:-18080}:8080"
