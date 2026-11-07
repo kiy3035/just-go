@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import com.example.justgo.data.CurrentLocationProvider;
-import android.app.AlertDialog;
 import android.graphics.Rect;
 import android.os.Bundle;
 import android.text.SpannableString;
@@ -34,7 +33,6 @@ public final class DriveActivity extends Activity {
     private final RouteRecommendationClient routeClient =
             new RouteRecommendationClient(BuildConfig.ROUTE_API_BASE_URL);
     private ActivityDriveBinding binding;
-    private AlertDialog originDialog;
     private CurrentLocationProvider locationProvider;
 
     @Override public void onCreate(Bundle saved) {
@@ -54,7 +52,7 @@ public final class DriveActivity extends Activity {
         if (saved != null) {
             binding.tripMode.check(saved.getInt("trip", R.id.roundTrip));
             binding.duration.check(saved.getInt("duration", R.id.time60));
-            binding.theme.check(saved.getInt("theme", R.id.anywhere));
+            binding.theme.check(saved.getInt("theme", R.id.city));
             binding.customMinutes.setText(saved.getString("minutes", "90"));
         }
         syncCustomInput();
@@ -67,8 +65,8 @@ public final class DriveActivity extends Activity {
         if (binding.mountain.isChecked()) return RiversideSceneView.Theme.MOUNTAIN;
         if (binding.sea.isChecked()) return RiversideSceneView.Theme.SEA;
         if (binding.water.isChecked()) return RiversideSceneView.Theme.WATER;
-        if (binding.park.isChecked()) return RiversideSceneView.Theme.PARK;
-        return RiversideSceneView.Theme.ANYWHERE;
+        if (binding.park.isChecked()) return RiversideSceneView.Theme.WATER;
+        return RiversideSceneView.Theme.CITY;
     }
 
     private void syncScenery() {
@@ -80,7 +78,7 @@ public final class DriveActivity extends Activity {
         String minutes = binding.timeCustom.isChecked() ? binding.customMinutes.getText().toString()
             : binding.time30.isChecked() ? "30" : binding.time120.isChecked() ? "120" : "60";
         binding.selectedTime.setText(minutes.isEmpty() ? "시간 입력" : minutes + "분");
-        binding.selectedPlace.setText(selectedTheme().getLabel());
+        binding.selectedPlace.setText(themeLabel(selectedApiTheme()));
     }
 
     private void syncCustomInput() {
@@ -112,26 +110,15 @@ public final class DriveActivity extends Activity {
             binding.customMinutes.requestFocus();
             return;
         }
-        boolean roundTrip = binding.roundTrip.isChecked();
-        RiversideSceneView.Theme theme = selectedTheme();
-        switch (theme) {
-            case CITY, MOUNTAIN, SEA -> enterOrigin(minutes, roundTrip, theme.name());
-            case WATER -> chooseApiTheme(minutes, roundTrip, new String[]{"RIVER", "LAKE"});
-            case ANYWHERE, PARK -> chooseApiTheme(minutes, roundTrip,
-                    new String[]{"CITY", "MOUNTAIN", "RIVER", "LAKE", "SEA"});
-        }
+        enterOrigin(minutes, binding.roundTrip.isChecked(), selectedApiTheme());
     }
 
-    private void chooseApiTheme(int minutes, boolean roundTrip, String[] themes) {
-        String[] labels = new String[themes.length];
-        for (int i = 0; i < themes.length; i++) {
-            labels[i] = themeLabel(themes[i]);
-        }
-        originDialog = new AlertDialog.Builder(this)
-                .setTitle("추천을 받을 풍경을 선택해 주세요")
-                .setItems(labels, (dialog, which) -> enterOrigin(minutes, roundTrip, themes[which]))
-                .setNegativeButton("취소", null)
-                .show();
+    private String selectedApiTheme() {
+        if (binding.mountain.isChecked()) return "MOUNTAIN";
+        if (binding.sea.isChecked()) return "SEA";
+        if (binding.water.isChecked()) return "RIVER";
+        if (binding.park.isChecked()) return "LAKE";
+        return "CITY";
     }
 
     @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
@@ -195,10 +182,6 @@ public final class DriveActivity extends Activity {
         binding.findRoute.setContentDescription(null);
     }
     @Override protected void onStop() {
-        if (originDialog != null) {
-            originDialog.dismiss();
-            originDialog = null;
-        }
         if (locationProvider.cancel()) resetSearchButton();
         super.onStop();
     }
@@ -257,6 +240,8 @@ public final class DriveActivity extends Activity {
     private String describeError(IOException error) {
         if (error instanceof RouteRecommendationClient.HttpError http) {
             return switch (http.status) {
+                case 401, 403 -> "추천 서버의 접근 권한 설정을 확인해 주세요.";
+                case 429 -> "추천 요청 한도에 도달했습니다. 잠시 후 다시 검색해 주세요.";
                 case 400 -> "서버가 입력 조건을 받지 못했습니다. 출발지와 주행 조건을 확인해 주세요.";
                 case 502, 503 -> "경로 제공 서비스가 응답하지 못했습니다. 잠시 후 다시 검색해 주세요.";
                 default -> "추천 서버에 오류가 발생했습니다. 잠시 후 다시 검색해 주세요.";
