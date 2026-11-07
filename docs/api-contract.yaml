@@ -1,19 +1,21 @@
 openapi: 3.1.0
 info:
   title: just go backend API
-  version: 0.9.0-draft
+  version: 0.9.1-draft
   description: >-
     브라우저와 백엔드 연결 검증을 위한 추천 요청 초안입니다. mock=true 또는
     mode=MOCK인 응답은 실제 도로·시간·거리 데이터가 아닙니다. tmap 프로필의
-    mode=LIVE 응답만 TMAP 시간·거리·왕복 선형 분석 결과이며 실제 앱 키 호출은 아직 미검증입니다.
+    mode=LIVE 응답만 TMAP 시간·거리·왕복 선형 분석 결과입니다. 실제 앱 키는
+    백엔드에서 로딩됐지만 2026-11-07 자동차 경로안내와 다중 경유지 30 요청이
+    모두 HTTP 403으로 거부되어 LIVE 성공 응답은 아직 미검증입니다.
 paths:
   /api/v1/spots:
     get:
       summary: 검수 완료 경관 장소 후보 조회
       description: >-
         지정한 풍경 테마에서 활성 상태이고 WGS84 좌표·출처·품질 검수를 마친
-        VERIFIED 장소만 품질 합계가 높은 순으로 조회합니다. 실제 장소 데이터는
-        별도 수동 검수 후 등록합니다.
+        VERIFIED 장소만 품질 합계가 높은 순으로 조회합니다. 서울·수도권 초기 후보
+        10건은 Git 제외 로컬 파일로 준비했으며 실제 주행·경관 최종 검수는 남아 있습니다.
       operationId: findVerifiedSpotCandidates
       parameters:
         - name: theme

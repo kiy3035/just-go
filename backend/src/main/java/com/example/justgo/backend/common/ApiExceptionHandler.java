@@ -7,6 +7,8 @@ import com.example.justgo.backend.integration.routing.tmap.TmapClientErrorType;
 import com.example.justgo.backend.integration.routing.tmap.TmapRouteClientException;
 import com.example.justgo.backend.route.UnsupportedDrivingDurationException;
 import com.example.justgo.backend.spot.InvalidSpotLimitException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -22,6 +24,8 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
  */
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
     /**
      * 좌표 범위나 필수값 위반을 필드별 메시지로 반환합니다.
@@ -53,6 +57,8 @@ public class ApiExceptionHandler {
      */
     @ExceptionHandler(TmapRouteClientException.class)
     public ResponseEntity<ApiErrorResponse> handleTmapFailure(TmapRouteClientException exception) {
+        // 비밀키·좌표·외부 응답은 남기지 않고 운영자가 조치할 실패 종류만 기록합니다.
+        LOGGER.warn("외부 자동차 경로 제공자 호출 실패: errorType={}", exception.errorType());
         boolean temporarilyUnavailable = exception.errorType() == TmapClientErrorType.AUTHENTICATION
                 || exception.errorType() == TmapClientErrorType.QUOTA_EXCEEDED;
         HttpStatus status = temporarilyUnavailable

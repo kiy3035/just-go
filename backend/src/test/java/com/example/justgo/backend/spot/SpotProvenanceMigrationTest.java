@@ -32,7 +32,7 @@ class SpotProvenanceMigrationTest {
         flywayAtVersionTwo().migrate();
         insertLegacyVerifiedSpot();
 
-        latestFlyway().migrate();
+        flywayAtVersionThree().migrate();
 
         assertThatLegacyRowWasPreserved();
         assertThatConstraintIsPendingLegacyValidation();
@@ -49,10 +49,11 @@ class SpotProvenanceMigrationTest {
                 .load();
     }
 
-    /** 저장소의 최신 Flyway 마이그레이션을 적용합니다. */
-    private Flyway latestFlyway() {
+    /** 출처 제약을 처음 도입한 V3까지만 적용합니다. */
+    private Flyway flywayAtVersionThree() {
         return Flyway.configure()
                 .dataSource(POSTGRESQL.getJdbcUrl(), POSTGRESQL.getUsername(), POSTGRESQL.getPassword())
+                .target(MigrationVersion.fromVersion("3"))
                 .load();
     }
 

@@ -394,3 +394,46 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - `.\gradlew.bat build --no-daemon`: 성공. Flyway V5와 영속 호출 제한을 포함한 실행 JAR을 생성했습니다.
 - `docker compose --env-file .env.example --profile app config --quiet`: 성공.
 - `docker compose --env-file .env.example --profile app build backend`: 성공. V5와 영속 호출 제한이 포함된 `just-go-backend:local` 이미지를 생성했습니다.
+
+## 29. 2026-11-07 서울·수도권 초기 경관 후보 검증
+
+- MVP 초기 지역을 서울·경기·인천으로 확정했습니다.
+- 공공데이터포털 전국관광지정보표준데이터의 897건 중 서울·경기·인천 147건을 후보군으로 분리하고, 도시·산·강·호수·바다 테마별 2건씩 총 10건을 Git 제외 로컬 JSON으로 준비했습니다.
+- `SCENIC_CANDIDATE_IMPORT_DRY_RUN=true` 실행 결과 전체 10건, 등록 가능 10건, DB 중복 0건, 파일 중복 0건을 확인했습니다.
+- 실제 등록은 신규 10건·중복 0건, 같은 파일 재실행은 신규 0건·DB 중복 10건으로 끝나 멱등성을 확인했습니다.
+- PostgreSQL 조회 결과 다섯 테마가 각 2건이고 추천 조건을 만족하는 후보가 총 10건임을 확인했습니다.
+- 로컬 파일의 장소명·좌표·출처 원문은 Git, 실행 로그와 이 문서에 기록하지 않았습니다. 공개 원천의 이용조건과 데스크 검수는 마쳤지만 실제 주행 중 경관·접근성·도로 상태는 아직 최종 검증하지 않았습니다.
+
+## 30. 2026-11-07 TMAP 실제 인증 시도
+
+- 실제 비밀값은 출력하지 않고 `backend/.env`의 필수 DB 설정과 `TMAP_APP_KEY`가 비어 있지 않으며 자리표시자가 아닌지만 확인했습니다. 파일은 `.gitignore`의 `**/.env` 규칙으로 제외됩니다.
+- PostgreSQL 17.11, Flyway V1~V5, 초기 후보 10건이 있는 임시 DB에서 `local,tmap` 프로필로 백엔드를 18082 포트에 기동했고 `/actuator/health`가 `UP`임을 확인했습니다.
+- 개인정보가 아닌 서울시청 공개 좌표를 출발지로 사용해 왕복 60분·강 테마 추천을 1건 요청했습니다.
+- 백엔드는 HTTP 503 `ROUTE_PROVIDER_UNAVAILABLE`을 반환했고, 키를 노출하지 않는 직접 상태 확인에서 다중 경유지 30과 일반 자동차 경로안내가 모두 HTTP 403을 반환했습니다. 로컬 키 로딩과 외부 서버 도달은 확인됐지만 두 경로 API의 인증은 실패했습니다.
+- 동일 실패의 반복 호출은 중단했습니다. TMAP 마이페이지에서 해당 앱의 `앱키(appKey)` 값과 자동차 경로안내·다중 경유지 30 API 사용 권한을 확인해야 합니다.
+- 외부 제공자 오류 처리 로그에는 키·좌표·원시 응답·예외 메시지 없이 정규화된 `errorType`만 남기도록 보강했습니다. 사용자 응답의 기존 비밀값 없는 오류 계약은 유지했습니다.
+- `./gradlew.bat clean test --no-daemon`: 전체 70개 테스트 통과, 실패·오류·건너뜀 0개.
+- `./gradlew.bat build --no-daemon`: 성공. 실행 JAR 생성과 전체 검사를 통과했습니다.
+- 유료 플랜, 결제수단, 과금 리소스는 사용하거나 신청하지 않았습니다.
+
+## 31. 2026-11-07 초기 후보 로컬 추천 스모크
+
+- TMAP 키를 사용하지 않는 `local,mock` 프로필로 PostgreSQL 17.11과 Flyway V1~V5를 연결했습니다.
+- `GET /api/v1/spots`를 다섯 테마에 호출해 각 2건, 총 10건의 검수 후보가 REST 계층까지 조회되는 것을 확인했습니다.
+- 개인정보가 아닌 서울시청 공개 좌표와 60분 조건으로 다섯 테마 각각의 왕복·편도, 총 10개 추천 요청을 실행했습니다.
+- 모든 조합이 `mode=MOCK`, `mock=true`, 코스 1건으로 응답했고 실제 좌표로 오인할 `stops`는 빈 목록임을 확인했습니다.
+- 이 결과는 DB 후보 조회와 REST 연결 검증이며 실제 도로 시간·거리·경관 품질 또는 TMAP 성공을 의미하지 않습니다.
+- 실제 `.env`와 로컬 후보 파일은 Git에서 제외되고, 백엔드 Docker 빌드 컨텍스트에서도 `.dockerignore`의 `.env`, `local-data/` 규칙으로 제외되는 것을 확인했습니다.
+
+## 32. 2026-11-07 VERIFIED 제약 전체 검증
+
+- Flyway V6에서 출처 또는 품질 근거가 불완전한 과거 VERIFIED 행을 삭제하지 않고 `PENDING`으로 전환하도록 했습니다.
+- 정상 출처와 세 품질 점수를 가진 VERIFIED 행은 상태를 유지합니다.
+- 정리 후 `ck_spot_verified_provenance`, `ck_spot_verified_quality`에 `VALIDATE CONSTRAINT`를 적용해 새 행뿐 아니라 기존 전체 데이터에도 제약이 성립하도록 했습니다.
+- V3·V4 각각의 도입 테스트는 해당 버전까지만 검증하도록 범위를 고정하고, V2에서 만든 불완전 VERIFIED 행과 V5의 정상 VERIFIED 행을 V6으로 올리는 별도 PostgreSQL 17 테스트를 추가했습니다.
+- 표적 마이그레이션 테스트 4종이 통과했습니다. 불완전 행은 PENDING, 정상 행은 VERIFIED로 유지됐고 두 제약의 `convalidated`가 모두 참이며 불완전 행의 VERIFIED 재전환은 SQLSTATE `23514`로 거부됐습니다.
+- `./gradlew.bat clean test build --no-daemon`: 전체 73개 테스트 통과, 실패·오류·건너뜀 0개이며 실행 JAR 빌드 성공.
+- `docker compose --env-file .env.example --profile app config --quiet`: 성공.
+- `docker compose --env-file .env.example --profile app build backend`: 성공. V6가 포함된 `just-go-backend:local` 이미지를 생성했습니다.
+- 별도 임시 포트 55436/18083에서 PostgreSQL과 백엔드 컨테이너를 기동해 health `UP`, Flyway V6 성공 1건, 완전 검증된 VERIFIED 제약 2건, `uid=100(justgo)` 비루트 실행을 확인했습니다.
+- 검증용 `just-go-v6-check` 컨테이너·네트워크·볼륨은 종료 후 삭제했으며 다른 Docker 프로젝트와 영구 볼륨은 건드리지 않았습니다.
