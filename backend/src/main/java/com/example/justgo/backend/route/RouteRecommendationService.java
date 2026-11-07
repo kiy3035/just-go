@@ -147,7 +147,7 @@ public class RouteRecommendationService {
             return List.of();
         }
         return spotCandidateQuery.loadAvailableThemes().stream()
-                .filter(theme -> theme != request.theme())
+                .filter(theme -> !request.theme().includes(theme))
                 .distinct()
                 .sorted(Comparator.comparingInt(ScenicTheme::ordinal))
                 .limit(MAX_CONDITION_SUGGESTIONS)

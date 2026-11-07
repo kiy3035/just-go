@@ -97,10 +97,18 @@
           AND source_reference = #{sourceReference}
     </select>
 
+    <sql id="selectedThemeFilter">
+        <choose>
+            <when test="theme.name() == 'ANYWHERE'">TRUE</when>
+            <when test="theme.name() == 'WATER'">theme IN ('RIVER', 'LAKE')</when>
+            <otherwise>theme = #{theme}::varchar</otherwise>
+        </choose>
+    </sql>
+
     <select id="findVerifiedCandidatesByTheme" resultMap="spotCandidateRecordMap">
         SELECT id, name, theme, latitude, longitude
         FROM spot
-        WHERE theme = #{theme}::varchar
+        WHERE <include refid="selectedThemeFilter"/>
           AND <include refid="verifiedCandidateEligibility"/>
         ORDER BY (theme_fit_score + scenic_quality_score + route_suitability_score) DESC,
                  id
@@ -130,7 +138,7 @@
                        )), 2)
                    ))) AS straight_line_distance_meters
             FROM spot
-            WHERE theme = #{theme}::varchar
+            WHERE <include refid="selectedThemeFilter"/>
               AND <include refid="verifiedCandidateEligibility"/>
         )
         SELECT id, name, theme, latitude, longitude

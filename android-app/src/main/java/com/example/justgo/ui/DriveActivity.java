@@ -52,7 +52,7 @@ public final class DriveActivity extends Activity {
         if (saved != null) {
             binding.tripMode.check(saved.getInt("trip", R.id.roundTrip));
             binding.duration.check(saved.getInt("duration", R.id.time60));
-            binding.theme.check(saved.getInt("theme", R.id.city));
+            binding.theme.check(saved.getInt("theme", R.id.anywhere));
             binding.customMinutes.setText(saved.getString("minutes", "90"));
         }
         syncCustomInput();
@@ -65,8 +65,8 @@ public final class DriveActivity extends Activity {
         if (binding.mountain.isChecked()) return RiversideSceneView.Theme.MOUNTAIN;
         if (binding.sea.isChecked()) return RiversideSceneView.Theme.SEA;
         if (binding.water.isChecked()) return RiversideSceneView.Theme.WATER;
-        if (binding.park.isChecked()) return RiversideSceneView.Theme.WATER;
-        return RiversideSceneView.Theme.CITY;
+        if (binding.park.isChecked()) return RiversideSceneView.Theme.PARK;
+        return RiversideSceneView.Theme.ANYWHERE;
     }
 
     private void syncScenery() {
@@ -78,7 +78,7 @@ public final class DriveActivity extends Activity {
         String minutes = binding.timeCustom.isChecked() ? binding.customMinutes.getText().toString()
             : binding.time30.isChecked() ? "30" : binding.time120.isChecked() ? "120" : "60";
         binding.selectedTime.setText(minutes.isEmpty() ? "시간 입력" : minutes + "분");
-        binding.selectedPlace.setText(themeLabel(selectedApiTheme()));
+        binding.selectedPlace.setText(selectedTheme().getLabel());
     }
 
     private void syncCustomInput() {
@@ -110,15 +110,7 @@ public final class DriveActivity extends Activity {
             binding.customMinutes.requestFocus();
             return;
         }
-        enterOrigin(minutes, binding.roundTrip.isChecked(), selectedApiTheme());
-    }
-
-    private String selectedApiTheme() {
-        if (binding.mountain.isChecked()) return "MOUNTAIN";
-        if (binding.sea.isChecked()) return "SEA";
-        if (binding.water.isChecked()) return "RIVER";
-        if (binding.park.isChecked()) return "LAKE";
-        return "CITY";
+        enterOrigin(minutes, binding.roundTrip.isChecked(), selectedTheme().name());
     }
 
     @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
@@ -228,6 +220,9 @@ public final class DriveActivity extends Activity {
 
     private static String themeLabel(String theme) {
         return switch (theme) {
+            case "ANYWHERE" -> "어디든";
+            case "WATER" -> "강/호수";
+            case "PARK" -> "공원";
             case "CITY" -> "도시";
             case "MOUNTAIN" -> "산";
             case "RIVER" -> "강";

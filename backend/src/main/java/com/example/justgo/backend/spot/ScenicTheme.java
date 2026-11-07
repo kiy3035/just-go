@@ -8,5 +8,13 @@ public enum ScenicTheme {
     MOUNTAIN,
     RIVER,
     LAKE,
-    SEA
+    SEA,
+    PARK,
+    ANYWHERE,
+    WATER;
+
+    public boolean includes(ScenicTheme theme) {
+        return this == ANYWHERE || this == theme
+                || (this == WATER && (theme == RIVER || theme == LAKE));
+    }
 }

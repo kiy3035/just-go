@@ -106,6 +106,9 @@ public class SpotCandidateImportService {
         if (entry.theme() == null) {
             throw invalid(index, "theme이 필요합니다.");
         }
+        if (entry.theme() == ScenicTheme.ANYWHERE || entry.theme() == ScenicTheme.WATER) {
+            throw invalid(index, "장소에는 실제 테마를 지정해야 합니다.");
+        }
         BigDecimal latitude = coordinate(entry.latitude(), -90, 90, index, "latitude");
         BigDecimal longitude = coordinate(entry.longitude(), -180, 180, index, "longitude");
         String sourceName = required(entry.sourceName(), 200, index, "sourceName");

@@ -170,3 +170,9 @@ public interface DrivingRouteProvider {
 - NaviHelper: https://document.pleos.ai/docs/pleos-only/connect-sdk-pleos/NaviHelper/intro
 - 공모전 제출: https://appdevchallenge.auto-hmg.io/guide/submission
 - 공모전 참가 규정: https://appdevchallenge.auto-hmg.io/guide/rules
+
+## 6개 화면 테마 연결 (2026-11-07 사용자 승인)
+
+- Android는 기존 어디든·도시·산·바다·강/호수·공원 선택을 각각 ANYWHERE·CITY·MOUNTAIN·SEA·WATER·PARK로 전송한다. 출발지는 기기 현재 위치의 WGS84 좌표다.
+- ANYWHERE와 WATER는 조회 조건이다. MyBatis에서 전체 또는 RIVER/LAKE 후보를 조회하고 기존 품질·거리 필터와 후보 상한을 함께 적용한다. 경로 제공자 호출은 기존 한 요청 흐름을 유지한다.
+- 실제 장소 테마에는 PARK를 추가하는 V7 마이그레이션을 적용한다. ANYWHERE/WATER는 장소 행에 저장하지 않는다. 기존 RIVER/LAKE API 입력과 데이터는 계속 지원한다.

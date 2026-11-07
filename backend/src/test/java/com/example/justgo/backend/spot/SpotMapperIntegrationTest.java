@@ -31,6 +31,39 @@ class SpotMapperIntegrationTest {
     @Autowired
     private SpotMapper spotMapper;
 
+    @Test
+    void searchesCombinedThemesAndKeepsParkSeparate() {
+        for (ScenicTheme theme : List.of(ScenicTheme.RIVER, ScenicTheme.LAKE, ScenicTheme.PARK)) {
+            spotMapper.insertCandidate(candidate(
+                    "COMBINED_" + theme + "_TEST_ONLY",
+                    theme,
+                    new BigDecimal("0.100000"),
+                    new BigDecimal("0.200000"),
+                    SpotVerificationStatus.VERIFIED,
+                    true));
+        }
+        assertThat(spotMapper.findVerifiedCandidatesByTheme(ScenicTheme.WATER, 50))
+                .extracting(SpotCandidateRecord::theme)
+                .contains(ScenicTheme.RIVER, ScenicTheme.LAKE)
+                .doesNotContain(ScenicTheme.PARK);
+        assertThat(spotMapper.findNearbyVerifiedCandidatesByTheme(
+                ScenicTheme.ANYWHERE, new BigDecimal("0.100000"),
+                new BigDecimal("0.200000"), 1000L, 50))
+                .extracting(SpotCandidateRecord::theme)
+                .contains(ScenicTheme.RIVER, ScenicTheme.LAKE, ScenicTheme.PARK);
+        assertThat(spotMapper.findNearbyVerifiedCandidatesByTheme(
+                ScenicTheme.WATER, new BigDecimal("0.100000"),
+                new BigDecimal("0.200000"), 1000L, 50))
+                .extracting(SpotCandidateRecord::theme)
+                .contains(ScenicTheme.RIVER, ScenicTheme.LAKE)
+                .doesNotContain(ScenicTheme.PARK);
+        assertThat(spotMapper.findVerifiedCandidatesByTheme(ScenicTheme.PARK, 50))
+                .extracting(SpotCandidateRecord::theme)
+                .isNotEmpty()
+                .containsOnly(ScenicTheme.PARK);
+    }
+
+
     /**
      * 테스트 컨테이너가 만든 임시 접속 정보를 Spring 데이터소스에 전달합니다.
      */
