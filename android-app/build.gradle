@@ -8,8 +8,17 @@ android {
         targetSdk 34
         versionCode 1
         versionName '0.1'
+        buildConfigField 'String', 'ROUTE_API_BASE_URL', '""'
     }
-    buildFeatures { viewBinding true }
+    buildTypes {
+        debug {
+            buildConfigField 'String', 'ROUTE_API_BASE_URL', '"http://127.0.0.1:18080"'
+        }
+    }
+    buildFeatures {
+        viewBinding true
+        buildConfig true
+    }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17

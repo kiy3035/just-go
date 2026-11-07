@@ -58,7 +58,7 @@ legend { font-size: clamp(18px, 1.4vw, 28px); font-weight: 800; margin-bottom: 1
 .choice-grid { display: grid; gap: 12px; }
 .two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .four { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-.theme-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.theme-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .choice { position: relative; min-width: 0; }
 .choice input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .choice label {
@@ -128,12 +128,11 @@ legend { font-size: clamp(18px, 1.4vw, 28px); font-weight: 800; margin-bottom: 1
 
 /* Theme visibility and palette. */
 .drive-scene [data-scene] { display: none; }
-.drive-scene[data-theme="anywhere"] [data-scene="anywhere"],
 .drive-scene[data-theme="city"] [data-scene="city"],
 .drive-scene[data-theme="mountain"] [data-scene="mountain"],
 .drive-scene[data-theme="sea"] [data-scene="sea"],
-.drive-scene[data-theme="water"] [data-scene="water"],
-.drive-scene[data-theme="park"] [data-scene="park"] { display: block; }
+.drive-scene[data-theme="river"] [data-scene="water"],
+.drive-scene[data-theme="lake"] [data-scene="water"] { display: block; }
 .drive-scene[data-theme="city"] .road-surface { fill: #34465f; }
 .drive-scene[data-theme="city"] .foreground { fill: #42516b; }
 .drive-scene[data-theme="city"] .foreground-verge { display: none; }
