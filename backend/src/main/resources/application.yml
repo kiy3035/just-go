@@ -4,6 +4,11 @@ spring:
   config:
     import: optional:file:.env[.properties]
 
+justgo:
+  recommendation:
+    allowed-underrun-percent: ${ROUTE_ALLOWED_UNDERRUN_PERCENT:20}
+    allowed-overrun-percent: ${ROUTE_ALLOWED_OVERRUN_PERCENT:15}
+
 mybatis:
   mapper-locations: classpath*:mapper/**/*.xml
   configuration:

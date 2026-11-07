@@ -31,6 +31,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest(RouteRecommendationController.class)
 @Import({
         RouteRecommendationService.class,
+        RouteRecommendationConfiguration.class,
         ApiExceptionHandler.class,
         TraceIdFilter.class
 })

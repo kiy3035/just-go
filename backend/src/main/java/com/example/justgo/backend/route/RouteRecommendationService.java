@@ -12,6 +12,7 @@ import com.example.justgo.backend.integration.routing.DrivingRouteWaypointCandid
 import com.example.justgo.backend.spot.ScenicTheme;
 import com.example.justgo.backend.spot.SpotCandidateQuery;
 import com.example.justgo.backend.spot.SpotCandidateRecord;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
@@ -29,15 +30,28 @@ public class RouteRecommendationService {
 
     private final DrivingRouteProvider drivingRouteProvider;
     private final SpotCandidateQuery spotCandidateQuery;
-    private final RouteRecommendationPolicy recommendationPolicy = new RouteRecommendationPolicy();
+    private final RouteRecommendationPolicy recommendationPolicy;
     private final RouteCandidateDistancePolicy candidateDistancePolicy =
             new RouteCandidateDistancePolicy();
 
+    /** 실행 환경에 바인딩된 시간 허용 범위로 추천 정책을 구성합니다. */
+    @Autowired
     public RouteRecommendationService(
             DrivingRouteProvider drivingRouteProvider,
-            SpotCandidateQuery spotCandidateQuery) {
+            SpotCandidateQuery spotCandidateQuery,
+            RouteRecommendationProperties properties) {
         this.drivingRouteProvider = drivingRouteProvider;
         this.spotCandidateQuery = spotCandidateQuery;
+        this.recommendationPolicy = new RouteRecommendationPolicy(
+                properties.getAllowedUnderrunPercent(),
+                properties.getAllowedOverrunPercent());
+    }
+
+    /** 단위 테스트와 명시적 수동 생성에는 안전한 기본 허용 범위를 적용합니다. */
+    RouteRecommendationService(
+            DrivingRouteProvider drivingRouteProvider,
+            SpotCandidateQuery spotCandidateQuery) {
+        this(drivingRouteProvider, spotCandidateQuery, new RouteRecommendationProperties());
     }
 
     /**
@@ -110,11 +124,19 @@ public class RouteRecommendationService {
     /** 대체 시간이 있으면 재검색을 안내하고, 없으면 일반적인 조건 변경을 안내합니다. */
     private String alternativeDurationNotice(List<RouteConditionSuggestion> suggestions) {
         if (suggestions.isEmpty()) {
-            return "희망 주행 시간 ±%d%%에 맞는 검수 코스를 찾지 못했습니다. 시간이나 풍경 조건을 바꿔 주세요."
-                    .formatted(RouteRecommendationPolicy.DURATION_TOLERANCE_PERCENT);
+            return durationToleranceNoticePrefix()
+                    + "에 맞는 검수 코스를 찾지 못했습니다. 시간이나 풍경 조건을 바꿔 주세요.";
         }
-        return "희망 주행 시간 ±%d%%에 맞는 검수 코스를 찾지 못했습니다. 제안된 시간으로 다시 검색해 주세요."
-                .formatted(RouteRecommendationPolicy.DURATION_TOLERANCE_PERCENT);
+        return durationToleranceNoticePrefix()
+                + "에 맞는 검수 코스를 찾지 못했습니다. 제안된 시간으로 다시 검색해 주세요.";
+    }
+
+    /** 비대칭 허용 범위를 사용자가 오해하지 않도록 하한과 상한을 함께 표시합니다. */
+    private String durationToleranceNoticePrefix() {
+        return "희망 주행 시간 -%d%%~+%d%%"
+                .formatted(
+                        recommendationPolicy.allowedUnderrunPercent(),
+                        recommendationPolicy.allowedOverrunPercent());
     }
 
     /** 선택 테마에 후보가 없을 때만 실제 검수 후보가 있는 다른 테마를 제안합니다. */

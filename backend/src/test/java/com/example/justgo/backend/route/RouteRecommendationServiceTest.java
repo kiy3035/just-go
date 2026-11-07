@@ -275,7 +275,7 @@ class RouteRecommendationServiceTest {
             assertThat(suggestion.tripType()).isEqualTo(TripType.ONE_WAY);
             assertThat(suggestion.theme()).isEqualTo(ScenicTheme.LAKE);
         });
-        assertThat(response.notice()).contains("±15%", "제안된 시간");
+        assertThat(response.notice()).contains("-20%~+15%", "제안된 시간");
     }
 
     /** Provider 지점 모델을 Android가 사용할 수 있는 API 지점 DTO로 변환합니다. */

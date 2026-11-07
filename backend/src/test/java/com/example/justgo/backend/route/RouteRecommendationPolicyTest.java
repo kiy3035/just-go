@@ -13,18 +13,34 @@ class RouteRecommendationPolicyTest {
 
     private final RouteRecommendationPolicy policy = new RouteRecommendationPolicy();
 
-    /** 60분 기준 경계값 51~69분만 허용되는지 확인합니다. */
+    /** 60분 기준 기본 비대칭 경계값 48~69분만 허용되는지 확인합니다. */
     @Test
-    void keepsCandidatesWithinFifteenPercentDurationTolerance() {
+    void keepsCandidatesWithinDefaultAsymmetricDurationTolerance() {
         var ranked = policy.rankWithinDurationTolerance(60, List.of(
-                candidate("TOO_SHORT", 50, 1_000),
-                candidate("LOWER_BOUND", 51, 2_000),
+                candidate("TOO_SHORT", 47, 1_000),
+                candidate("LOWER_BOUND", 48, 2_000),
                 candidate("UPPER_BOUND", 69, 3_000),
                 candidate("TOO_LONG", 70, 4_000)));
 
         assertThat(ranked)
                 .extracting(DrivingRouteCandidate::routeId)
-                .containsExactly("LOWER_BOUND", "UPPER_BOUND");
+                .containsExactly("UPPER_BOUND", "LOWER_BOUND");
+    }
+
+    /** 환경별 비율을 적용해 하한과 상한을 독립적으로 조정할 수 있는지 확인합니다. */
+    @Test
+    void appliesConfiguredUnderrunAndOverrunPercentages() {
+        var configuredPolicy = new RouteRecommendationPolicy(10, 5);
+
+        var ranked = configuredPolicy.rankWithinDurationTolerance(60, List.of(
+                candidate("TOO_SHORT", 53, 1_000),
+                candidate("LOWER_BOUND", 54, 2_000),
+                candidate("UPPER_BOUND", 63, 3_000),
+                candidate("TOO_LONG", 64, 4_000)));
+
+        assertThat(ranked)
+                .extracting(DrivingRouteCandidate::routeId)
+                .containsExactly("UPPER_BOUND", "LOWER_BOUND");
     }
 
     /** 목표 시간 차이와 거리로 정렬한 뒤 최대 세 건만 반환하는지 확인합니다. */

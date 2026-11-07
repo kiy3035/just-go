@@ -7,19 +7,35 @@ import com.example.justgo.backend.integration.routing.DrivingRouteCandidate;
 
 /**
  * 실제 자동차 경로 후보를 희망 주행 시간에 맞춰 거르고 우선순위를 정합니다.
- * 허용 오차 15%는 PoC 초기 가설이며 실제 주행 결과를 확인한 뒤 조정해야 합니다.
+ * 짧은 경로와 긴 경로의 허용 비율을 분리해 과도한 초과 운전을 방지합니다.
  */
 final class RouteRecommendationPolicy {
 
-    static final int DURATION_TOLERANCE_PERCENT = 15;
+    static final int DEFAULT_ALLOWED_UNDERRUN_PERCENT = 20;
+    static final int DEFAULT_ALLOWED_OVERRUN_PERCENT = 15;
     private static final int MIN_DURATION_MINUTES = 10;
     private static final int MAX_DURATION_MINUTES = 240;
     private static final int DURATION_STEP_MINUTES = 5;
     private static final int MAX_RECOMMENDATIONS = 3;
     private static final int MAX_DURATION_SUGGESTIONS = 3;
+    private final int allowedUnderrunPercent;
+    private final int allowedOverrunPercent;
+
+    /** 기본 PoC 허용 범위인 -20%~+15%를 적용합니다. */
+    RouteRecommendationPolicy() {
+        this(DEFAULT_ALLOWED_UNDERRUN_PERCENT, DEFAULT_ALLOWED_OVERRUN_PERCENT);
+    }
+
+    /** 설정된 미달·초과 허용 비율로 정책을 구성합니다. */
+    RouteRecommendationPolicy(int allowedUnderrunPercent, int allowedOverrunPercent) {
+        validatePercent(allowedUnderrunPercent, "미달");
+        validatePercent(allowedOverrunPercent, "초과");
+        this.allowedUnderrunPercent = allowedUnderrunPercent;
+        this.allowedOverrunPercent = allowedOverrunPercent;
+    }
 
     /**
-     * 희망 시간 ±15% 후보만 남겨 시간 차이, 왕복 중복률, 거리, 경로 식별자 순으로 정렬합니다.
+     * 설정된 시간 범위 후보만 남겨 시간 차이, 왕복 중복률, 거리, 경로 식별자 순으로 정렬합니다.
      */
     public List<DrivingRouteCandidate> rankWithinDurationTolerance(
             int desiredMinutes,
@@ -60,13 +76,33 @@ final class RouteRecommendationPolicy {
                 .toList();
     }
 
-    /** 부동소수점 오차 없이 목표 시간 대비 15% 이내인지 비교합니다. */
+    /** 사용자 안내에 표시할 짧은 경로 허용 비율을 반환합니다. */
+    int allowedUnderrunPercent() {
+        return allowedUnderrunPercent;
+    }
+
+    /** 사용자 안내에 표시할 긴 경로 허용 비율을 반환합니다. */
+    int allowedOverrunPercent() {
+        return allowedOverrunPercent;
+    }
+
+    /** 부동소수점 오차 없이 서로 다른 하한·상한 범위에 포함되는지 비교합니다. */
     private boolean isWithinDurationTolerance(int desiredMinutes, int estimatedMinutes) {
         if (estimatedMinutes <= 0) {
             return false;
         }
-        return durationDifference(desiredMinutes, estimatedMinutes) * 100L
-                <= (long) desiredMinutes * DURATION_TOLERANCE_PERCENT;
+        long scaledEstimatedMinutes = (long) estimatedMinutes * 100L;
+        long lowerBound = (long) desiredMinutes * (100 - allowedUnderrunPercent);
+        long upperBound = (long) desiredMinutes * (100 + allowedOverrunPercent);
+        return scaledEstimatedMinutes >= lowerBound && scaledEstimatedMinutes <= upperBound;
+    }
+
+    /** 직접 생성 시에도 잘못된 비율이 조용히 적용되지 않도록 방어합니다. */
+    private void validatePercent(int percent, String boundaryName) {
+        if (percent < 0 || percent > 50) {
+            throw new IllegalArgumentException(
+                    "추천 시간 " + boundaryName + " 허용 비율은 0~50%여야 합니다.");
+        }
     }
 
     /** 정수 오버플로 없이 분 단위 절대 차이를 계산합니다. */
