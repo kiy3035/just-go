@@ -116,6 +116,19 @@ Copy-Item .env.example .env
 
 2026-11-07 실제 키로 요청이 TMAP 서버까지 도달했지만 HTTP 403으로 거부됐습니다. 이 경우 같은 요청을 반복하지 말고 TMAP 마이페이지의 해당 앱에서 `앱키(appKey)` 값을 사용했는지, 자동차 경로안내와 다중 경유지 30 API 사용 권한이 활성화됐는지 확인합니다. 유료 플랜 전환이나 결제수단 등록은 사용자 승인 전에는 진행하지 않습니다.
 
+권한을 수정한 뒤에는 백엔드를 `local,tmap`으로 실행하고 다음 스크립트로 공개 테스트 좌표의 LIVE 응답을 재검증합니다. 스크립트는 앱 키·지점명·좌표·원시 응답을 출력하지 않으며, LIVE 실행에는 쿼터 사용 확인 스위치가 필요합니다.
+
+```powershell
+cd C:\myProject\just-go\backend
+.\scripts\Test-RouteRecommendation.ps1 `
+  -BaseUrl http://127.0.0.1:18080 `
+  -ExpectedMode LIVE `
+  -TripType ROUND_TRIP `
+  -Theme RIVER `
+  -DesiredMinutes 60 `
+  -ConfirmExternalCall
+```
+
 ## 3. Docker Compose로 PostgreSQL과 백엔드 함께 실행
 
 JDK를 호스트에 직접 설정하지 않고 전체 로컬 서버를 확인하려면 `app` 프로필을 사용합니다. 이 프로필은 `backend/Dockerfile`로 Java 21 백엔드 이미지를 빌드하고 PostgreSQL이 healthy가 된 뒤 서버를 시작합니다. TMAP 프로필과 앱 키는 활성화하지 않습니다.

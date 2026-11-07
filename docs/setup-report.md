@@ -448,3 +448,14 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - `./gradlew.bat clean test build --no-daemon`: 전체 78개 테스트 통과, 실패·오류·건너뜀 0개이며 실행 JAR 빌드 성공.
 - `docker compose --env-file .env.example --profile app config --quiet`: 성공.
 - `docker compose --env-file .env.example --profile app build backend`: 성공. 프로필·키 안전장치가 포함된 로컬 이미지를 생성했습니다.
+
+## 34. 2026-11-07 추천 API 재현 스모크 스크립트
+
+- `backend/scripts/Test-RouteRecommendation.ps1`을 추가해 키를 명령줄에 넣지 않고 로컬 추천 API의 MOCK 또는 LIVE 결과를 재검증할 수 있게 했습니다.
+- 실제 사용자 위치 대신 서울시청 공개 좌표를 사용하며 키·지점명·좌표·원시 외부 응답은 출력하지 않습니다. 시간·거리·중복률·지점 수 요약과 traceId만 표시합니다.
+- LIVE 모드는 `-ConfirmExternalCall`이 없으면 실행하지 않아 무료 쿼터의 우발적 사용을 막습니다.
+- LIVE 성공은 `mode=LIVE`, `mock=false`뿐 아니라 실제 계산 코스 또는 같은 테마·주행 방식의 계산 기반 대체 시간 제안이 있어야 인정합니다. 후보가 없어 외부 호출을 하지 않은 빈 LIVE는 실패 처리합니다.
+- PowerShell AST 구문 오류 0건, LIVE 확인 스위치 누락과 5분 단위 위반 방어를 확인했습니다.
+- 임시 PostgreSQL 17/Flyway V6와 `local,mock` 백엔드에서 편도·도시·75분 요청을 실행해 `mode=MOCK`, 코스 1건, 지점 0건, `result=PASS`를 확인했습니다.
+- Compose의 기본 `local` 프로필은 예상대로 `UNAVAILABLE`을 반환했고 스크립트가 기대 모드 불일치로 실패 처리했습니다.
+- 검증용 `just-go-script-check` 컨테이너·네트워크·볼륨은 종료 후 삭제했습니다.
