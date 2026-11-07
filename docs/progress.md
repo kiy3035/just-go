@@ -1,6 +1,6 @@
 # just go 프로젝트 진척 현황
 
-> 마지막 갱신: 2026-11-04
+> 마지막 갱신: 2026-11-07
 > 이 문서는 완료·보류·차단 항목을 한눈에 확인하는 현황판입니다. 상세 실행 기록은 [`setup-report.md`](setup-report.md), 제품 범위는 [`requirements.md`](requirements.md), API 계약은 [`api-contract.yaml`](api-contract.yaml)을 기준으로 합니다.
 
 ## 상태 기준
@@ -37,7 +37,7 @@
 | 순환 품질 실측 | 보류 | 중복률 탈락 상한은 임의로 두지 않음 | TMAP 실제 호출과 실제 또는 에뮬레이터 경로 검수 필요 |
 | 외부 경로 API 조사 | 완료 | TMAP·카카오모빌리티·NAVER 공식 기능·가격·쿼터·제약 비교 | `routing-provider-comparison.md`에 확인일과 근거 기록 |
 | TMAP HTTP 클라이언트 | 완료 | WGS84 일반 자동차·다중 경유지 요청, timeout, PostgreSQL 영속 일일 상한 90건, 오류·응답 검증 | 실제 요청은 TMAP 서버에서 HTTP 403 인증 거부, 성공 응답 미검증 |
-| TMAP 추천 Provider 연동 | 완료 | 왕복=후보 경유 후 복귀, 편도=후보 도착, 요청당 최대 3건 계산 | 실제 키 로딩·외부 도달 확인, 두 경로 API 모두 403으로 앱 권한 활성화 필요 |
+| TMAP 추천 Provider 연동 | 완료 | 왕복=후보 경유 후 복귀, 편도=후보 도착, 요청당 최대 3건 계산, 한도 중간 소진 시 앞선 성공 경로 보존 | 실제 키 로딩·외부 도달 확인, 두 경로 API 모두 403으로 앱 권한 활성화 필요 |
 | 원격 HTTPS 백엔드 | 미착수 | 로컬 개발만 구성 | 제출/시연 방식 확정 후 비용·보안 검토 필요 |
 | Release APK·서명 | 미착수 | 키 생성·커밋 없음 | Android 완성 후 고유 applicationId, 서명, 실제 실행 검증 필요 |
 
@@ -51,6 +51,7 @@
   → DrivingRouteProvider 요청 모델로 후보 전달
   → mock 프로필: MOCK 응답
   → tmap 프로필: PostgreSQL 일일 호출권 예약 후 후보 최대 3건의 TMAP 계산
+  → 후보 계산 중 한도 소진 시 앞에서 확보한 LIVE 경로를 보존하고 추가 호출 중단
   → TMAP 시간·거리와 왕복 선분 중복률 LIVE 응답
   → LIVE 코스별 WAYPOINT/DESTINATION 순서 반환
   → 기본 프로필: UNAVAILABLE 응답

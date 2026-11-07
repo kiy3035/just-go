@@ -46,15 +46,39 @@ public class TmapDrivingRouteProvider implements DrivingRouteProvider {
 
         TmapCoordinate origin = new TmapCoordinate(request.latitude(), request.longitude());
         List<DrivingRouteCandidate> routes = new ArrayList<>();
-        request.waypointCandidates().stream()
-                .limit(MAX_EVALUATED_CANDIDATES)
-                .forEach(candidate -> routes.add(calculateCandidate(request, origin, candidate)));
+        boolean quotaReachedAfterSuccess = calculateCandidates(request, origin, routes);
 
         return new DrivingRouteResult(
                 DrivingRouteMode.LIVE,
                 false,
                 routes,
-                "TMAP 자동차 경로 결과입니다. 교통 상황과 내비 재탐색에 따라 달라질 수 있습니다.");
+                quotaReachedAfterSuccess
+                        ? "일일 외부 경로 호출 한도에 도달해 먼저 계산된 경로만 반환합니다."
+                        : "TMAP 자동차 경로 결과입니다. 교통 상황과 내비 재탐색에 따라 달라질 수 있습니다.");
+    }
+
+    /**
+     * 후보를 순서대로 계산하되, 앞선 경로가 성공한 뒤 일일 한도가 소진되면 성공 결과를 보존합니다.
+     * 인증·네트워크·응답 오류는 부분 성공으로 숨기지 않고 호출자에게 그대로 전달합니다.
+     */
+    private boolean calculateCandidates(
+            DrivingRouteRequest request,
+            TmapCoordinate origin,
+            List<DrivingRouteCandidate> routes) {
+        for (DrivingRouteWaypointCandidate candidate : request.waypointCandidates().stream()
+                .limit(MAX_EVALUATED_CANDIDATES)
+                .toList()) {
+            try {
+                routes.add(calculateCandidate(request, origin, candidate));
+            } catch (TmapRouteClientException exception) {
+                if (exception.errorType() == TmapClientErrorType.QUOTA_EXCEEDED
+                        && !routes.isEmpty()) {
+                    return true;
+                }
+                throw exception;
+            }
+        }
+        return false;
     }
 
     /**

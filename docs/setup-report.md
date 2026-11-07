@@ -459,3 +459,14 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - 임시 PostgreSQL 17/Flyway V6와 `local,mock` 백엔드에서 편도·도시·75분 요청을 실행해 `mode=MOCK`, 코스 1건, 지점 0건, `result=PASS`를 확인했습니다.
 - Compose의 기본 `local` 프로필은 예상대로 `UNAVAILABLE`을 반환했고 스크립트가 기대 모드 불일치로 실패 처리했습니다.
 - 검증용 `just-go-script-check` 컨테이너·네트워크·볼륨은 종료 후 삭제했습니다.
+
+## 35. 2026-11-07 TMAP 호출 한도 부분 성공 보존
+
+- 한 추천 요청에서 후보를 순서대로 계산하다 일일 호출 한도가 소진되면, 앞에서 이미 성공한 LIVE 경로를 버리지 않고 반환한 뒤 추가 호출을 중단하도록 Provider를 보강했습니다.
+- 첫 후보부터 한도가 소진된 경우에는 성공 결과가 없으므로 기존 HTTP 503 경로를 유지합니다. 인증·네트워크·외부 응답 오류도 부분 성공으로 숨기지 않고 기존 502/503 오류 계약을 유지합니다.
+- 부분 성공, 첫 호출 한도 소진, 성공 뒤 인증 실패를 각각 단위 테스트로 추가했습니다. 테스트 메시지에는 실제 키·좌표·외부 응답을 사용하지 않았습니다.
+- 최초 전체 검증은 Docker Desktop 엔진이 꺼져 있어 Testcontainers 통합 테스트 7개 클래스가 초기화 단계에서 실패했습니다. 엔진을 시작한 뒤 같은 명령을 다시 실행해 코드 문제가 아님을 확인했습니다.
+- `.\gradlew.bat clean test build --no-daemon`: 재실행 성공. 전체 81개 테스트 통과, 실패·오류·건너뜀 0개이며 실행 JAR을 생성했습니다.
+- `docker compose --env-file .env.example --profile app config --quiet`: 성공.
+- `docker compose --env-file .env.example --profile app build backend`: 성공. 변경된 Provider를 포함한 `just-go-backend:local` 이미지를 생성했습니다.
+- 실제 TMAP 호출과 유료 서비스·결제·과금 리소스는 사용하지 않았습니다.

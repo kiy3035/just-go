@@ -1,6 +1,7 @@
 package com.example.justgo.backend.integration.routing.tmap;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -97,6 +98,62 @@ class TmapDrivingRouteProviderTest {
         assertThat(result.mode()).isEqualTo(DrivingRouteMode.UNAVAILABLE);
         assertThat(result.routes()).isEmpty();
         verifyNoInteractions(client);
+    }
+
+    /** 앞선 후보가 성공했다면 일일 한도 소진 시 그 결과를 버리지 않는지 확인합니다. */
+    @Test
+    void preservesSuccessfulRoutesWhenQuotaIsReachedMidRequest() {
+        when(client.findRoute(any()))
+                .thenReturn(new TmapRouteSummary(4_200L, 900L, null))
+                .thenThrow(new TmapRouteClientException(
+                        TmapClientErrorType.QUOTA_EXCEEDED,
+                        "TEST_QUOTA_ONLY"));
+
+        var result = provider.calculate(request(
+                TripType.ONE_WAY,
+                List.of(candidate(1L), candidate(2L), candidate(3L))));
+
+        assertThat(result.mode()).isEqualTo(DrivingRouteMode.LIVE);
+        assertThat(result.routes()).singleElement()
+                .satisfies(route -> assertThat(route.routeId()).isEqualTo("TMAP-SPOT-1"));
+        assertThat(result.notice()).contains("먼저 계산된 경로만 반환");
+        verify(client, times(2)).findRoute(any());
+    }
+
+    /** 성공 경로가 하나도 없으면 호출 한도 오류를 정상 응답으로 숨기지 않는지 확인합니다. */
+    @Test
+    void propagatesQuotaFailureWhenNoRouteWasCalculated() {
+        when(client.findRoute(any())).thenThrow(new TmapRouteClientException(
+                TmapClientErrorType.QUOTA_EXCEEDED,
+                "TEST_QUOTA_ONLY"));
+
+        assertThatThrownBy(() -> provider.calculate(request(
+                TripType.ONE_WAY,
+                List.of(candidate(1L), candidate(2L)))))
+                .isInstanceOf(TmapRouteClientException.class)
+                .satisfies(exception -> assertThat(
+                        ((TmapRouteClientException) exception).errorType())
+                        .isEqualTo(TmapClientErrorType.QUOTA_EXCEEDED));
+        verify(client).findRoute(any());
+    }
+
+    /** 인증 같은 전역 오류는 앞선 성공 여부와 관계없이 부분 결과로 감추지 않습니다. */
+    @Test
+    void propagatesNonQuotaFailureAfterSuccessfulRoute() {
+        when(client.findRoute(any()))
+                .thenReturn(new TmapRouteSummary(4_200L, 900L, null))
+                .thenThrow(new TmapRouteClientException(
+                        TmapClientErrorType.AUTHENTICATION,
+                        "TEST_AUTH_ONLY"));
+
+        assertThatThrownBy(() -> provider.calculate(request(
+                TripType.ONE_WAY,
+                List.of(candidate(1L), candidate(2L)))))
+                .isInstanceOf(TmapRouteClientException.class)
+                .satisfies(exception -> assertThat(
+                        ((TmapRouteClientException) exception).errorType())
+                        .isEqualTo(TmapClientErrorType.AUTHENTICATION));
+        verify(client, times(2)).findRoute(any());
     }
 
     private DrivingRouteRequest request(
