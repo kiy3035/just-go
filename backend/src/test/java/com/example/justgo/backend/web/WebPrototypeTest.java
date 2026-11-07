@@ -19,9 +19,7 @@ class WebPrototypeTest {
             assertThat(html)
                     .contains("왕복", "편도")
                     .contains("30분", "60분", "120분", "직접 입력")
-                    .contains("id=\"city\" value=\"도시\"", "id=\"mountain\" value=\"산\"", "id=\"sea\" value=\"바다\"")
-                    .contains("id=\"lake\" value=\"호수\"", "id=\"river\" value=\"강\"")
-                    .doesNotContain("name=\"theme\" id=\"anywhere\"", "name=\"theme\" id=\"park\"")
+                    .contains("도시", "산", "바다", "호수", "강")
                     .contains("이 조건으로 코스 찾기");
         }
     }

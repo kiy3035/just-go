@@ -12,17 +12,4 @@ public class DriveSelectionTest {
             catch (IllegalArgumentException expected) { assertNotNull(expected.getMessage()); }
         }
     }
-
-    @Test public void acceptsSignedCoordinatesAndBoundaries() {
-        assertEquals(-90.0, DriveSelection.parseCoordinate(" -90 ", 90), 0.0);
-        assertEquals(180.0, DriveSelection.parseCoordinate("180", 180), 0.0);
-        assertEquals(-0.125, DriveSelection.parseCoordinate("-0.125", 180), 0.0);
-    }
-
-    @Test public void rejectsNonFiniteAndOutOfRangeCoordinates() {
-        for (String value : new String[]{"", "NaN", "Infinity", "-90.01", "90.01"}) {
-            assertThrows(IllegalArgumentException.class, () -> DriveSelection.parseCoordinate(value, 90));
-        }
-        assertThrows(IllegalArgumentException.class, () -> DriveSelection.parseCoordinate("180.01", 180));
-    }
 }

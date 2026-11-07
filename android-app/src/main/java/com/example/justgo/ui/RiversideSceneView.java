@@ -17,8 +17,8 @@ import android.view.animation.LinearInterpolator;
 /** Decorative, theme-specific illustrations, independent of real vehicle/location data. */
 public final class RiversideSceneView extends View {
     public enum Theme {
-        CITY("도시"), MOUNTAIN("산"), RIVER("강"),
-        LAKE("호수"), SEA("바다");
+        ANYWHERE("어디든"), CITY("도시"), MOUNTAIN("산"),
+        SEA("바다"), WATER("강/호수"), PARK("공원");
 
         private final String label;
 
@@ -36,7 +36,7 @@ public final class RiversideSceneView extends View {
     private final ValueAnimator animator;
     private final LinearGradient carBody = new LinearGradient(0, -43, 0, 28, 0xFFFFFFFF, 0xFF91A8BA, Shader.TileMode.CLAMP);
     private Bitmap background;
-    private Theme theme = Theme.CITY;
+    private Theme theme = Theme.ANYWHERE;
     private float phase;
 
     public RiversideSceneView(Context context, AttributeSet attrs) {
@@ -109,7 +109,9 @@ public final class RiversideSceneView extends View {
             case CITY: drawCity(c); break;
             case MOUNTAIN: drawMountains(c); break;
             case SEA: drawSea(c); break;
-            case RIVER, LAKE: drawWater(c); break;
+            case WATER: drawWater(c); break;
+            case PARK: drawPark(c); break;
+            default: drawMeadow(c);
         }
         box(c, 0, 698, 600, 12, theme == Theme.SEA ? 0xFFA9B3A1 : theme == Theme.CITY ? 0xFF9BA9BB : 0xFF9AAF8B);
         box(c, 0, 710, 600, 86, theme == Theme.SEA ? 0xFF2D485F : theme == Theme.CITY ? 0xFF34465F : 0xFF3E5A54);
@@ -152,6 +154,13 @@ public final class RiversideSceneView extends View {
         box(c, 0, 698, 600, 4, 0xFFCAD2CF);
         for (int i = 0; i < 17; i++) box(c, i * 40, 698, 4, 15, 0xFFAEBDBE);
         box(c, 0, 709, 600, 2, 0xFF839BA3);
+    }
+
+    private void drawMeadow(Canvas c) {
+        hill(c, 540, 0xFFABBFD1, 90);
+        hill(c, 640, 0xFF90B27E, 85);
+        hill(c, 706, 0xFF71945E, 45);
+        tree(c, 44, 698, 54, true); tree(c, 430, 694, 24, false); tree(c, 556, 710, 38, false);
     }
 
     private void drawCity(Canvas c) {
@@ -205,6 +214,11 @@ public final class RiversideSceneView extends View {
             float x = i * 83 % 600, y = top + i * 23 % height;
             c.drawLine(x, y, x + 15 + i % 4 * 8, y, paint);
         }
+    }
+
+    private void drawPark(Canvas c) {
+        hill(c, 640, 0xFFA3C49A, 70); hill(c, 697, 0xFF729C64, 35);
+        for (int i = 0; i < 8; i++) tree(c, i * 87 - 8, 700 + i % 3 * 12, 34 + i % 3 * 15, false);
     }
 
     @Override protected void onDraw(Canvas c) {
