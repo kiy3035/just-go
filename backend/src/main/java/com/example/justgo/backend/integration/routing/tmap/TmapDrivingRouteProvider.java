@@ -2,6 +2,7 @@ package com.example.justgo.backend.integration.routing.tmap;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.example.justgo.backend.integration.routing.DrivingRouteCandidate;
 import com.example.justgo.backend.integration.routing.DrivingRouteMode;
@@ -17,13 +18,14 @@ import org.springframework.stereotype.Component;
 
 /**
  * 검수된 경관 후보를 TMAP 자동차 경로로 계산하는 첫 PoC 제공자입니다.
- * 무료 호출량 보호를 위해 한 추천 요청에서 최대 3개 후보만 평가합니다.
+ * 무료 호출량 보호를 위해 한 추천 요청에서 단일·조합 경로를 합쳐 최대 3개만 평가합니다.
  */
 @Component
 @Profile("tmap & !mock")
 public class TmapDrivingRouteProvider implements DrivingRouteProvider {
 
-    private static final int MAX_EVALUATED_CANDIDATES = 3;
+    private static final int MAX_EVALUATED_ROUTE_OPTIONS = 3;
+    private static final int MAX_SCENIC_STOPS_PER_ROUTE = 2;
 
     private final TmapRouteClient tmapRouteClient;
 
@@ -46,7 +48,7 @@ public class TmapDrivingRouteProvider implements DrivingRouteProvider {
 
         TmapCoordinate origin = new TmapCoordinate(request.latitude(), request.longitude());
         List<DrivingRouteCandidate> routes = new ArrayList<>();
-        boolean quotaReachedAfterSuccess = calculateCandidates(request, origin, routes);
+        boolean quotaReachedAfterSuccess = calculateOptions(request, origin, routes);
 
         return new DrivingRouteResult(
                 DrivingRouteMode.LIVE,
@@ -58,18 +60,17 @@ public class TmapDrivingRouteProvider implements DrivingRouteProvider {
     }
 
     /**
-     * 후보를 순서대로 계산하되, 앞선 경로가 성공한 뒤 일일 한도가 소진되면 성공 결과를 보존합니다.
+     * 단일 후보 두 건과 두 후보 조합을 순서대로 계산해 짧은·긴 경로를 함께 탐색합니다.
+     * 앞선 경로가 성공한 뒤 일일 한도가 소진되면 성공 결과를 보존합니다.
      * 인증·네트워크·응답 오류는 부분 성공으로 숨기지 않고 호출자에게 그대로 전달합니다.
      */
-    private boolean calculateCandidates(
+    private boolean calculateOptions(
             DrivingRouteRequest request,
             TmapCoordinate origin,
             List<DrivingRouteCandidate> routes) {
-        for (DrivingRouteWaypointCandidate candidate : request.waypointCandidates().stream()
-                .limit(MAX_EVALUATED_CANDIDATES)
-                .toList()) {
+        for (List<DrivingRouteWaypointCandidate> scenicStops : buildRouteOptions(request)) {
             try {
-                routes.add(calculateCandidate(request, origin, candidate));
+                routes.add(calculateOption(request, origin, scenicStops));
             } catch (TmapRouteClientException exception) {
                 if (exception.errorType() == TmapClientErrorType.QUOTA_EXCEEDED
                         && !routes.isEmpty()) {
@@ -82,63 +83,127 @@ public class TmapDrivingRouteProvider implements DrivingRouteProvider {
     }
 
     /**
-     * 후보 한 건을 주행 방식에 맞는 TMAP 검색 조건으로 변환하고 결과 단위를 정규화합니다.
+     * 품질 우선순위가 높은 두 후보를 각각 평가한 뒤 두 곳을 잇는 조합을 세 번째로 평가합니다.
      */
-    private DrivingRouteCandidate calculateCandidate(
+    private List<List<DrivingRouteWaypointCandidate>> buildRouteOptions(
+            DrivingRouteRequest request) {
+        List<DrivingRouteWaypointCandidate> candidates = request.waypointCandidates().stream()
+                .limit(MAX_SCENIC_STOPS_PER_ROUTE)
+                .toList();
+        List<List<DrivingRouteWaypointCandidate>> options = new ArrayList<>();
+        for (DrivingRouteWaypointCandidate candidate : candidates) {
+            options.add(List.of(candidate));
+        }
+        if (candidates.size() == MAX_SCENIC_STOPS_PER_ROUTE) {
+            options.add(List.copyOf(candidates));
+        }
+        return options.stream()
+                .limit(MAX_EVALUATED_ROUTE_OPTIONS)
+                .toList();
+    }
+
+    /**
+     * 한두 곳의 경관 지점을 주행 방식에 맞는 TMAP 검색 조건으로 변환하고 결과 단위를 정규화합니다.
+     */
+    private DrivingRouteCandidate calculateOption(
             DrivingRouteRequest request,
             TmapCoordinate origin,
-            DrivingRouteWaypointCandidate candidate) {
-        TmapCoordinate candidateCoordinate = new TmapCoordinate(
-                candidate.latitude(),
-                candidate.longitude());
-        TmapRouteSearch search = request.tripType() == TripType.ROUND_TRIP
-                ? new TmapRouteSearch(
-                        origin,
-                        origin,
-                        List.of(new TmapWaypoint(
-                                Long.toString(candidate.spotId()),
-                                candidate.name(),
-                                candidateCoordinate)))
-                : new TmapRouteSearch(origin, candidateCoordinate, List.of());
+            List<DrivingRouteWaypointCandidate> scenicStops) {
+        TmapRouteSearch search = buildSearch(request.tripType(), origin, scenicStops);
         TmapRouteSummary summary = tmapRouteClient.findRoute(search);
 
         return new DrivingRouteCandidate(
-                "TMAP-SPOT-" + candidate.spotId(),
-                candidate.name() + " 드라이브",
+                routeId(scenicStops),
+                routeTitle(scenicStops),
                 toWholeMinutes(summary.durationSeconds()),
                 summary.distanceMeters(),
                 request.theme(),
                 request.tripType() == TripType.ROUND_TRIP
                         ? summary.repeatedSegmentPercent()
                         : null,
-                buildStops(request, candidate),
-                "검수된 경관 후보의 TMAP 자동차 경로 시간·거리 결과입니다.");
+                buildStops(request, scenicStops),
+                scenicStops.size() == 1
+                        ? "검수된 경관 후보의 TMAP 자동차 경로 시간·거리 결과입니다."
+                        : "검수된 두 경관 후보를 잇는 TMAP 자동차 경로 시간·거리 결과입니다.");
     }
 
     /**
-     * 왕복은 경관 후보를 경유한 뒤 출발지로 돌아가고, 편도는 후보에서 종료합니다.
+     * 왕복은 모든 경관 후보를 경유해 출발지로 돌아가고, 편도는 마지막 후보에서 종료합니다.
      */
     private List<DrivingRouteStop> buildStops(
             DrivingRouteRequest request,
-            DrivingRouteWaypointCandidate candidate) {
-        DrivingRouteStop scenicStop = new DrivingRouteStop(
-                1,
-                request.tripType() == TripType.ROUND_TRIP
-                        ? DrivingRouteStopType.WAYPOINT
-                        : DrivingRouteStopType.DESTINATION,
-                candidate.name(),
-                candidate.latitude(),
-                candidate.longitude());
-        if (request.tripType() == TripType.ONE_WAY) {
-            return List.of(scenicStop);
+            List<DrivingRouteWaypointCandidate> scenicStops) {
+        List<DrivingRouteStop> stops = new ArrayList<>();
+        for (int index = 0; index < scenicStops.size(); index++) {
+            DrivingRouteWaypointCandidate candidate = scenicStops.get(index);
+            boolean oneWayDestination = request.tripType() == TripType.ONE_WAY
+                    && index == scenicStops.size() - 1;
+            stops.add(new DrivingRouteStop(
+                    index + 1,
+                    oneWayDestination
+                            ? DrivingRouteStopType.DESTINATION
+                            : DrivingRouteStopType.WAYPOINT,
+                    candidate.name(),
+                    candidate.latitude(),
+                    candidate.longitude()));
         }
-        DrivingRouteStop returnToOrigin = new DrivingRouteStop(
-                2,
+        if (request.tripType() == TripType.ONE_WAY) {
+            return List.copyOf(stops);
+        }
+        stops.add(new DrivingRouteStop(
+                scenicStops.size() + 1,
                 DrivingRouteStopType.DESTINATION,
                 "출발지 복귀",
                 request.latitude(),
-                request.longitude());
-        return List.of(scenicStop, returnToOrigin);
+                request.longitude()));
+        return List.copyOf(stops);
+    }
+
+    /** 왕복·편도 규칙에 맞게 마지막 후보는 도착지, 나머지는 경유지로 구성합니다. */
+    private TmapRouteSearch buildSearch(
+            TripType tripType,
+            TmapCoordinate origin,
+            List<DrivingRouteWaypointCandidate> scenicStops) {
+        if (tripType == TripType.ROUND_TRIP) {
+            return new TmapRouteSearch(
+                    origin,
+                    origin,
+                    scenicStops.stream().map(this::toTmapWaypoint).toList());
+        }
+        DrivingRouteWaypointCandidate destination = scenicStops.getLast();
+        TmapCoordinate destinationCoordinate = new TmapCoordinate(
+                destination.latitude(), destination.longitude());
+        List<TmapWaypoint> waypoints = scenicStops.subList(0, scenicStops.size() - 1)
+                .stream()
+                .map(this::toTmapWaypoint)
+                .toList();
+        return new TmapRouteSearch(origin, destinationCoordinate, waypoints);
+    }
+
+    /** 내부 경관 후보를 비밀값 없이 TMAP 경유지 형식으로 변환합니다. */
+    private TmapWaypoint toTmapWaypoint(DrivingRouteWaypointCandidate candidate) {
+        return new TmapWaypoint(
+                Long.toString(candidate.spotId()),
+                candidate.name(),
+                new TmapCoordinate(candidate.latitude(), candidate.longitude()));
+    }
+
+    /** 단일 경로의 기존 식별자를 유지하고 조합 경로는 두 장소 ID를 순서대로 포함합니다. */
+    private String routeId(List<DrivingRouteWaypointCandidate> scenicStops) {
+        if (scenicStops.size() == 1) {
+            return "TMAP-SPOT-" + scenicStops.getFirst().spotId();
+        }
+        return "TMAP-SPOTS-" + scenicStops.stream()
+                .map(candidate -> Long.toString(candidate.spotId()))
+                .collect(Collectors.joining("-"));
+    }
+
+    /** 사용자가 경유 순서를 이해할 수 있도록 경관 후보 이름을 순서대로 표시합니다. */
+    private String routeTitle(List<DrivingRouteWaypointCandidate> scenicStops) {
+        return scenicStops.stream()
+                .map(DrivingRouteWaypointCandidate::name)
+                .collect(Collectors.joining(" · "))
+                + " 드라이브";
     }
 
     /** 초 단위 시간을 부족하게 표시하지 않도록 올림한 분 단위로 변환합니다. */

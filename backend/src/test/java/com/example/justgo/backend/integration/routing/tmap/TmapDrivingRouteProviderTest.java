@@ -75,9 +75,9 @@ class TmapDrivingRouteProviderTest {
                 });
     }
 
-    /** 무료 쿼터 보호를 위해 한 요청에서 앞의 후보 세 건만 평가하는지 확인합니다. */
+    /** 단일 후보 두 건과 두 후보 조합을 최대 세 번의 호출 안에서 평가하는지 확인합니다. */
     @Test
-    void evaluatesAtMostThreeCandidatesPerRequest() {
+    void evaluatesTwoSingleRoutesAndOneCombinedRoute() {
         when(client.findRoute(any())).thenReturn(new TmapRouteSummary(1_000L, 600L, null));
 
         var result = provider.calculate(request(TripType.ONE_WAY, List.of(
@@ -87,7 +87,41 @@ class TmapDrivingRouteProviderTest {
                 candidate(4L))));
 
         assertThat(result.routes()).hasSize(3);
-        verify(client, times(3)).findRoute(any());
+        assertThat(result.routes()).extracting(route -> route.routeId())
+                .containsExactly("TMAP-SPOT-1", "TMAP-SPOT-2", "TMAP-SPOTS-1-2");
+        assertThat(result.routes().get(2).stops()).extracting(stop -> stop.type())
+                .containsExactly(
+                        DrivingRouteStopType.WAYPOINT,
+                        DrivingRouteStopType.DESTINATION);
+
+        ArgumentCaptor<TmapRouteSearch> captor = ArgumentCaptor.forClass(TmapRouteSearch.class);
+        verify(client, times(3)).findRoute(captor.capture());
+        TmapRouteSearch combinedSearch = captor.getAllValues().get(2);
+        assertThat(combinedSearch.waypoints()).singleElement()
+                .satisfies(waypoint -> assertThat(waypoint.id()).isEqualTo("1"));
+    }
+
+    /** 두 후보 왕복은 두 경관 지점을 순서대로 경유한 뒤 출발지로 복귀하는지 확인합니다. */
+    @Test
+    void buildsCombinedRoundTripWithTwoScenicWaypoints() {
+        when(client.findRoute(any())).thenReturn(new TmapRouteSummary(8_000L, 3_600L, 12));
+
+        var result = provider.calculate(request(
+                TripType.ROUND_TRIP,
+                List.of(candidate(1L), candidate(2L))));
+
+        ArgumentCaptor<TmapRouteSearch> captor = ArgumentCaptor.forClass(TmapRouteSearch.class);
+        verify(client, times(3)).findRoute(captor.capture());
+        TmapRouteSearch combinedSearch = captor.getAllValues().get(2);
+        assertThat(combinedSearch.start()).isEqualTo(combinedSearch.end());
+        assertThat(combinedSearch.waypoints()).extracting(TmapWaypoint::id)
+                .containsExactly("1", "2");
+        assertThat(result.routes().get(2).stops()).extracting(stop -> stop.type())
+                .containsExactly(
+                        DrivingRouteStopType.WAYPOINT,
+                        DrivingRouteStopType.WAYPOINT,
+                        DrivingRouteStopType.DESTINATION);
+        assertThat(result.routes().get(2).repeatedSegmentPercent()).isEqualTo(12);
     }
 
     /** 검수 후보가 없으면 외부 호출 없이 빈 결과를 반환하는지 확인합니다. */
