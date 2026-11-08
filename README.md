@@ -2,7 +2,7 @@
 
 `just go`는 출발지, 희망 주행 시간, 풍경 테마를 바탕으로 드라이브 코스를 추천하는 Pleos Connect 차량용 앱 프로젝트입니다.
 
-초기 0~3단계 백엔드·인프라 구성 이후, 드라이브 조건을 고르는 반응형 웹 화면 시안과 추천 요청 API 초안을 추가했습니다. 외부 자동차 경로는 TMAP API Free로 결정했고 왕복·편도 Provider, 출발지·희망 시간 기반 후보 거리 필터, 실제 계산 경로의 시간 근접도 정렬, 검수 후보가 있는 대체 풍경 제안, 수동 경관 후보 품질 점수와 왕복 선분 중복률까지 구현했습니다. 서울·수도권 총 13건의 초기 후보는 Git 제외 로컬 파일로 준비하고 PostgreSQL 등록·중복 검증을 마쳤습니다. Android Java/XML 화면 골격은 일반 Automotive API 34 에뮬레이터에서 실행했으나 실제 API·Pleos 연동은 아직 구현하지 않았습니다. TMAP Free 상품 활성화 후 실제 일반 자동차·다중 경유지 요청의 LIVE 처리를 확인했으며, 실주행 기반 순환 품질 조정은 아직 남아 있습니다.
+현재 백엔드는 검수 DB, 전국도시공원정보표준데이터 API와 한국관광공사 TourAPI를 합쳐 장소 후보를 제공합니다. 후보 선택 요청에서는 사용자가 고른 장소 한 곳만 TMAP API Free로 실제 자동차 경로를 계산하며, 토큰이 없는 기존 클라이언트를 위한 자동 후보 계산도 호환 경로로 유지합니다. Android Java/XML 앱은 Pleos Connect Emulator에서 현재 위치 조회, LIVE 추천 API 호출, 코스 선택과 NaviHelper 단일 목적지 안내 시작까지 확인했습니다. 후보 선택 화면 연동, NaviHelper 다중 경유지, 실주행 기반 경관·순환 품질 조정과 Release APK는 아직 남아 있습니다.
 
 현재 완료·보류·차단 항목과 다음 작업은 [`docs/progress.md`](docs/progress.md)에서 확인합니다. 실제 실행 명령과 검증 이력은 [`docs/setup-report.md`](docs/setup-report.md)에 날짜순으로 기록합니다. 외부 경로 업체의 공식 가격·쿼터·제약 비교는 [`docs/routing-provider-comparison.md`](docs/routing-provider-comparison.md), 키·쿼터·공개 배포 보호 기준은 [`docs/security.md`](docs/security.md), 실제 경관 후보의 출처·이용권한 기준은 [`docs/scenic-data-policy.md`](docs/scenic-data-policy.md), 1~5점 품질 평가표는 [`docs/scenic-quality-rubric.md`](docs/scenic-quality-rubric.md), 로컬 후보 등록 절차는 [`docs/scenic-candidate-import.md`](docs/scenic-candidate-import.md), 왕복 선형 분석 기준은 [`docs/route-shape-quality.md`](docs/route-shape-quality.md)에 정리했습니다.
 
@@ -26,10 +26,48 @@ Android Studio, Android SDK, Pleos Emulator를 포함한 도구 설치와 공통
 
 Java 패키지 `com.example.justgo.backend`와 Android `applicationId`의 `com.example.justgo`는 소유 도메인이 정해지기 전의 개발용 `PROVISIONAL` 값입니다.
 
+## 핵심 동작
+
+1. Android가 WGS84 출발 좌표, 희망 주행 시간, 왕복·편도, 화면 테마를 백엔드에 전달합니다.
+2. 백엔드는 희망 시간과 주행 방식으로 직선거리 상한을 계산하고 검수 DB와 활성화된 공공데이터 원천에서 최대 50개의 POI 후보를 합칩니다.
+3. 후보명·좌표 중복을 제거하고 테마·랜드마크 우선순위·거리로 정렬합니다. `ANYWHERE`와 `WATER`는 한 테마가 목록을 독점하지 않도록 순환 방식으로 채웁니다.
+4. 후보 조회 결과에는 30분 유효 `candidateToken`이 포함됩니다. 이 단계에서는 TMAP 자동차 경로 API를 호출하지 않습니다.
+5. 사용자가 한 후보를 고르면 해당 토큰의 장소 한 곳만 TMAP으로 실제 시간·거리와 경로를 계산합니다. 토큰을 생략한 기존 요청은 검수·정렬 상위 후보의 단일 2건과 조합 1건까지 계산하는 호환 흐름을 사용합니다.
+6. Android가 선택한 LIVE 결과의 경유지·목적지를 Pleos NaviHelper에 전달하고 이후 안내는 차량 내장 내비게이션이 담당합니다.
+
+## 후보 데이터 원천
+
+| 원천 | 사용 목적 | 현재 상태와 제한 |
+|---|---|---|
+| PostgreSQL `SPOT` | 출처·이용권한·좌표·품질 점수를 수동 검수한 기준 후보 | 모든 실제 테마에 사용하며 외부 원천과 이름이 겹치면 DB 후보를 우선합니다. |
+| [전국도시공원정보표준데이터 API](https://www.data.go.kr/data/15012890/standard.do) | 생활권 공원 후보를 넓게 확보 | `PARK` 전용입니다. 전국 목록을 기본 6시간 메모리 캐시하고 출발지 직선거리로 필터링합니다. |
+| [한국관광공사 국문 관광정보 서비스](https://www.data.go.kr/data/15101578/openapi.do) | 위치기반 관광 POI와 공식 관광 신분류 코드 제공 | `CITY`, `MOUNTAIN`, `RIVER`, `LAKE`, `SEA`, `PARK`에 사용합니다. 위치 조회 반경은 API 최대값인 20km이며 같은 좌표·반경은 기본 10분 캐시합니다. |
+| TMAP 자동차 경로 API | 선택 후보 또는 기존 자동 후보의 실제 자동차 시간·거리 계산 | 후보 검색 원천이 아닙니다. 선택 토큰 요청은 한 장소만, 토큰 없는 호환 요청은 최대 3개 경로만 계산하며 PostgreSQL 일일 상한을 적용합니다. |
+| TMAP 주변 POI API | 20km 밖 후보와 일반 생활 POI 보강 검토 | **미구현**입니다. 현재 README에서 POI는 위 DB·공공데이터·TourAPI를 정규화한 장소 후보를 뜻합니다. |
+
+## 화면 테마 분류 기준
+
+화면의 `ANYWHERE`와 `WATER`는 조회 조건입니다. 저장되거나 정규화되는 실제 후보 테마는 `CITY`, `MOUNTAIN`, `RIVER`, `LAKE`, `SEA`, `PARK`입니다. TourAPI는 장소명보다 공식 `lclsSystm2`·`lclsSystm3` 신분류 코드를 우선하며, 신분류가 없는 레거시 항목만 이름 키워드로 보완합니다.
+
+| 화면 선택 | 내부 조회·분류 기준 | 주요 후보 원천과 정렬 |
+|---|---|---|
+| 어디든 `ANYWHERE` | 여섯 실제 테마 전체 | 검수 DB를 먼저 유지하고 외부 `CITY → MOUNTAIN → RIVER → LAKE → SEA → PARK` 큐를 순환해 최대 50건을 구성합니다. |
+| 도시 `CITY` | 자연·공원 코드가 아닌 관광 콘텐츠. `VE01` 랜드마크, `VE07` 전시, `HS01·02·04` 역사·안보, `VE04·05·06` 도시문화·복합관광·공연을 우선 | 검수 DB + TourAPI. 랜드마크·박물관·기념관·갤러리·문화거리·공연시설을 일반 교육·레저시설보다 먼저 보여 줍니다. |
+| 산 `MOUNTAIN` | `NA01` 산·숲·계곡, 습지 `NA0304`를 제외한 `NA03` 자연생태, 수목원·정원 `NA0407`을 제외한 `NA04` 자연공원, 공원·정원명이 아닌 `NA05` 기타 자연관광 | 검수 DB + TourAPI. 신분류가 없을 때만 산림·휴양림·계곡·고개·오름·숲 및 이름 끝의 산·봉을 보완 기준으로 사용합니다. |
+| 바다 `SEA` | `NA0205~09` 섬·염전·항구/포구·해안·해변, `VE0108` 등대, 바다 계열 수상레저 | 검수 DB + TourAPI. 신분류가 없을 때 해수욕장·해변·해안·바다·항구·포구·등대·갯벌 등을 보완합니다. |
+| 강/호수 `WATER` | `RIVER`와 `LAKE`를 함께 조회하고 두 큐를 번갈아 구성 | 강은 `NA0201`, 폭포 `NA0103`, 민물 수상레저 등을 사용합니다. 호수는 `NA0202~04` 호수·저수지·연못/늪, `NA0304` 습지, `VE0107` 댐을 사용합니다. |
+| 공원 `PARK` | 도시공원 API의 모든 유효 공원 + TourAPI `VE02` 테마공원, `VE03` 도시공원, `NA0407` 수목원·정원, 공원·정원명 `NA05` | 검수 DB + 전국도시공원 API + TourAPI. 직선거리순으로 넓게 보여 주며 최종 선택은 사용자가 합니다. |
+
+모든 후보는 좌표 유효성, 요청 테마, 희망 시간 기반 직선거리 상한을 다시 검사합니다. 직선거리는 후보 축소용일 뿐 실제 운전 거리로 표시하지 않으며, 최종 시간·거리는 선택 후 TMAP 결과만 사용합니다.
+
+## 아키텍처
+
+> 프로젝트 완료 후 최종 컴포넌트 구성, 데이터 흐름, Pleos NaviHelper 연동 범위를 반영한 아키텍처 이미지를 추가할 예정입니다. 현재 구현 경계와 세부 결정은 [`docs/architecture.md`](docs/architecture.md)를 기준으로 합니다.
+
 ## 저장소 구조
 
 ```text
-android-app/   Java/XML Android 화면 골격(실제 API·Pleos 연동 전)
+android-app/   Java/XML Android 앱, LIVE API·Pleos NaviHelper 연동
 backend/       Spring Boot 백엔드와 로컬 컨테이너 이미지
 infra/         로컬 PostgreSQL 및 선택적 백엔드 Compose
 docs/          요구사항, 아키텍처, API 초안, 설치 결과
@@ -75,7 +113,7 @@ DB 포트를 바꿨다면 `DB_URL`의 포트도 동일하게 바꿉니다. 서�
 
 ### 웹 입력 화면 시안 확인
 
-서버를 실행하고 브라우저에서 `http://127.0.0.1:18080/`을 열면 왕복·편도, 30·60·120분 또는 직접 입력, 도시·산·바다·호수·강을 선택할 수 있습니다. 직접 입력은 현재 화면 시안에서만 10~240분 범위로 제한한 임시 기준입니다.
+서버를 실행하고 브라우저에서 기본 `http://127.0.0.1:8080/`을 열면 왕복·편도, 30·60·120분 또는 직접 입력과 여섯 풍경 조건을 확인할 수 있습니다. `SERVER_PORT=18080`을 지정했다면 해당 포트로 접속합니다. 직접 입력은 현재 화면 시안에서만 10~240분 범위로 제한한 임시 기준입니다.
 
 버튼을 누르면 선택한 조건만 요약합니다. 왕복·편도와 직접 입력은 공용 API 계약에 반영됐지만 현재 위치 입력이 없는 화면에서는 아직 백엔드로 전송하지 않으며, 실제 TMAP 경로나 추천 결과로 간주하면 안 됩니다.
 
@@ -126,7 +164,7 @@ Copy-Item .env.example .env
 
 2026-11-07 최초 요청은 앱에 연결된 상품이 없어 HTTP 403으로 거부됐습니다. 같은 앱에 `Free TMAP` 상품을 활성화한 뒤 기존 `appKey`로 일반 자동차 경로와 다중 경유지 왕복 경로가 LIVE 처리되는 것을 확인했습니다. 유료 플랜 전환이나 결제수단 등록은 사용자 승인 전에는 진행하지 않습니다.
 
-권한이나 후보 데이터를 변경한 뒤에는 백엔드를 `local,tmap`으로 실행하고 다음 스크립트로 공개 테스트 좌표의 LIVE 응답을 재검증합니다. 스크립트는 앱 키·지점명·좌표·원시 응답을 출력하지 않으며, LIVE 실행에는 쿼터 사용 확인 스위치가 필요합니다.
+권한이나 후보 데이터를 변경한 뒤에는 백엔드를 `local,tmap,public-data`로 실행하고 다음 스크립트로 공개 테스트 좌표의 LIVE 응답을 재검증합니다. 스크립트는 앱 키·지점명·좌표·원시 응답을 출력하지 않으며, LIVE 실행에는 쿼터 사용 확인 스위치가 필요합니다.
 
 ```powershell
 cd C:\myProject\just-go\backend
@@ -166,12 +204,14 @@ docker compose --env-file .env --profile app down
 docker compose --env-file .env --profile app down -v
 ```
 
-## 아직 하지 않은 작업
+## 남은 작업
 
-- Android 프로젝트의 `assembleDebug`, 단위 테스트, Lint 실제 검증
-- Pleos Emulator/NaviHelper 연동 및 검증
-- 실제 TMAP 앱 키를 사용한 외부 호출과 세부 경관·순환 품질 점수 (`mock` 프로필의 예시는 실제 추천이 아님)
-- 계정, 사용자 위치/주행 기록 저장
-- 클라우드 배포와 원격 HTTPS 백엔드
+- Android 후보 목록과 `candidateToken` 선택 흐름 연동
+- Pleos NaviHelper 최대 2개 다중 경유지 실제 검증
+- TourAPI 20km 밖 산·바다·강/호수 후보 확장 원천 결정
+- 실제 또는 에뮬레이터 주행 기반 경관·차량 접근성·왕복 중복률 검수
+- 최종 아키텍처 이미지와 공모전 제출 문서 정리
+- 고유 `applicationId`, Release 서명, 실행 가능한 제출 APK
+- 심사 방식에 따라 원격 HTTPS 백엔드 또는 기능 제한 오프라인 데모 결정
 
 개발용 Debug 빌드와 서명된 실행 가능한 공모전 제출용 Release APK는 별도 완료 기준입니다. 향후 제출 APK는 공식 규칙을 재확인한 뒤 `apk/팀명_앱이름_release.apk` 형태로 준비하며, 서명키는 Git에 저장하지 않습니다.
