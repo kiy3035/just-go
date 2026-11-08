@@ -33,6 +33,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @ActiveProfiles("mock")
 @Import({
         RouteRecommendationService.class,
+        CandidatePlaceSelectionStore.class,
         MockDrivingRouteProvider.class,
         ApiExceptionHandler.class,
         TraceIdFilter.class

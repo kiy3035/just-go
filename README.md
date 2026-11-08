@@ -99,17 +99,23 @@ $env:SERVER_PORT = "18080"
 
 추천 서비스는 같은 검수 조건의 장소 후보를 최대 20건 조회해 `DrivingRouteProvider` 요청에 전달합니다. `tmap` Provider는 무료 쿼터 보호를 위해 품질 우선순위가 높은 후보 두 곳의 단일 경로 2건과 두 곳을 잇는 조합 경로 1건만 계산합니다. LIVE 결과는 희망 시간과 차이가 크더라도 숨기지 않고 시간 차이·왕복 중복률·거리·경로 ID 순으로 최대 3건을 반환합니다. 선택 풍경에 검수 후보가 없을 때만 후보가 있는 다른 풍경을 `suggestions`에 최대 3건 반환합니다. 각 LIVE 코스에는 Android가 내비 전달에 사용할 순서·역할·이름·WGS84 좌표의 `stops` 목록이 포함되고, MOCK은 가짜 좌표와 제안 없이 빈 목록을 반환합니다.
 
+### 넓은 장소 후보 조회
+
+`public-data` 프로필을 추가하면 `GET /api/v1/places/candidates`가 검수 DB, 전국도시공원정보표준데이터 API, 한국관광공사 TourAPI 위치기반 관광정보를 합쳐 최대 50건을 반환합니다. `PARK`는 공원 표준데이터를 우선 사용하고, TourAPI 콘텐츠는 명칭·분류 키워드로 `CITY`, `MOUNTAIN`, `RIVER`, `LAKE`, `SEA`, `PARK`에 임시 분류합니다. `ANYWHERE`는 전체, `WATER`는 강과 호수를 합칩니다. 이 목록은 실제 자동차 경로가 아니라 사용자 선택 전 후보이며 `straightLineDistanceMeters`도 거리 축소·정렬용 직선거리입니다.
+
+각 후보의 `candidateToken`은 서버 메모리에서 30분만 유지됩니다. 사용자가 고른 토큰을 `POST /api/v1/routes/recommendations`의 선택적 `candidateToken`에 넣으면 그 장소 한 곳만 TMAP으로 계산합니다. 후보 조회 자체는 TMAP 호출권을 쓰지 않으며, 토큰에 출발 위치를 저장하지 않습니다. 상세 요청·응답은 [`docs/api-contract.yaml`](docs/api-contract.yaml)을 기준으로 합니다.
+
 ### TMAP Provider 준비
 
 `tmap` 프로필은 TMAP Provider를 활성화합니다. 왕복은 한두 곳의 검수 후보를 경유해 출발지로 복귀하고, 편도 조합은 첫 후보를 경유해 마지막 후보에서 종료합니다. 후보가 한 곳인 편도만 일반 자동차 경로 API를 사용하고, 나머지는 다중 경유지 API를 사용합니다. 프로필을 켠 상태에서 추천 API를 호출하면 외부 요청이 발생하므로 앱 키와 무료 쿼터를 확인해야 합니다.
 
-백엔드는 실행 디렉터리의 `backend/.env`를 선택적으로 읽습니다. `.env.example`을 복사한 뒤 로컬 실행에는 DB 비밀번호와 TMAP 앱 키를 입력하고, 공개 `production` 실행에는 별도 추천 API 접근 토큰도 입력합니다. 실제 `.env`는 Git에서 제외되며 저장소에는 예시 파일만 둡니다.
+백엔드는 실행 디렉터리의 `backend/.env`를 선택적으로 읽습니다. `.env.example`을 복사한 뒤 로컬 실행에는 DB 비밀번호, TMAP 앱 키, 공원 API와 TourAPI의 키·엔드포인트를 입력하고, 공개 `production` 실행에는 별도 추천 API 접근 토큰도 입력합니다. 실제 `.env`는 Git에서 제외되며 저장소에는 예시 파일만 둡니다. 공원 URL은 전체 엔드포인트와 기본 URL을 모두 허용하고, TourAPI URL도 `locationBasedList2` 포함 여부를 자동 정규화합니다.
 
 ```powershell
 cd C:\myProject\just-go\backend
 Copy-Item .env.example .env
-# 메모장 또는 IDE에서 .env의 DB_PASSWORD와 TMAP_APP_KEY만 실제 로컬 값으로 변경
-.\gradlew.bat bootRun --args="--spring.profiles.active=local,tmap"
+# 메모장 또는 IDE에서 .env의 DB·TMAP·공공데이터 값을 실제 로컬 값으로 변경
+.\gradlew.bat bootRun --args="--spring.profiles.active=local,tmap,public-data"
 ```
 
 `backend/.env`는 백엔드 전용이고 `infra/.env`는 PostgreSQL Docker Compose 전용이므로 서로 다른 파일입니다. 기본 connect timeout은 2초, read timeout은 5초이며 자동 재시도는 하지 않습니다. Free 다중 경유지 일 100건보다 낮은 로컬 상한 90건과 추천 요청당 경로 계산 최대 3건 제한을 적용합니다. 호출권은 외부 요청 직전에 PostgreSQL에 서울 날짜와 건수만 원자적으로 예약하므로 서버 재시작·동시 요청에도 상한을 유지합니다. 키·좌표·경로·응답은 이 사용량 테이블에 저장하지 않습니다. 키를 Git, 문서, 로그, Android 앱에 넣지 않습니다. 실제 일반 자동차·다중 경유지 요청의 LIVE 처리를 검증했습니다.

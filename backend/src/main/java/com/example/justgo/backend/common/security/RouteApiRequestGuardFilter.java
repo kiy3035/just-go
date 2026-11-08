@@ -32,6 +32,7 @@ public class RouteApiRequestGuardFilter extends OncePerRequestFilter {
 
     public static final String ACCESS_TOKEN_HEADER = "X-Just-Go-Client-Token";
     private static final String ROUTE_RECOMMENDATION_PATH = "/api/v1/routes/recommendations";
+    private static final String PLACE_CANDIDATE_PATH = "/api/v1/places/candidates";
     private static final long WINDOW_MILLIS = 60_000L;
 
     private final RouteApiSecurityProperties properties;
@@ -53,12 +54,16 @@ public class RouteApiRequestGuardFilter extends OncePerRequestFilter {
         this.expectedAccessTokenHash = hashToken(properties.getAccessToken());
     }
 
-    /** 추천 POST 이외의 정적 화면·health·조회 API는 이 비용 제한에서 제외합니다. */
+    /** 외부 호출이 가능한 추천·장소 후보 API만 비용 제한 대상으로 삼습니다. */
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        String expectedPath = request.getContextPath() + ROUTE_RECOMMENDATION_PATH;
-        return !HttpMethod.POST.matches(request.getMethod())
-                || !expectedPath.equals(request.getRequestURI());
+        String routePath = request.getContextPath() + ROUTE_RECOMMENDATION_PATH;
+        String candidatePath = request.getContextPath() + PLACE_CANDIDATE_PATH;
+        boolean routeRequest = HttpMethod.POST.matches(request.getMethod())
+                && routePath.equals(request.getRequestURI());
+        boolean candidateRequest = HttpMethod.GET.matches(request.getMethod())
+                && candidatePath.equals(request.getRequestURI());
+        return !routeRequest && !candidateRequest;
     }
 
     /** 보호 단계를 통과한 요청만 실제 추천 서비스와 TMAP Provider로 전달합니다. */
@@ -75,7 +80,8 @@ public class RouteApiRequestGuardFilter extends OncePerRequestFilter {
                     "추천 API 접근 권한을 확인해 주세요.");
             return;
         }
-        if (request.getContentLengthLong() > properties.getMaxRequestBodyBytes()) {
+        if (HttpMethod.POST.matches(request.getMethod())
+                && request.getContentLengthLong() > properties.getMaxRequestBodyBytes()) {
             writeError(
                     response,
                     HttpStatus.PAYLOAD_TOO_LARGE,

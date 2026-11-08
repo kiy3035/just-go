@@ -26,10 +26,17 @@ services:
       dockerfile: Dockerfile
     image: just-go-backend:local
     environment:
-      SPRING_PROFILES_ACTIVE: local
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-justgo}
       DB_USERNAME: ${POSTGRES_USER:-justgo}
       DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in infra/.env}
+      TMAP_APP_KEY: ${TMAP_APP_KEY:-}
+      TMAP_DAILY_CALL_LIMIT: ${TMAP_DAILY_CALL_LIMIT:-90}
+      PARK_API_KEY: ${PARK_API_KEY:-}
+      PARK_API_URL: ${PARK_API_URL:-https://api.data.go.kr/openapi/tn_pubr_public_cty_park_info_api}
+      TOUR_API_KEY: ${TOUR_API_KEY:-}
+      TOUR_API_URL: ${TOUR_API_URL:-https://apis.data.go.kr/B551011/KorService2/locationBasedList2}
+      PARK_CACHE_TTL: ${PARK_CACHE_TTL:-6h}
       # 컨테이너 내부에서는 모든 인터페이스로 듣되 호스트 공개는 아래 loopback 포트로 제한합니다.
       SERVER_ADDRESS: 0.0.0.0
       SERVER_PORT: 8080

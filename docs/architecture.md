@@ -30,6 +30,7 @@ flowchart TB
       Recommendation --> Mapper[MyBatis Mapper XML]
       Other --> Mapper
       Mapper --> DB[(PostgreSQL 17)]
+      Recommendation --> PlaceSources[공원 공공데이터 / TourAPI]
       Recommendation --> RouteProvider[DrivingRouteProvider 인터페이스]
     end
     RouteProvider -->|tmap 프로필, 앱 키는 환경변수| MapAPI[TMAP API Free]
@@ -63,13 +64,14 @@ GitHub (하나의 저장소)
 ## 4. 핵심 데이터 흐름
 
 1. Android: 출발지(`lat`, `lon`), 시간(분), 테마, 주행 방식(`ROUND_TRIP`/`ONE_WAY`) 입력.
-2. Backend: 현재 `SPOT`의 VERIFIED·활성·좌표 보유 후보를 조회. 향후 검수된 `SCENIC_SEGMENT`까지 확장.
-3. Backend: 상위 `SPOT` 한 곳씩의 단일 경로와 두 곳을 잇는 경유지 조합을 실제 자동차 경로 API로 조회.
-4. Backend: 예상 주행시간, 경관 적합성, 중복 구간을 기준으로 점수화. 과거 방문 이력 활용은 P1 검토.
-5. Backend → Android: 0~3개 코스와 순서가 지정된 `WAYPOINT`/`DESTINATION`, 시간·거리·추천 근거 제공.
-6. Android → NaviHelper: 선택한 코스의 경유지 및 목적지 전달.
-7. 이후 주행은 차량 내장 내비 담당. 외부 경로 API의 상세 선형과 동일하다고 가정하지 않는다.
-8. [P1] 사용자가 동의한 범위에서 선택 코스와 드라이브 완료·취소 이력을 저장(개인정보 최소 수집).
+2. Backend: `public-data` 프로필이면 `SPOT`의 VERIFIED 후보와 공원 공공데이터·TourAPI 후보를 합쳐 직선거리 안에서 최대 50건을 반환. 외부 원천 장애 시 DB 후보로 축소하고 출발 좌표는 저장하지 않음.
+3. Android: 사용자가 후보를 고르면 30분 유효 `candidateToken`을 추천 API에 전달. 토큰은 서버 메모리에만 있고 재시작·만료 시 다시 조회해야 함.
+4. Backend: 선택 토큰이 있으면 해당 장소 한 곳만, 없으면 기존 상위 `SPOT` 단일·조합 후보를 실제 자동차 경로 API로 조회.
+5. Backend: 예상 주행시간, 경관 적합성, 중복 구간을 기준으로 점수화. 과거 방문 이력 활용은 P1 검토.
+6. Backend → Android: 0~3개 코스와 순서가 지정된 `WAYPOINT`/`DESTINATION`, 시간·거리·추천 근거 제공.
+7. Android → NaviHelper: 선택한 코스의 경유지 및 목적지 전달.
+8. 이후 주행은 차량 내장 내비 담당. 외부 경로 API의 상세 선형과 동일하다고 가정하지 않는다.
+9. [P1] 사용자가 동의한 범위에서 선택 코스와 드라이브 완료·취소 이력을 저장(개인정보 최소 수집).
 
 ## 5. 패키지 및 계층 제안
 
@@ -80,6 +82,7 @@ backend/src/main/java/.../
   spot/               # 경관 장소
   trip/               # 세션 기록 (P1)
   integration/routing/ # DrivingRouteProvider, mock, 벤더별 adapter
+  integration/place/   # 짧은 수명 공공 장소 후보 adapter
 backend/src/main/resources/
   mapper/             # MyBatis XML
   db/migration/       # Flyway

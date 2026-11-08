@@ -10,8 +10,10 @@ import com.example.justgo.backend.integration.routing.DrivingRouteRequest;
 import com.example.justgo.backend.integration.routing.DrivingRouteResult;
 import com.example.justgo.backend.integration.routing.DrivingRouteWaypointCandidate;
 import com.example.justgo.backend.spot.ScenicTheme;
+import com.example.justgo.backend.spot.ScenicPlaceDistance;
 import com.example.justgo.backend.spot.SpotCandidateQuery;
 import com.example.justgo.backend.spot.SpotCandidateRecord;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
@@ -29,17 +31,28 @@ public class RouteRecommendationService {
 
     private final DrivingRouteProvider drivingRouteProvider;
     private final SpotCandidateQuery spotCandidateQuery;
+    private final CandidatePlaceSelectionStore selectionStore;
     private final RouteRecommendationPolicy recommendationPolicy;
     private final RouteCandidateDistancePolicy candidateDistancePolicy =
             new RouteCandidateDistancePolicy();
 
     /** 외부 경로 제공자와 검수 후보 조회기를 주입합니다. */
+    @Autowired
     public RouteRecommendationService(
             DrivingRouteProvider drivingRouteProvider,
-            SpotCandidateQuery spotCandidateQuery) {
+            SpotCandidateQuery spotCandidateQuery,
+            CandidatePlaceSelectionStore selectionStore) {
         this.drivingRouteProvider = drivingRouteProvider;
         this.spotCandidateQuery = spotCandidateQuery;
+        this.selectionStore = selectionStore;
         this.recommendationPolicy = new RouteRecommendationPolicy();
+    }
+
+    /** 단위 테스트와 기존 직접 생성 코드는 빈 단기 저장소를 사용합니다. */
+    RouteRecommendationService(
+            DrivingRouteProvider drivingRouteProvider,
+            SpotCandidateQuery spotCandidateQuery) {
+        this(drivingRouteProvider, spotCandidateQuery, new CandidatePlaceSelectionStore());
     }
 
     /**
@@ -57,13 +70,7 @@ public class RouteRecommendationService {
 
         long maxCandidateDistanceMeters = candidateDistancePolicy
                 .maxStraightLineDistanceMeters(request.desiredMinutes(), request.tripType());
-        var waypointCandidates = spotCandidateQuery
-                .loadNearbyVerifiedCandidates(
-                        request.theme(),
-                        request.latitude(),
-                        request.longitude(),
-                        maxCandidateDistanceMeters,
-                        MAX_WAYPOINT_CANDIDATES)
+        var waypointCandidates = selectedOrDiscoveredCandidates(request, maxCandidateDistanceMeters)
                 .stream()
                 .map(this::toWaypointCandidate)
                 .toList();
@@ -93,6 +100,32 @@ public class RouteRecommendationService {
                 recommendedRoutes.stream().map(this::toResponseItem).toList(),
                 suggestions,
                 notice);
+    }
+
+    /** 선택 토큰이 있으면 그 장소 한 곳만, 없으면 기존 자동 후보 목록을 사용합니다. */
+    private List<SpotCandidateRecord> selectedOrDiscoveredCandidates(
+            RouteRecommendationRequest request,
+            long maxCandidateDistanceMeters) {
+        if (request.candidateToken() == null) {
+            return spotCandidateQuery.loadNearbyVerifiedCandidates(
+                    request.theme(),
+                    request.latitude(),
+                    request.longitude(),
+                    maxCandidateDistanceMeters,
+                    MAX_WAYPOINT_CANDIDATES);
+        }
+        SpotCandidateRecord selected = selectionStore.resolve(request.candidateToken())
+                .orElseThrow(InvalidCandidateTokenException::new);
+        long distanceMeters = ScenicPlaceDistance.meters(
+                request.latitude(),
+                request.longitude(),
+                selected.latitude(),
+                selected.longitude());
+        if (!request.theme().includes(selected.theme())
+                || distanceMeters > maxCandidateDistanceMeters) {
+            throw new InvalidCandidateTokenException();
+        }
+        return List.of(selected);
     }
 
     /** LIVE 결과는 시간 차이가 크더라도 비교할 수 있도록 숨기지 않았음을 알립니다. */
