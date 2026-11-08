@@ -28,9 +28,9 @@
 | 웹 입력 화면 시안 | 완료 | `/`에서 왕복·편도, 시간, 여섯 풍경 선택과 요약 가능 | 화면 시안이며 Android 대체물·실제 추천 결과가 아님 |
 | Android Studio | 완료 | Android Studio와 일반 Automotive API 34 에뮬레이터에서 앱 설치·기동 확인 | Pleos 전용 SDK·AVD 검증은 별도 |
 | Android SDK·프로젝트 | 진행 가능 | Pleos Connect API 34 에뮬레이터에 앱 설치·콜드 스타트, 시작 시 현재 위치 선확보, LIVE 추천 API, CarUxRestrictions 입력·애니메이션 제한, 단위 테스트·Lint·디버그 APK 확인 | 실제 주행 상태 전환과 추천 결과 화면의 차량 UX 검수 필요 |
-| Pleos Emulator·NaviHelper | 진행 가능 | NaviHelper 3.0.5, 목적지·최대 2개 경유지 전달, 경로 완료 뒤 Navigation 화면 요청 코드와 자동 테스트·빌드 완료. 로컬 `local,tmap` LIVE 코스 1건 반환 확인 | 앱에서 LIVE 코스를 선택해 실제 내비 목적지·경유지 전달과 화면 전환하는 단계는 `NOT VERIFIED` |
+| Pleos Emulator·NaviHelper | 진행 가능 | LIVE 편도 코스 선택, NaviHelper 3.0.5 단일 목적지 전달, Navigation 화면 전환과 실제 경로 안내 시작을 Pleos Emulator에서 확인 | 최대 2개 다중 경유지 전달은 `NOT VERIFIED` |
 | 목표 시간 추천·순위 | 완료 | 설정 가능한 기본 -20%~+15% 필터와 정렬 구현, Free TMAP 60분 왕복에서 실제 코스 반환 확인 | 실제 주행 후 오차율 조정 필요 |
-| 추천 경유지·도착지 계약 | 완료 | 왕복은 경관 경유지→출발지 복귀, 편도는 경관 도착지 순서의 WGS84 지점 반환 | Android 표시·선택·NaviHelper 변환 구현 완료, Pleos 실제 전달은 `NOT VERIFIED` |
+| 추천 경유지·도착지 계약 | 완료 | 왕복은 경관 경유지→출발지 복귀, 편도는 경관 도착지 순서의 WGS84 지점 반환 | Android 표시·선택·NaviHelper 변환과 단일 목적지 전달 확인, 다중 경유지 실제 전달은 `NOT VERIFIED` |
 | 두 경관 후보 조합 | 완료 | 상위 두 후보의 단일 2건과 조합 1건을 계산하고 왕복·편도별 지점 순서를 반환 | 실제 다섯 테마 LIVE 호출 성공, 초기 후보로 120분 정확 일치는 없어 후보 보강 필요 |
 | 결과 없음 대체 조건 | 완료 | 시간 불일치는 실제 후보 기반 5분 단위 시간, 테마 후보 없음은 DB에 후보가 있는 다른 풍경을 최대 3건 반환 | 제안 조건도 실제 경로 성공은 재검색으로 확인 필요 |
 | 경관 후보 품질 점수 | 완료 | 테마 적합성·풍경 품질·경유지 적합성 1~5점과 3점 최소 기준, 합계 우선순위 적용 | 실제 검수 후 가중치·최소점수 조정 필요 |
@@ -65,7 +65,7 @@
 
 1. Android 추천 결과 선택 화면의 실제 LIVE 데이터·Automotive 반응형 검증
 2. CarUxRestrictions 구현의 실제 주행 상태 전환 검증
-3. 앱의 LIVE 결과에서 NaviHelper 단일 목적지·다중 경유지 실제 호출 검증
+3. 앱의 LIVE 왕복·조합 결과에서 NaviHelper 다중 경유지 실제 호출 검증
 4. 초기 후보 13건의 실제 차량 접근성·경관·순환 품질 검수
 5. 실제 경로 기반 왕복 중복률·순환 품질 검수와 대체 조건 정확도 조정
 6. 원격 HTTPS 배포, 고유 applicationId, Release APK와 서명

@@ -339,6 +339,9 @@ public final class DriveActivity extends Activity {
             choice.setId(View.generateViewId());
             choice.setTag(route);
             choice.setText(routeSummary(route));
+            // Pleos에서 defStyleRes로 만든 RadioButton은 기본 상호작용 속성이 꺼질 수 있다.
+            choice.setClickable(true);
+            choice.setFocusable(true);
             choice.setEnabled(result.mode() == RouteRecommendationClient.Mode.LIVE
                     && !route.stops().isEmpty());
             choice.setLayoutParams(new RadioGroup.LayoutParams(

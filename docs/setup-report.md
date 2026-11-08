@@ -552,3 +552,11 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - `.\gradlew.bat testDebugUnitTest assembleDebug`: 성공. 새 APK를 Pleos Emulator에 설치하고 앱 시작 직후 GPS 위치가 전달되는 것을 확인했습니다.
 - 추천 API의 로컬 기본 제한은 클라이언트별 분당 4회입니다. 테마를 연속 시험해 발생한 HTTP 429는 TMAP 일일 한도가 아니라 이 요청 보호 제한이었으며, TMAP 쿼터 오류는 백엔드에서 HTTP 503으로 구분됩니다.
 - 앱에서 반환된 LIVE 코스를 선택해 NaviHelper에 목적지·경유지를 전달하고 Navigation 화면으로 전환하는 최종 단계는 아직 `NOT VERIFIED`입니다.
+
+## 44. 2026-11-08 앱 화면 LIVE 연동과 NaviHelper 단일 목적지 검증
+
+- Pleos Emulator 화면에서 `편도·120분·강/호수`를 요청해 앱→백엔드→TMAP 연동과 실제 계산 시간 기반 대체 조건 반환을 확인했습니다. 제안된 90분으로 재검색했을 때 LIVE 코스의 시간·거리·목적지가 앱 화면에 표시됐습니다.
+- 동적으로 생성한 LIVE 코스 `RadioButton`이 Pleos 환경에서 `checkable`이지만 `clickable=false`, `focusable=false`로 생성돼 코스를 선택할 수 없는 문제를 확인했습니다. 클릭·포커스 속성을 명시해 `checked=true`와 내비 시작 버튼 활성화를 실제 UI 계층에서 검증했습니다.
+- 선택한 편도 LIVE 코스를 NaviHelper 3.0.5 `requestRoute()`로 전달했고 Pleos Navigation 화면 전환, 경로 안내 시작, 목적지와 예상 시간·거리 표시를 확인했습니다. 단일 목적지 실제 연동은 검증 완료했지만 최대 두 경유지의 `requestRouteWithWaypoints()`는 아직 `NOT VERIFIED`입니다.
+- `.\gradlew.bat testDebugUnitTest lintDebug assembleDebug --no-daemon`: 성공. 수정 APK를 Pleos Emulator에 덮어 설치한 뒤 화면 흐름을 다시 확인했습니다.
+- 이번 화면 검증을 마친 시점의 로컬 TMAP 일일 보호 카운터는 33/90입니다. 유료 전환이나 외부 응답 저장은 수행하지 않았습니다.
