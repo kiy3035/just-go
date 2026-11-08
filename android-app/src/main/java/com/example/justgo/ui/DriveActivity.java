@@ -152,7 +152,7 @@ public final class DriveActivity extends Activity {
             @Override public void onRouteStarted() {
                 runOnUiThread(() -> {
                     if (resultDialog != null && resultDialog == navigationRequestDialog) {
-                        showNavigationStatusOnUi("차량 내비가 경로를 찾고 있어요.");
+                        showResultDetails("차량 내비가 경로를 찾고 있어요.");
                     }
                 });
             }
@@ -172,7 +172,7 @@ public final class DriveActivity extends Activity {
                     navigationRequestDialog = null;
                     refreshNavigationControl();
                     if (requestedFrom != null && resultDialog == requestedFrom) {
-                        showNavigationStatusOnUi(message);
+                        showResultDetails(message);
                     }
                 });
             }
@@ -295,7 +295,10 @@ public final class DriveActivity extends Activity {
                 String message = describeError(error);
                 runOnUiThread(() -> {
                     if (binding != null) {
-                        renderResult("추천 요청 실패", conditions + "\n\n" + message);
+                        if (prepareResult("추천 요청 실패", conditions)) {
+                            showResultDetails(message);
+                            showResultDialog();
+                        }
                     }
                 });
             }
@@ -406,7 +409,7 @@ public final class DriveActivity extends Activity {
         navigationRequestDialog = resultDialog;
         resultBinding.cancel.setText("닫기");
         refreshNavigationControl();
-        showNavigationStatusOnUi("선택한 코스를 차량 내비로 전달하고 있어요…");
+        showResultDetails("선택한 코스를 차량 내비로 전달하고 있어요…");
         navigationGateway.startRoute(stops);
     }
 
@@ -418,17 +421,17 @@ public final class DriveActivity extends Activity {
         if (navigationRequestDialog != null) return;
         resultBinding.cancel.setText("취소");
         if (navigationConnectionFailed) {
-            showNavigationStatusOnUi("차량 내비에 연결하지 못했습니다.");
+            showResultDetails("차량 내비에 연결하지 못했습니다.");
         } else if (!connected) {
-            showNavigationStatusOnUi("차량 내비 연결을 확인하고 있어요.");
+            showResultDetails("차량 내비 연결을 확인하고 있어요.");
         } else {
-            showNavigationStatusOnUi(selectedRoute == null
+            showResultDetails(selectedRoute == null
                     ? "내비로 보낼 코스를 선택해 주세요."
                     : "시작을 누르면 차량 내비로 보냅니다.");
         }
     }
 
-    private void showNavigationStatusOnUi(String message) {
+    private void showResultDetails(String message) {
         if (resultBinding == null) return;
         resultBinding.navigationStatus.setText(message);
         resultBinding.navigationStatus.setVisibility(View.VISIBLE);
@@ -511,6 +514,11 @@ public final class DriveActivity extends Activity {
         Dialog dialog = new Dialog(this);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         dialog.setContentView(resultBinding.getRoot());
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+        }
         dialog.setCanceledOnTouchOutside(false);
         dialog.setOnDismissListener(ignored -> {
             if (resultDialog == dialog) {
@@ -525,16 +533,20 @@ public final class DriveActivity extends Activity {
     }
 
     private void showResultDialog() {
+        float density = getResources().getDisplayMetrics().density;
+        int availableWidth = binding.getRoot().getWidth();
+        int preferredWidth = Math.round(availableWidth * 0.62f);
+        int readableWidth = Math.max(preferredWidth, Math.round(420 * density));
+        int panelWidth = Math.min(readableWidth,
+                Math.min(Math.round(1120 * density), Math.round(availableWidth * 0.86f)));
+        ViewGroup.LayoutParams panelLayout = resultBinding.resultPanel.getLayoutParams();
+        panelLayout.width = panelWidth;
+        resultBinding.resultPanel.setLayoutParams(panelLayout);
+
         resultDialog.show();
         Window window = resultDialog.getWindow();
         if (window != null) {
-            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-            window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
-            window.setDimAmount(0.32f);
-            float density = getResources().getDisplayMetrics().density;
-            int availableWidth = getResources().getDisplayMetrics().widthPixels;
-            int width = Math.min(Math.round(availableWidth * 0.86f), Math.round(760 * density));
-            window.setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT);
+            window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
         }
     }
 

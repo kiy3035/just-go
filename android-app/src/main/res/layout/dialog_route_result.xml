@@ -1,76 +1,91 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:background="@drawable/route_result_panel"
-    android:orientation="vertical"
-    android:padding="24dp">
+    android:layout_height="match_parent"
+    android:background="#55122946"
+    android:padding="12dp">
 
-    <TextView
-        android:id="@+id/resultTitle"
+    <ScrollView
+        android:id="@+id/resultPanel"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:accessibilityHeading="true"
-        android:textColor="#101B34"
-        android:textSize="30sp"
-        android:textStyle="bold" />
+        android:layout_gravity="center"
+        android:background="@drawable/route_result_panel"
+        android:elevation="12dp">
 
-    <TextView
-        android:id="@+id/selectionSummary"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:textColor="#365580"
-        android:textSize="21sp" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="40dp">
 
-    <RadioGroup
-        android:id="@+id/routeChoices"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:orientation="vertical"
-        android:visibility="gone" />
+            <TextView
+                android:id="@+id/resultTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:accessibilityHeading="true"
+                android:textColor="#101B34"
+                android:textSize="48sp"
+                android:textStyle="bold" />
 
-    <TextView
-        android:id="@+id/navigationStatus"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:accessibilityLiveRegion="polite"
-        android:textColor="#365580"
-        android:textSize="20sp"
-        android:visibility="gone" />
+            <TextView
+                android:id="@+id/selectionSummary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textColor="#365580"
+                android:textSize="30sp" />
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:orientation="horizontal">
+            <RadioGroup
+                android:id="@+id/routeChoices"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:orientation="vertical"
+                android:visibility="gone" />
 
-        <Button
-            android:id="@+id/cancel"
-            android:layout_width="0dp"
-            android:layout_height="64dp"
-            android:layout_marginEnd="12dp"
-            android:layout_weight="1"
-            android:background="@drawable/choice_background"
-            android:backgroundTint="@null"
-            android:stateListAnimator="@null"
-            android:text="취소"
-            android:textColor="#183763"
-            android:textSize="23sp"
-            android:textStyle="bold" />
+            <TextView
+                android:id="@+id/navigationStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:accessibilityLiveRegion="polite"
+                android:textColor="#365580"
+                android:textSize="28sp"
+                android:visibility="gone" />
 
-        <Button
-            android:id="@+id/confirm"
-            android:layout_width="0dp"
-            android:layout_height="64dp"
-            android:layout_weight="1"
-            android:background="@drawable/submit_background"
-            android:backgroundTint="@null"
-            android:stateListAnimator="@null"
-            android:text="닫기"
-            android:textColor="#FFFFFF"
-            android:textSize="23sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-</LinearLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="28dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/cancel"
+                    android:layout_width="0dp"
+                    android:layout_height="92dp"
+                    android:layout_marginEnd="20dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/choice_background"
+                    android:backgroundTint="@null"
+                    android:stateListAnimator="@null"
+                    android:text="취소"
+                    android:textColor="#183763"
+                    android:textSize="32sp"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/confirm"
+                    android:layout_width="0dp"
+                    android:layout_height="92dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/submit_background"
+                    android:backgroundTint="@null"
+                    android:stateListAnimator="@null"
+                    android:text="닫기"
+                    android:textColor="#FFFFFF"
+                    android:textSize="32sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+</FrameLayout>
