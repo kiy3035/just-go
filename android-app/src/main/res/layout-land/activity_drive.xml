@@ -39,13 +39,6 @@
 </LinearLayout></HorizontalScrollView>
 <!-- 문구와 화살표를 한 텍스트로 두어 버튼 전체의 중앙에 정렬한다. -->
 <Button android:id="@+id/findRoute" android:layout_width="match_parent" android:layout_height="96dp" android:layout_marginTop="4dp" android:layout_marginBottom="20dp" android:background="@drawable/submit_background" android:backgroundTint="@null" android:stateListAnimator="@null" android:text="이 조건으로 코스 찾기 →" android:textSize="32sp" android:textStyle="bold" android:textColor="#FFFFFF" android:gravity="center" android:paddingStart="24dp" android:paddingEnd="24dp"/>
-<LinearLayout android:id="@+id/selectionResult" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="24dp" android:background="@drawable/selection_strip" android:layout_marginTop="20dp" android:layout_marginBottom="96dp" android:visibility="gone" android:accessibilityLiveRegion="polite">
-<TextView android:id="@+id/resultTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="24sp" android:textColor="#1662CB" android:text="선택한 조건"/>
-<RadioGroup android:id="@+id/routeChoices" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="16dp" android:visibility="gone"/>
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:id="@+id/selectionSummary" android:textSize="28sp" android:textStyle="bold" android:textColor="#183153" android:layout_marginTop="12dp" android:text=""/>
-<Button android:id="@+id/startNavigation" android:layout_width="match_parent" android:layout_height="88dp" android:layout_marginTop="20dp" android:background="@drawable/submit_background" android:backgroundTint="@null" android:stateListAnimator="@null" android:text="선택한 코스로 내비 시작 →" android:textSize="28sp" android:textStyle="bold" android:textColor="#FFFFFF" android:visibility="gone"/>
-<TextView android:id="@+id/navigationStatus" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:textSize="22sp" android:textColor="#365580" android:visibility="gone" android:accessibilityLiveRegion="polite"/>
-</LinearLayout>
 </LinearLayout>
 </ScrollView></LinearLayout>
 </FrameLayout>
