@@ -126,12 +126,26 @@ class TmapDrivingRouteProviderTest {
 
     /** 검수 후보가 없으면 외부 호출 없이 빈 결과를 반환하는지 확인합니다. */
     @Test
-    void returnsUnavailableWithoutCallingTmapWhenCandidatesAreEmpty() {
+    void returnsEmptyLiveResultWithoutCallingTmapWhenCandidatesAreEmpty() {
         var result = provider.calculate(request(TripType.ROUND_TRIP, List.of()));
 
-        assertThat(result.mode()).isEqualTo(DrivingRouteMode.UNAVAILABLE);
+        assertThat(result.mode()).isEqualTo(DrivingRouteMode.LIVE);
         assertThat(result.routes()).isEmpty();
         verifyNoInteractions(client);
+    }
+
+    @Test
+    void skipsCandidatesWithoutRoutesAndKeepsCalculatedRoutes() {
+        var noRoute = new TmapRouteClientException(TmapClientErrorType.NO_ROUTE, "TEST_NO_ROUTE");
+        when(client.findRoute(any()))
+                .thenThrow(noRoute)
+                .thenReturn(new TmapRouteSummary(4_200L, 900L, null))
+                .thenThrow(noRoute);
+
+        var result = provider.calculate(request(TripType.ONE_WAY, List.of(candidate(1L), candidate(2L))));
+
+        assertThat(result.routes()).extracting(route -> route.routeId()).containsExactly("TMAP-SPOT-2");
+        verify(client, times(3)).findRoute(any());
     }
 
     /** 앞선 후보가 성공했다면 일일 한도 소진 시 그 결과를 버리지 않는지 확인합니다. */

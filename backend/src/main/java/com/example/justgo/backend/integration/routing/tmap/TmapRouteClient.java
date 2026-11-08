@@ -59,6 +59,10 @@ public class TmapRouteClient {
                     .accept(MediaType.APPLICATION_JSON)
                     .body(hasWaypoints ? toMultiApiRequest(search) : toSingleApiRequest(search))
                     .retrieve()
+                    .onStatus(status -> status.value() == 204, (request, upstreamResponse) -> {
+                        throw new TmapRouteClientException(TmapClientErrorType.NO_ROUTE,
+                                "TMAP에서 자동차 경로를 찾지 못했습니다.");
+                    })
                     .onStatus(HttpStatusCode::isError, (request, upstreamResponse) -> {
                         throw mapHttpError(upstreamResponse.getStatusCode());
                     })

@@ -6,6 +6,7 @@ package com.example.justgo.backend.integration.routing.tmap;
 public enum TmapClientErrorType {
     AUTHENTICATION,
     QUOTA_EXCEEDED,
+    NO_ROUTE,
     INVALID_REQUEST,
     NETWORK,
     UPSTREAM_FAILURE,

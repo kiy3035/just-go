@@ -40,7 +40,7 @@ public class TmapDrivingRouteProvider implements DrivingRouteProvider {
     public DrivingRouteResult calculate(DrivingRouteRequest request) {
         if (request.waypointCandidates().isEmpty()) {
             return new DrivingRouteResult(
-                    DrivingRouteMode.UNAVAILABLE,
+                    DrivingRouteMode.LIVE,
                     false,
                     List.of(),
                     "검수 완료된 경관 장소 후보가 없습니다.");
@@ -54,7 +54,7 @@ public class TmapDrivingRouteProvider implements DrivingRouteProvider {
                 DrivingRouteMode.LIVE,
                 false,
                 routes,
-                quotaReachedAfterSuccess
+                routes.isEmpty() ? "자동차 경로를 찾지 못했습니다." : quotaReachedAfterSuccess
                         ? "일일 외부 경로 호출 한도에 도달해 먼저 계산된 경로만 반환합니다."
                         : "TMAP 자동차 경로 결과입니다. 교통 상황과 내비 재탐색에 따라 달라질 수 있습니다.");
     }
@@ -72,6 +72,9 @@ public class TmapDrivingRouteProvider implements DrivingRouteProvider {
             try {
                 routes.add(calculateOption(request, origin, scenicStops));
             } catch (TmapRouteClientException exception) {
+                if (exception.errorType() == TmapClientErrorType.NO_ROUTE) {
+                    continue;
+                }
                 if (exception.errorType() == TmapClientErrorType.QUOTA_EXCEEDED
                         && !routes.isEmpty()) {
                     return true;

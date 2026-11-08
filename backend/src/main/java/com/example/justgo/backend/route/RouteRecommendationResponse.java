@@ -9,6 +9,7 @@ public record RouteRecommendationResponse(
         String mode,
         boolean mock,
         List<RouteRecommendationItem> routes,
+        List<RouteRecommendationItem> alternativeRoutes,
         List<RouteConditionSuggestion> suggestions,
         String notice) {
 
@@ -17,6 +18,7 @@ public record RouteRecommendationResponse(
      */
     public RouteRecommendationResponse {
         routes = List.copyOf(routes);
+        alternativeRoutes = List.copyOf(alternativeRoutes);
         suggestions = List.copyOf(suggestions);
     }
 }

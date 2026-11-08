@@ -6,6 +6,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withNoContent;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withTooManyRequests;
 
@@ -119,6 +120,20 @@ class TmapRouteClientTest {
                 .isInstanceOfSatisfying(TmapRouteClientException.class, exception ->
                         assertThat(exception.errorType())
                                 .isEqualTo(TmapClientErrorType.QUOTA_EXCEEDED));
+        server.verify();
+    }
+
+    @Test
+    void classifiesNoContentAsNoRoute() {
+        RestClient.Builder builder = RestClient.builder().baseUrl(BASE_URL);
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        TmapRouteClient client = createClient(builder, 90);
+        server.expect(requestTo(BASE_URL + "/tmap/routes/routeSequential30?version=1"))
+                .andRespond(withNoContent());
+
+        assertThatThrownBy(() -> client.findRoute(testSearch()))
+                .isInstanceOfSatisfying(TmapRouteClientException.class, exception ->
+                        assertThat(exception.errorType()).isEqualTo(TmapClientErrorType.NO_ROUTE));
         server.verify();
     }
 

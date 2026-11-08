@@ -1,6 +1,5 @@
 package com.example.justgo.backend.route;
 
-import java.util.Comparator;
 import java.util.List;
 
 import com.example.justgo.backend.integration.routing.DrivingRouteCandidate;
@@ -27,7 +26,6 @@ public class RouteRecommendationService {
     private static final int MAX_DURATION_MINUTES = 240;
     private static final int DURATION_STEP_MINUTES = 5;
     private static final int MAX_WAYPOINT_CANDIDATES = 20;
-    private static final int MAX_CONDITION_SUGGESTIONS = 3;
 
     private final DrivingRouteProvider drivingRouteProvider;
     private final SpotCandidateQuery spotCandidateQuery;
@@ -70,36 +68,57 @@ public class RouteRecommendationService {
 
         long maxCandidateDistanceMeters = candidateDistancePolicy
                 .maxStraightLineDistanceMeters(request.desiredMinutes(), request.tripType());
-        var waypointCandidates = selectedOrDiscoveredCandidates(request, maxCandidateDistanceMeters)
-                .stream()
-                .map(this::toWaypointCandidate)
-                .toList();
-        DrivingRouteRequest providerRequest = new DrivingRouteRequest(
-                request.latitude(),
-                request.longitude(),
-                request.desiredMinutes(),
-                request.tripType(),
-                request.theme(),
-                waypointCandidates);
-        DrivingRouteResult result = drivingRouteProvider.calculate(providerRequest);
+        var candidates = selectedOrDiscoveredCandidates(request, maxCandidateDistanceMeters);
+        DrivingRouteResult result = calculate(request, request.theme(), candidates);
         var recommendedRoutes = result.mode() == DrivingRouteMode.LIVE
                 ? recommendationPolicy.rankByDurationProximity(
                         request.desiredMinutes(),
                         result.routes())
                 : result.routes();
-        List<RouteConditionSuggestion> suggestions = suggestAlternativeThemes(
-                request,
-                result.mode() != DrivingRouteMode.MOCK && waypointCandidates.isEmpty());
-        String notice = alternativeThemeNotice(
-                broadenedLiveResultNotice(result, recommendedRoutes),
-                suggestions);
+        var alternatives = result.mode() == DrivingRouteMode.LIVE
+                && recommendedRoutes.isEmpty() && candidates.size() <= 1
+                && request.candidateToken() == null && request.theme() != ScenicTheme.ANYWHERE
+                ? calculateAlternatives(request, maxCandidateDistanceMeters, candidates.isEmpty() ? 2 : 1)
+                : List.<DrivingRouteCandidate>of();
+        String notice = alternatives.isEmpty()
+                ? broadenedLiveResultNotice(result, recommendedRoutes)
+                : "선택한 풍경의 코스가 없어 가까운 다른 풍경의 실제 경로를 찾았습니다.";
 
         return new RouteRecommendationResponse(
                 result.mode().name(),
                 result.mock(),
                 recommendedRoutes.stream().map(this::toResponseItem).toList(),
-                suggestions,
+                alternatives.stream().map(this::toResponseItem).toList(),
+                List.of(),
                 notice);
+    }
+
+    private DrivingRouteResult calculate(
+            RouteRecommendationRequest request, ScenicTheme theme, List<SpotCandidateRecord> candidates) {
+        return drivingRouteProvider.calculate(new DrivingRouteRequest(
+                request.latitude(), request.longitude(), request.desiredMinutes(), request.tripType(),
+                theme, candidates.stream().map(this::toWaypointCandidate).toList()));
+    }
+
+    /** 원래 후보가 없거나 한 곳에서 경로를 못 찾았으면 남은 호출 예산을 대체 풍경에 사용합니다. */
+    private List<DrivingRouteCandidate> calculateAlternatives(
+            RouteRecommendationRequest request, long maxCandidateDistanceMeters, int candidateLimit) {
+        var nearby = spotCandidateQuery.loadNearbyVerifiedCandidates(
+                        ScenicTheme.ANYWHERE, request.latitude(), request.longitude(),
+                        maxCandidateDistanceMeters, MAX_WAYPOINT_CANDIDATES)
+                .stream()
+                .filter(candidate -> !request.theme().includes(candidate.theme()))
+                .toList();
+        if (nearby.isEmpty()) return List.of();
+
+        ScenicTheme alternativeTheme = nearby.getFirst().theme();
+        var result = calculate(request, alternativeTheme, nearby.stream()
+                .filter(candidate -> candidate.theme() == alternativeTheme)
+                .limit(candidateLimit)
+                .toList());
+        return result.mode() == DrivingRouteMode.LIVE
+                ? recommendationPolicy.rankByDurationProximity(request.desiredMinutes(), result.routes())
+                : List.of();
     }
 
     /** 선택 토큰이 있으면 그 장소 한 곳만, 없으면 기존 자동 후보 목록을 사용합니다. */
@@ -137,36 +156,6 @@ public class RouteRecommendationService {
         }
         return result.notice()
                 + " 희망 시간과 차이가 있는 경로도 가까운 순으로 함께 표시합니다.";
-    }
-
-    /** 선택 테마에 후보가 없을 때만 실제 검수 후보가 있는 다른 테마를 제안합니다. */
-    private List<RouteConditionSuggestion> suggestAlternativeThemes(
-            RouteRecommendationRequest request,
-            boolean selectedThemeHasNoCandidates) {
-        if (!selectedThemeHasNoCandidates) {
-            return List.of();
-        }
-        return spotCandidateQuery.loadAvailableThemes().stream()
-                .filter(theme -> !request.theme().includes(theme))
-                .distinct()
-                .sorted(Comparator.comparingInt(ScenicTheme::ordinal))
-                .limit(MAX_CONDITION_SUGGESTIONS)
-                .map(theme -> new RouteConditionSuggestion(
-                        request.desiredMinutes(),
-                        request.tripType(),
-                        theme,
-                        "이 풍경에는 검수 완료 후보가 있습니다. 실제 경로 가능 여부는 재검색이 필요합니다."))
-                .toList();
-    }
-
-    /** 다른 풍경 제안이 있으면 현재 결과 상태를 유지하면서 재검색 목적을 분명히 안내합니다. */
-    private String alternativeThemeNotice(
-            String providerNotice,
-            List<RouteConditionSuggestion> suggestions) {
-        if (suggestions.isEmpty()) {
-            return providerNotice;
-        }
-        return "선택한 풍경에는 검수 완료 후보가 없습니다. 제안된 다른 풍경으로 다시 검색해 주세요.";
     }
 
     /**

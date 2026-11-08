@@ -21,6 +21,7 @@ import android.graphics.Typeface;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
@@ -29,7 +30,6 @@ import com.example.justgo.R;
 import com.example.justgo.data.DriveSelection;
 import com.example.justgo.data.RouteRecommendationClient;
 import com.example.justgo.data.RouteRecommendationClient.Recommendation;
-import com.example.justgo.data.RouteRecommendationClient.Suggestion;
 import com.example.justgo.databinding.ActivityDriveBinding;
 import com.example.justgo.databinding.DialogRouteResultBinding;
 import com.example.justgo.pleos.NavigationGateway;
@@ -208,10 +208,6 @@ public final class DriveActivity extends Activity {
         binding.timeHint.setText((binding.roundTrip.isChecked() ? "출발지 복귀" : "목적지 도착") + "까지 · 체류 시간 제외");
     }
     private void chooseOrigin() {
-        chooseOrigin(selectedTheme().name());
-    }
-
-    private void chooseOrigin(String theme) {
         if (drivingRestricted) return;
         if (!hasLocationPermission()) {
             searchAfterLocationPermission = true;
@@ -233,7 +229,7 @@ public final class DriveActivity extends Activity {
             binding.customMinutes.requestFocus();
             return;
         }
-        enterOrigin(minutes, binding.roundTrip.isChecked(), theme);
+        enterOrigin(minutes, binding.roundTrip.isChecked(), selectedTheme().name());
     }
 
     @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
@@ -339,22 +335,29 @@ public final class DriveActivity extends Activity {
     }
 
     private void showRecommendation(String conditions, Recommendation result) {
-        if (result.routes().isEmpty()) {
-            showAlternativeConditions(result);
+        boolean alternative = result.routes().isEmpty() && !result.alternativeRoutes().isEmpty();
+        var routes = alternative ? result.alternativeRoutes() : result.routes();
+        if (routes.isEmpty()) {
+            if (result.mode() == RouteRecommendationClient.Mode.UNAVAILABLE) {
+                renderResult("지금은 코스를 찾기 어려워요", "잠시 후 다시 시도해 주세요.");
+            } else {
+                renderResult("조건에 맞는 코스가 없어요", "시간이나 풍경을 바꿔보세요.");
+            }
             return;
         }
         String heading = switch (result.mode()) {
             case MOCK -> "MOCK · 개발용 추천 예시";
-            case LIVE -> "추천 코스";
+            case LIVE -> alternative ? "다른 풍경의 추천 코스" : "추천 코스";
             case UNAVAILABLE -> "추천 서비스 연결 실패";
         };
         if (!prepareResult(heading, conditions)) return;
 
         boolean live = result.mode() == RouteRecommendationClient.Mode.LIVE;
         resultOffersNavigation = live;
-        for (RouteRecommendationClient.Route route : result.routes()) {
+        for (RouteRecommendationClient.Route route : routes) {
+            String name = alternative ? themeLabel(route.theme()) + " · " + route.title() : route.title();
             addResultChoice(String.format(Locale.KOREA, "%s  ·  %d분  ·  %.1f km",
-                    route.title(), route.minutes(), route.meters() / 1000.0),
+                    name, route.minutes(), route.meters() / 1000.0),
                     route, live && !route.stops().isEmpty());
         }
         if (live) {
@@ -371,35 +374,10 @@ public final class DriveActivity extends Activity {
         showResultDialog();
     }
 
-    private void showAlternativeConditions(Recommendation result) {
-        boolean unavailable = result.mode() == RouteRecommendationClient.Mode.UNAVAILABLE;
-        String title = unavailable ? "지금은 코스를 찾기 어려워요" : "조건에 맞는 코스가 없어요";
-        if (result.suggestions().isEmpty()) {
-            renderResult(title, unavailable ? "잠시 후 다시 시도해 주세요." : "시간이나 풍경을 바꿔보세요.");
-            return;
-        }
-        if (!prepareResult(title, "다른 조건으로 다시 찾아볼까요?")) return;
-        for (Suggestion suggestion : result.suggestions()) {
-            String trip = suggestion.tripType().equals("ROUND_TRIP") ? "왕복" : "편도";
-            addResultChoice(themeLabel(suggestion.theme()) + "  ·  " + suggestion.minutes()
-                    + "분  ·  " + trip, suggestion, true);
-        }
-        resultBinding.cancel.setVisibility(View.VISIBLE);
-        resultBinding.confirm.setText("다시 찾기");
-        resultBinding.confirm.setEnabled(false);
-        resultBinding.routeChoices.setOnCheckedChangeListener((group, id) ->
-                resultBinding.confirm.setEnabled(id != View.NO_ID));
-        resultBinding.confirm.setOnClickListener(v -> {
-            View checked = resultBinding.routeChoices.findViewById(resultBinding.routeChoices.getCheckedRadioButtonId());
-            if (checked != null) searchWithSuggestion((Suggestion) checked.getTag());
-        });
-        showResultDialog();
-    }
-
-    private void addResultChoice(String label, Object value, boolean enabled) {
+    private void addResultChoice(String label, RouteRecommendationClient.Route route, boolean enabled) {
         RadioButton choice = new RadioButton(this, null, 0, R.style.RouteChoice);
         choice.setId(View.generateViewId());
-        choice.setTag(value);
+        choice.setTag(route);
         choice.setText(label);
         // Pleos에서 스타일로 생성한 선택 항목의 터치와 포커스를 활성화한다.
         choice.setClickable(true);
@@ -411,30 +389,6 @@ public final class DriveActivity extends Activity {
                 RadioGroup.LayoutParams.MATCH_PARENT, RadioGroup.LayoutParams.WRAP_CONTENT));
         resultBinding.routeChoices.addView(choice);
         resultBinding.routeChoices.setVisibility(View.VISIBLE);
-    }
-
-    private void searchWithSuggestion(Suggestion suggestion) {
-        if (drivingRestricted) return;
-        dismissResult();
-        binding.tripMode.check(suggestion.tripType().equals("ROUND_TRIP") ? R.id.roundTrip : R.id.oneWay);
-        binding.duration.check(switch (suggestion.minutes()) {
-            case 30 -> R.id.time30;
-            case 60 -> R.id.time60;
-            case 120 -> R.id.time120;
-            default -> R.id.timeCustom;
-        });
-        if (binding.timeCustom.isChecked()) {
-            binding.customMinutes.setText(Integer.toString(suggestion.minutes()));
-        }
-        binding.theme.check(switch (suggestion.theme()) {
-            case "CITY" -> R.id.city;
-            case "MOUNTAIN" -> R.id.mountain;
-            case "SEA" -> R.id.sea;
-            case "RIVER", "LAKE", "WATER" -> R.id.water;
-            case "PARK" -> R.id.park;
-            default -> R.id.anywhere;
-        });
-        chooseOrigin(suggestion.theme());
     }
 
     private void startNavigation() {
@@ -575,7 +529,8 @@ public final class DriveActivity extends Activity {
         Window window = resultDialog.getWindow();
         if (window != null) {
             window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-            window.setDimAmount(0.42f);
+            window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+            window.setDimAmount(0.32f);
             float density = getResources().getDisplayMetrics().density;
             int availableWidth = getResources().getDisplayMetrics().widthPixels;
             int width = Math.min(Math.round(availableWidth * 0.86f), Math.round(760 * density));

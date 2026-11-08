@@ -71,10 +71,17 @@ public final class RouteRecommendationClient {
     private Recommendation parse(JSONObject json) throws JSONException, InvalidResponse {
         Mode mode = Mode.valueOf(json.getString("mode"));
         JSONArray routesJson = json.getJSONArray("routes");
+        JSONArray alternativesJson = json.optJSONArray("alternativeRoutes");
         if (json.getBoolean("mock") != (mode == Mode.MOCK)
-                || (mode == Mode.UNAVAILABLE && routesJson.length() != 0)) {
+                || (mode == Mode.UNAVAILABLE && routesJson.length() != 0)
+                || (mode != Mode.LIVE && alternativesJson != null && alternativesJson.length() != 0)) {
             throw new InvalidResponse();
         }
+        return new Recommendation(mode, parseRoutes(routesJson),
+                alternativesJson == null ? List.of() : parseRoutes(alternativesJson));
+    }
+
+    private List<Route> parseRoutes(JSONArray routesJson) throws JSONException, InvalidResponse {
         List<Route> routes = new ArrayList<>();
         for (int index = 0; index < routesJson.length(); index++) {
             JSONObject route = routesJson.getJSONObject(index);
@@ -94,17 +101,9 @@ public final class RouteRecommendationClient {
             stops.sort(Comparator.comparingInt(Stop::sequence));
             routes.add(new Route(route.getString("routeId"), route.getString("title"),
                     route.getInt("estimatedMinutes"), route.getLong("distanceMeters"),
-                    route.getString("reason"), stops));
+                    route.getString("theme"), stops));
         }
-        JSONArray suggestionsJson = json.getJSONArray("suggestions");
-        List<Suggestion> suggestions = new ArrayList<>();
-        for (int index = 0; index < suggestionsJson.length(); index++) {
-            JSONObject suggestion = suggestionsJson.getJSONObject(index);
-            suggestions.add(new Suggestion(suggestion.getInt("desiredMinutes"),
-                    suggestion.getString("tripType"), suggestion.getString("theme"),
-                    suggestion.getString("reason")));
-        }
-        return new Recommendation(mode, routes, suggestions, json.getString("notice"));
+        return routes;
     }
 
     public enum Mode { MOCK, LIVE, UNAVAILABLE }
@@ -112,10 +111,8 @@ public final class RouteRecommendationClient {
     public record Stop(int sequence, StopType type, String name,
                        double latitude, double longitude) { }
     public record Route(String routeId, String title, int minutes, long meters,
-                        String reason, List<Stop> stops) { }
-    public record Suggestion(int minutes, String tripType, String theme, String reason) { }
-    public record Recommendation(Mode mode, List<Route> routes, List<Suggestion> suggestions,
-                                 String notice) { }
+                        String theme, List<Stop> stops) { }
+    public record Recommendation(Mode mode, List<Route> routes, List<Route> alternativeRoutes) { }
 
     public static final class HttpError extends IOException {
         public final int status;

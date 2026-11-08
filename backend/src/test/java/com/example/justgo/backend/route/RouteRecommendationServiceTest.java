@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -87,49 +88,60 @@ class RouteRecommendationServiceTest {
         assertThat(response.mode()).isEqualTo("UNAVAILABLE");
         assertThat(response.mock()).isFalse();
         assertThat(response.routes()).isEmpty();
+        assertThat(response.alternativeRoutes()).isEmpty();
         assertThat(response.suggestions()).isEmpty();
     }
 
-    /** 선택 테마 후보가 없으면 실제 검수 후보가 있는 다른 테마만 재검색 조건으로 제안합니다. */
     @Test
-    void suggestsAvailableThemesWhenSelectedThemeHasNoCandidates() {
-        SpotCandidateQuery availableThemeQuery = new SpotCandidateQuery() {
-            @Override
-            public List<SpotCandidateRecord> loadVerifiedCandidates(ScenicTheme theme, int limit) {
-                return List.of();
-            }
+    void returnsCalculatedAlternativeUsingTheSameOriginAndDrivingConditions() {
+        SpotCandidateQuery nearbyQuery = (theme, limit) -> theme == ScenicTheme.ANYWHERE
+                ? List.of(testSpot(7L, ScenicTheme.RIVER))
+                : List.of(testSpot(6L, ScenicTheme.MOUNTAIN));
+        List<DrivingRouteRequest> calculations = new ArrayList<>();
+        var alternativeService = new RouteRecommendationService(request -> {
+            calculations.add(request);
+            return new DrivingRouteResult(DrivingRouteMode.LIVE, false,
+                    request.theme() == ScenicTheme.RIVER ? List.of(liveCandidate("ALT", 54, 12_000)) : List.of(),
+                    "LIVE 테스트 결과");
+        }, nearbyQuery);
 
-            @Override
-            public List<ScenicTheme> loadAvailableThemes() {
-                return List.of(
-                        ScenicTheme.SEA,
-                        ScenicTheme.MOUNTAIN,
-                        ScenicTheme.LAKE,
-                        ScenicTheme.RIVER,
-                        ScenicTheme.CITY);
-            }
-        };
-        RouteRecommendationService unavailableService = new RouteRecommendationService(
-                new UnavailableDrivingRouteProvider(),
-                availableThemeQuery);
+        var response = alternativeService.recommend(new RouteRecommendationRequest(
+                BigDecimal.ZERO, BigDecimal.ZERO, 60, TripType.ONE_WAY, ScenicTheme.MOUNTAIN));
 
-        RouteRecommendationResponse response = unavailableService.recommend(
-                new RouteRecommendationRequest(
-                        BigDecimal.ZERO,
-                        BigDecimal.ZERO,
-                        60,
-                        TripType.ROUND_TRIP,
-                        ScenicTheme.MOUNTAIN));
-
-        assertThat(response.suggestions())
-                .extracting(RouteConditionSuggestion::theme)
-                .containsExactly(ScenicTheme.CITY, ScenicTheme.RIVER, ScenicTheme.LAKE);
-        assertThat(response.suggestions()).allSatisfy(suggestion -> {
-            assertThat(suggestion.desiredMinutes()).isEqualTo(60);
-            assertThat(suggestion.tripType()).isEqualTo(TripType.ROUND_TRIP);
-            assertThat(suggestion.reason()).contains("재검색");
+        assertThat(calculations).hasSize(2);
+        assertThat(calculations.getLast()).satisfies(request -> {
+            assertThat(request.latitude()).isEqualTo(BigDecimal.ZERO);
+            assertThat(request.longitude()).isEqualTo(BigDecimal.ZERO);
+            assertThat(request.desiredMinutes()).isEqualTo(60);
+            assertThat(request.tripType()).isEqualTo(TripType.ONE_WAY);
+            assertThat(request.theme()).isEqualTo(ScenicTheme.RIVER);
+            assertThat(request.waypointCandidates()).hasSize(1);
         });
-        assertThat(response.notice()).contains("다른 풍경");
+        assertThat(response.routes()).isEmpty();
+        assertThat(response.suggestions()).isEmpty();
+        assertThat(response.alternativeRoutes()).extracting(RouteRecommendationItem::routeId)
+                .containsExactly("ALT");
+    }
+
+    @Test
+    void omitsAlternativeWhenNearbyPlacesHaveNoCalculatedRoute() {
+        SpotCandidateQuery nearbyQuery = (theme, limit) -> theme == ScenicTheme.ANYWHERE
+                ? List.of(testSpot(7L, ScenicTheme.RIVER)) : List.of();
+        var alternativeService = new RouteRecommendationService(request ->
+                new DrivingRouteResult(DrivingRouteMode.LIVE, false, List.of(), "경로 없음"), nearbyQuery);
+
+        var response = alternativeService.recommend(new RouteRecommendationRequest(
+                BigDecimal.ZERO, BigDecimal.ZERO, 60, TripType.ROUND_TRIP, ScenicTheme.MOUNTAIN));
+
+        assertThat(response.mode()).isEqualTo("LIVE");
+        assertThat(response.routes()).isEmpty();
+        assertThat(response.alternativeRoutes()).isEmpty();
+        assertThat(response.suggestions()).isEmpty();
+    }
+
+    private SpotCandidateRecord testSpot(long id, ScenicTheme theme) {
+        return new SpotCandidateRecord(id, "NEARBY_TEST_ONLY", theme,
+                new BigDecimal("0.01"), new BigDecimal("0.02"));
     }
 
     /**
