@@ -1,0 +1,18 @@
+spring:
+  config:
+    activate:
+      on-profile: public-data
+
+integration:
+  public-data:
+    park-api-key: ${PARK_API_KEY:}
+    park-base-url: ${PARK_API_URL:https://api.data.go.kr/openapi}
+    tour-api-key: ${TOUR_API_KEY:}
+    tour-base-url: ${TOUR_API_URL:https://apis.data.go.kr/B551011/KorService2}
+    connect-timeout: ${PUBLIC_DATA_CONNECT_TIMEOUT:2s}
+    read-timeout: ${PUBLIC_DATA_READ_TIMEOUT:8s}
+    park-cache-ttl: ${PARK_CACHE_TTL:6h}
+    park-max-pages: ${PARK_API_MAX_PAGES:50}
+    park-page-size: ${PARK_API_PAGE_SIZE:1000}
+    tour-radius-meters: ${TOUR_API_RADIUS_METERS:20000}
+    tour-page-size: ${TOUR_API_PAGE_SIZE:200}

@@ -3,9 +3,11 @@ package com.example.justgo.backend.common;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import jakarta.validation.ConstraintViolationException;
 import com.example.justgo.backend.integration.routing.tmap.TmapClientErrorType;
 import com.example.justgo.backend.integration.routing.tmap.TmapRouteClientException;
 import com.example.justgo.backend.route.UnsupportedDrivingDurationException;
+import com.example.justgo.backend.route.InvalidCandidateTokenException;
 import com.example.justgo.backend.spot.InvalidSpotLimitException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 /**
  * 입력 오류를 민감정보 없는 공통 JSON 응답으로 변환합니다.
@@ -81,6 +84,16 @@ public class ApiExceptionHandler {
                 Map.of("limit", exception.getMessage())));
     }
 
+    /** 만료되거나 다른 조건에서 발급된 장소 후보 토큰을 400 오류로 반환합니다. */
+    @ExceptionHandler(InvalidCandidateTokenException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidCandidateToken(
+            InvalidCandidateTokenException exception) {
+        return ResponseEntity.badRequest().body(new ApiErrorResponse(
+                "INVALID_CANDIDATE_TOKEN",
+                exception.getMessage(),
+                Map.of("candidateToken", exception.getMessage())));
+    }
+
     /**
      * 필수 쿼리 파라미터 누락이나 알 수 없는 풍경 테마를 일관된 400 오류로 처리합니다.
      */
@@ -95,6 +108,18 @@ public class ApiExceptionHandler {
         String message = "쿼리 파라미터를 확인해 주세요: " + parameterName;
         return ResponseEntity.badRequest().body(
                 new ApiErrorResponse("INVALID_PARAMETER", message, Map.of(parameterName, message)));
+    }
+
+    /** 후보 조회 GET의 좌표·시간·개수 제약 위반을 원시 바인딩 정보 없이 반환합니다. */
+    @ExceptionHandler({
+            HandlerMethodValidationException.class,
+            ConstraintViolationException.class
+    })
+    public ResponseEntity<ApiErrorResponse> handleMethodValidation() {
+        return ResponseEntity.badRequest().body(new ApiErrorResponse(
+                "INVALID_REQUEST",
+                "요청값의 좌표·시간·조회 개수를 확인해 주세요.",
+                Map.of()));
     }
 
     /**

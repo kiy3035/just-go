@@ -401,6 +401,9 @@ public final class DriveActivity extends Activity {
         choice.setId(View.generateViewId());
         choice.setTag(value);
         choice.setText(label);
+        // Pleos에서 스타일로 생성한 선택 항목의 터치와 포커스를 활성화한다.
+        choice.setClickable(true);
+        choice.setFocusable(true);
         choice.setMaxLines(2);
         choice.setEllipsize(android.text.TextUtils.TruncateAt.END);
         choice.setEnabled(enabled);

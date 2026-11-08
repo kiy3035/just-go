@@ -5,9 +5,6 @@ spring:
     import: optional:file:.env[.properties]
 
 justgo:
-  recommendation:
-    allowed-underrun-percent: ${ROUTE_ALLOWED_UNDERRUN_PERCENT:20}
-    allowed-overrun-percent: ${ROUTE_ALLOWED_OVERRUN_PERCENT:15}
   security:
     route-api:
       access-token-required: ${ROUTE_API_ACCESS_TOKEN_REQUIRED:false}

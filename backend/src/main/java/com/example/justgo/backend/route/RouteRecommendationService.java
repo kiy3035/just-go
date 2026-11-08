@@ -10,6 +10,7 @@ import com.example.justgo.backend.integration.routing.DrivingRouteRequest;
 import com.example.justgo.backend.integration.routing.DrivingRouteResult;
 import com.example.justgo.backend.integration.routing.DrivingRouteWaypointCandidate;
 import com.example.justgo.backend.spot.ScenicTheme;
+import com.example.justgo.backend.spot.ScenicPlaceDistance;
 import com.example.justgo.backend.spot.SpotCandidateQuery;
 import com.example.justgo.backend.spot.SpotCandidateRecord;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,32 +31,32 @@ public class RouteRecommendationService {
 
     private final DrivingRouteProvider drivingRouteProvider;
     private final SpotCandidateQuery spotCandidateQuery;
+    private final CandidatePlaceSelectionStore selectionStore;
     private final RouteRecommendationPolicy recommendationPolicy;
     private final RouteCandidateDistancePolicy candidateDistancePolicy =
             new RouteCandidateDistancePolicy();
 
-    /** 실행 환경에 바인딩된 시간 허용 범위로 추천 정책을 구성합니다. */
+    /** 외부 경로 제공자와 검수 후보 조회기를 주입합니다. */
     @Autowired
     public RouteRecommendationService(
             DrivingRouteProvider drivingRouteProvider,
             SpotCandidateQuery spotCandidateQuery,
-            RouteRecommendationProperties properties) {
+            CandidatePlaceSelectionStore selectionStore) {
         this.drivingRouteProvider = drivingRouteProvider;
         this.spotCandidateQuery = spotCandidateQuery;
-        this.recommendationPolicy = new RouteRecommendationPolicy(
-                properties.getAllowedUnderrunPercent(),
-                properties.getAllowedOverrunPercent());
+        this.selectionStore = selectionStore;
+        this.recommendationPolicy = new RouteRecommendationPolicy();
     }
 
-    /** 단위 테스트와 명시적 수동 생성에는 안전한 기본 허용 범위를 적용합니다. */
+    /** 단위 테스트와 기존 직접 생성 코드는 빈 단기 저장소를 사용합니다. */
     RouteRecommendationService(
             DrivingRouteProvider drivingRouteProvider,
             SpotCandidateQuery spotCandidateQuery) {
-        this(drivingRouteProvider, spotCandidateQuery, new RouteRecommendationProperties());
+        this(drivingRouteProvider, spotCandidateQuery, new CandidatePlaceSelectionStore());
     }
 
     /**
-     * 입력 시간 단위를 검증하고 LIVE 순위 또는 실제 후보가 있는 대체 조건을 적용합니다.
+     * 입력 시간 단위를 검증하고 모든 LIVE 계산 결과를 희망 시간과 가까운 순으로 반환합니다.
      *
      * @param request 검증된 외부 요청
      * @return 데이터 출처 모드와 추천 결과가 명시된 응답
@@ -69,13 +70,7 @@ public class RouteRecommendationService {
 
         long maxCandidateDistanceMeters = candidateDistancePolicy
                 .maxStraightLineDistanceMeters(request.desiredMinutes(), request.tripType());
-        var waypointCandidates = spotCandidateQuery
-                .loadNearbyVerifiedCandidates(
-                        request.theme(),
-                        request.latitude(),
-                        request.longitude(),
-                        maxCandidateDistanceMeters,
-                        MAX_WAYPOINT_CANDIDATES)
+        var waypointCandidates = selectedOrDiscoveredCandidates(request, maxCandidateDistanceMeters)
                 .stream()
                 .map(this::toWaypointCandidate)
                 .toList();
@@ -88,30 +83,16 @@ public class RouteRecommendationService {
                 waypointCandidates);
         DrivingRouteResult result = drivingRouteProvider.calculate(providerRequest);
         var recommendedRoutes = result.mode() == DrivingRouteMode.LIVE
-                ? recommendationPolicy.rankWithinDurationTolerance(
+                ? recommendationPolicy.rankByDurationProximity(
                         request.desiredMinutes(),
                         result.routes())
                 : result.routes();
-        boolean needsAlternativeDuration = result.mode() == DrivingRouteMode.LIVE
-                && !result.routes().isEmpty()
-                && recommendedRoutes.isEmpty();
-        List<RouteConditionSuggestion> suggestions = needsAlternativeDuration
-                ? recommendationPolicy.suggestAlternativeDurations(
-                                request.desiredMinutes(),
-                                result.routes())
-                        .stream()
-                        .map(minutes -> new RouteConditionSuggestion(
-                                minutes,
-                                request.tripType(),
-                                request.theme(),
-                                "실제 계산 후보의 예상 시간과 가까운 조건입니다."))
-                        .toList()
-                : suggestAlternativeThemes(
-                        request,
-                        result.mode() != DrivingRouteMode.MOCK && waypointCandidates.isEmpty());
-        String notice = needsAlternativeDuration
-                ? alternativeDurationNotice(suggestions)
-                : alternativeThemeNotice(result.notice(), suggestions);
+        List<RouteConditionSuggestion> suggestions = suggestAlternativeThemes(
+                request,
+                result.mode() != DrivingRouteMode.MOCK && waypointCandidates.isEmpty());
+        String notice = alternativeThemeNotice(
+                broadenedLiveResultNotice(result, recommendedRoutes),
+                suggestions);
 
         return new RouteRecommendationResponse(
                 result.mode().name(),
@@ -121,22 +102,41 @@ public class RouteRecommendationService {
                 notice);
     }
 
-    /** 대체 시간이 있으면 재검색을 안내하고, 없으면 일반적인 조건 변경을 안내합니다. */
-    private String alternativeDurationNotice(List<RouteConditionSuggestion> suggestions) {
-        if (suggestions.isEmpty()) {
-            return durationToleranceNoticePrefix()
-                    + "에 맞는 검수 코스를 찾지 못했습니다. 시간이나 풍경 조건을 바꿔 주세요.";
+    /** 선택 토큰이 있으면 그 장소 한 곳만, 없으면 기존 자동 후보 목록을 사용합니다. */
+    private List<SpotCandidateRecord> selectedOrDiscoveredCandidates(
+            RouteRecommendationRequest request,
+            long maxCandidateDistanceMeters) {
+        if (request.candidateToken() == null) {
+            return spotCandidateQuery.loadNearbyVerifiedCandidates(
+                    request.theme(),
+                    request.latitude(),
+                    request.longitude(),
+                    maxCandidateDistanceMeters,
+                    MAX_WAYPOINT_CANDIDATES);
         }
-        return durationToleranceNoticePrefix()
-                + "에 맞는 검수 코스를 찾지 못했습니다. 제안된 시간으로 다시 검색해 주세요.";
+        SpotCandidateRecord selected = selectionStore.resolve(request.candidateToken())
+                .orElseThrow(InvalidCandidateTokenException::new);
+        long distanceMeters = ScenicPlaceDistance.meters(
+                request.latitude(),
+                request.longitude(),
+                selected.latitude(),
+                selected.longitude());
+        if (!request.theme().includes(selected.theme())
+                || distanceMeters > maxCandidateDistanceMeters) {
+            throw new InvalidCandidateTokenException();
+        }
+        return List.of(selected);
     }
 
-    /** 비대칭 허용 범위를 사용자가 오해하지 않도록 하한과 상한을 함께 표시합니다. */
-    private String durationToleranceNoticePrefix() {
-        return "희망 주행 시간 -%d%%~+%d%%"
-                .formatted(
-                        recommendationPolicy.allowedUnderrunPercent(),
-                        recommendationPolicy.allowedOverrunPercent());
+    /** LIVE 결과는 시간 차이가 크더라도 비교할 수 있도록 숨기지 않았음을 알립니다. */
+    private String broadenedLiveResultNotice(
+            DrivingRouteResult result,
+            List<DrivingRouteCandidate> recommendedRoutes) {
+        if (result.mode() != DrivingRouteMode.LIVE || recommendedRoutes.isEmpty()) {
+            return result.notice();
+        }
+        return result.notice()
+                + " 희망 시간과 차이가 있는 경로도 가까운 순으로 함께 표시합니다.";
     }
 
     /** 선택 테마에 후보가 없을 때만 실제 검수 후보가 있는 다른 테마를 제안합니다. */

@@ -42,7 +42,7 @@ android run --device=emulator-5554 --apks="build/outputs/apk/debug/just go-debug
 디버그 앱은 에뮬레이터 호스트 주소 `http://10.0.2.2:18080`의 추천 API를 사용합니다. 서버를 해당 포트에서 실행해야 합니다.
 에뮬레이터는 호스트 PC의 실제 위치가 아니라 에뮬레이터에 설정된 가상 GPS를 제공합니다. 위치를 수신하지 못하면 안내하며 임의 좌표로 대체하지 않습니다.
 어디든은 전체 후보, 강/호수는 강·호수 후보, 공원은 공원 후보를 조회합니다. 검수된 공원 후보가 없으면 빈 결과가 반환됩니다.
-MOCK 응답은 화면에 표시하지만 내비 시작은 허용하지 않습니다. NaviHelper 3.0.5 연동 코드는 빌드 검증했으나 Pleos Emulator의 실제 목적지·경유지 전달과 화면 전환은 `NOT VERIFIED`입니다. 정차 상태의 `CarUxRestrictions` 연결은 앱 기동으로 확인했지만 주행 상태 전환은 `NOT VERIFIED`입니다.
+MOCK 응답은 화면에 표시하지만 내비 시작은 허용하지 않습니다. NaviHelper 3.0.5의 단일 목적지 전달과 Navigation 화면 전환은 Pleos Emulator에서 실제 LIVE 코스로 확인했습니다. 다중 경유지 전달과 실제 주행 상태의 `CarUxRestrictions` 전환은 `NOT VERIFIED`입니다.
 `com.example.justgo`는 PROVISIONAL applicationId입니다. Release 서명키는 생성하지 않았습니다.
 백엔드의 API 계약과 추천 로직은 이번 UI 정리 범위에 포함하지 않습니다.
 
@@ -52,4 +52,4 @@ MOCK 응답은 화면에 표시하지만 내비 시작은 허용하지 않습니
 
 Pleos 환경: Pleos_Connect_v2.1.0 / API 34, NaviHelper 3.0.5.
 공식 가이드 확인(2026-11-07): https://document.pleos.ai/docs/connect/guide/getting-started/application-development/setup-connect-sdk-emulator
-앱 UI 실행 확인과 실제 NaviHelper·운행 제한 검증은 별개입니다.
+단일 목적지 검증 성공을 다중 경유지·실차 운행 제한 검증 성공으로 간주하지 않습니다.

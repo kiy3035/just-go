@@ -246,9 +246,9 @@ class RouteRecommendationServiceTest {
                 .containsExactly("FIRST", "SECOND", "THIRD");
     }
 
-    /** 허용 오차 안의 LIVE 후보가 없으면 가짜 코스 대신 실제 후보 기반 대체 시간을 반환합니다. */
+    /** 시간 차이가 큰 LIVE 후보도 숨기지 않고 실제 계산 결과를 가까운 순으로 반환합니다. */
     @Test
-    void returnsEmptyLiveResultWhenNoRouteMatchesDuration() {
+    void returnsCalculatedLiveRoutesOutsideFormerDurationTolerance() {
         RouteRecommendationService liveService = new RouteRecommendationService(request ->
                 new DrivingRouteResult(
                         DrivingRouteMode.LIVE,
@@ -267,15 +267,11 @@ class RouteRecommendationServiceTest {
                 ScenicTheme.LAKE));
 
         assertThat(response.mode()).isEqualTo("LIVE");
-        assertThat(response.routes()).isEmpty();
-        assertThat(response.suggestions())
-                .extracting(RouteConditionSuggestion::desiredMinutes)
-                .containsExactly(90, 125);
-        assertThat(response.suggestions()).allSatisfy(suggestion -> {
-            assertThat(suggestion.tripType()).isEqualTo(TripType.ONE_WAY);
-            assertThat(suggestion.theme()).isEqualTo(ScenicTheme.LAKE);
-        });
-        assertThat(response.notice()).contains("-20%~+15%", "제안된 시간");
+        assertThat(response.routes())
+                .extracting(RouteRecommendationItem::routeId)
+                .containsExactly("OUTSIDE_NEAR", "OUTSIDE_FAR");
+        assertThat(response.suggestions()).isEmpty();
+        assertThat(response.notice()).contains("시간과 차이가 있는 경로", "가까운 순");
     }
 
     /** Provider 지점 모델을 Android가 사용할 수 있는 API 지점 DTO로 변환합니다. */

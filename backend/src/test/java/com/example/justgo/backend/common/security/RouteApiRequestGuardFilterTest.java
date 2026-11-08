@@ -167,6 +167,24 @@ class RouteApiRequestGuardFilterTest {
         assertThat(chainCalls).hasValue(1);
     }
 
+    /** 외부 공공데이터를 호출할 수 있는 후보 조회도 같은 접근 토큰으로 보호합니다. */
+    @Test
+    void protectsCandidateLookupEndpoint() throws Exception {
+        RouteApiSecurityProperties properties = defaultProperties();
+        properties.setAccessTokenRequired(true);
+        properties.setAccessToken("TEST_CLIENT_TOKEN_1234567890_ABCDE");
+        var filter = newFilter(properties);
+        var request = new MockHttpServletRequest("GET", "/api/v1/places/candidates");
+        request.setRemoteAddr("192.0.2.50");
+        var response = new MockHttpServletResponse();
+        AtomicInteger chainCalls = new AtomicInteger();
+
+        filter.doFilter(request, response, countingChain(chainCalls));
+
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED.value());
+        assertThat(chainCalls).hasValue(0);
+    }
+
     /** 테스트마다 예측 가능한 기본 보호 설정을 만듭니다. */
     private RouteApiSecurityProperties defaultProperties() {
         RouteApiSecurityProperties properties = new RouteApiSecurityProperties();
