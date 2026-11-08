@@ -12,6 +12,7 @@ integration:
     connect-timeout: ${PUBLIC_DATA_CONNECT_TIMEOUT:2s}
     read-timeout: ${PUBLIC_DATA_READ_TIMEOUT:8s}
     park-cache-ttl: ${PARK_CACHE_TTL:6h}
+    tour-cache-ttl: ${TOUR_CACHE_TTL:10m}
     park-max-pages: ${PARK_API_MAX_PAGES:50}
     park-page-size: ${PARK_API_PAGE_SIZE:1000}
     tour-radius-meters: ${TOUR_API_RADIUS_METERS:20000}

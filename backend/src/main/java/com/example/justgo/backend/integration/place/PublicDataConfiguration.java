@@ -51,6 +51,7 @@ public class PublicDataConfiguration {
         validateDuration(properties.getConnectTimeout(), "connect timeout", Duration.ofSeconds(30));
         validateDuration(properties.getReadTimeout(), "read timeout", Duration.ofSeconds(30));
         validateDuration(properties.getParkCacheTtl(), "공원 캐시 TTL", Duration.ofHours(23));
+        validateDuration(properties.getTourCacheTtl(), "TourAPI 캐시 TTL", Duration.ofHours(23));
     }
 
     private void validateDuration(Duration value, String label, Duration maximum) {

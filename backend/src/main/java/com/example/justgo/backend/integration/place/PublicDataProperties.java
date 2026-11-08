@@ -44,6 +44,9 @@ public class PublicDataProperties {
     @NotNull
     private Duration parkCacheTtl = Duration.ofHours(6);
 
+    @NotNull
+    private Duration tourCacheTtl = Duration.ofMinutes(10);
+
     @Min(1)
     @Max(50)
     private int parkMaxPages = 50;
@@ -114,6 +117,14 @@ public class PublicDataProperties {
 
     public void setParkCacheTtl(Duration parkCacheTtl) {
         this.parkCacheTtl = parkCacheTtl;
+    }
+
+    public Duration getTourCacheTtl() {
+        return tourCacheTtl;
+    }
+
+    public void setTourCacheTtl(Duration tourCacheTtl) {
+        this.tourCacheTtl = tourCacheTtl;
     }
 
     public int getParkMaxPages() {

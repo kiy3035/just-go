@@ -1,9 +1,17 @@
 package com.example.justgo.backend.integration.place;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 import com.example.justgo.backend.spot.ScenicPlaceSource;
@@ -21,15 +29,26 @@ public class TourApiScenicPlaceSource implements ScenicPlaceSource {
     private static final String SOURCE = "TOUR_API";
     private static final String PATH = "/locationBasedList2";
     private static final Set<String> SCENIC_CONTENT_TYPES = Set.of("12", "14", "25", "28");
+    private static final int MAX_CACHE_ENTRIES = 64;
 
     private final RestClient restClient;
     private final PublicDataProperties properties;
+    private final Clock clock;
+    private final Map<String, TourCache> cache = new LinkedHashMap<>();
 
     public TourApiScenicPlaceSource(
             RestClient restClient,
             PublicDataProperties properties) {
+        this(restClient, properties, Clock.systemUTC());
+    }
+
+    TourApiScenicPlaceSource(
+            RestClient restClient,
+            PublicDataProperties properties,
+            Clock clock) {
         this.restClient = restClient;
         this.properties = properties;
+        this.clock = clock;
     }
 
     @Override
@@ -58,13 +77,56 @@ public class TourApiScenicPlaceSource implements ScenicPlaceSource {
         int radius = Math.toIntExact(Math.min(
                 maxDistanceMeters,
                 properties.getTourRadiusMeters()));
-        JsonNode response = fetch(originLatitude, originLongitude, radius);
-        List<SpotCandidateRecord> candidates = new ArrayList<>();
-        for (JsonNode item : responseItems(response)) {
-            toCandidate(item).filter(candidate -> theme.includes(candidate.theme()))
-                    .ifPresent(candidates::add);
+        return cachedCandidates(originLatitude, originLongitude, radius).stream()
+                .filter(candidate -> theme.includes(candidate.theme()))
+                .limit(limit)
+                .toList();
+    }
+
+    /** 같은 위치·반경의 테마 전환은 원시 좌표 대신 해시 키로 10분간 재사용합니다. */
+    private List<SpotCandidateRecord> cachedCandidates(
+            BigDecimal latitude,
+            BigDecimal longitude,
+            int radius) {
+        String key = cacheKey(latitude, longitude, radius);
+        Instant now = Instant.now(clock);
+        synchronized (cache) {
+            cache.entrySet().removeIf(entry -> !entry.getValue().expiresAt().isAfter(now));
+            TourCache cached = cache.get(key);
+            if (cached != null) {
+                return cached.candidates();
+            }
         }
-        return candidates.stream().limit(limit).toList();
+
+        JsonNode response = fetch(latitude, longitude, radius);
+        List<SpotCandidateRecord> loaded = new ArrayList<>();
+        for (JsonNode item : responseItems(response)) {
+            toCandidate(item).ifPresent(loaded::add);
+        }
+        List<SpotCandidateRecord> immutable = List.copyOf(loaded);
+        synchronized (cache) {
+            while (cache.size() >= MAX_CACHE_ENTRIES) {
+                cache.remove(cache.keySet().iterator().next());
+            }
+            cache.put(key, new TourCache(
+                    immutable,
+                    Instant.now(clock).plus(properties.getTourCacheTtl())));
+        }
+        return immutable;
+    }
+
+    private String cacheKey(BigDecimal latitude, BigDecimal longitude, int radius) {
+        String rawKey = latitude.stripTrailingZeros().toPlainString()
+                + '|'
+                + longitude.stripTrailingZeros().toPlainString()
+                + '|'
+                + radius;
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(rawKey.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("필수 SHA-256 알고리즘을 사용할 수 없습니다.", exception);
+        }
     }
 
     private JsonNode fetch(BigDecimal latitude, BigDecimal longitude, int radius) {
@@ -270,5 +332,10 @@ public class TourApiScenicPlaceSource implements ScenicPlaceSource {
 
     private String valueOrEmpty(String value) {
         return value == null ? "" : value;
+    }
+
+    private record TourCache(
+            List<SpotCandidateRecord> candidates,
+            Instant expiresAt) {
     }
 }

@@ -78,6 +78,15 @@ class TourApiScenicPlaceSourceTest {
             assertThat(candidate.theme()).isEqualTo(ScenicTheme.SEA);
             assertThat(candidate.source()).isEqualTo("TOUR_API");
         });
+        var cityResultFromSameCachedResponse = source.findNearby(
+                ScenicTheme.CITY,
+                new BigDecimal("37.566500"),
+                new BigDecimal("126.978000"),
+                75_000,
+                20);
+        assertThat(cityResultFromSameCachedResponse).singleElement()
+                .extracting(candidate -> candidate.name())
+                .isEqualTo("도시박물관 테스트");
         server.verify();
     }
 
