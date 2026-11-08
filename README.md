@@ -101,7 +101,7 @@ $env:SERVER_PORT = "18080"
 
 ### 넓은 장소 후보 조회
 
-`public-data` 프로필을 추가하면 `GET /api/v1/places/candidates`가 검수 DB, 전국도시공원정보표준데이터 API, 한국관광공사 TourAPI 위치기반 관광정보를 합쳐 최대 50건을 반환합니다. `PARK`는 공원 표준데이터를 우선 사용하고, TourAPI 콘텐츠는 명칭·분류 키워드로 `CITY`, `MOUNTAIN`, `RIVER`, `LAKE`, `SEA`, `PARK`에 임시 분류합니다. `ANYWHERE`는 전체, `WATER`는 강과 호수를 합칩니다. 이 목록은 실제 자동차 경로가 아니라 사용자 선택 전 후보이며 `straightLineDistanceMeters`도 거리 축소·정렬용 직선거리입니다.
+`public-data` 프로필을 추가하면 `GET /api/v1/places/candidates`가 검수 DB, 전국도시공원정보표준데이터 API, 한국관광공사 TourAPI 위치기반 관광정보를 합쳐 최대 50건을 반환합니다. `PARK`는 공원 표준데이터를 우선 사용하고, TourAPI 콘텐츠는 공식 신분류 코드와 코드가 없는 항목의 명칭 키워드를 사용해 `CITY`, `MOUNTAIN`, `RIVER`, `LAKE`, `SEA`, `PARK`로 분류합니다. `CITY`는 랜드마크·전시·역사·문화거리·공연시설을 일반 시설보다 먼저 보여 줍니다. `ANYWHERE`는 전체 테마를 번갈아 채우고, `WATER`는 강과 호수를 번갈아 채워 한 테마가 목록을 독점하지 않게 합니다. 이 목록은 실제 자동차 경로가 아니라 사용자 선택 전 후보이며 `straightLineDistanceMeters`도 거리 축소·정렬용 직선거리입니다.
 
 각 후보의 `candidateToken`은 서버 메모리에서 30분만 유지됩니다. 사용자가 고른 토큰을 `POST /api/v1/routes/recommendations`의 선택적 `candidateToken`에 넣으면 그 장소 한 곳만 TMAP으로 계산합니다. 후보 조회 자체는 TMAP 호출권을 쓰지 않으며, 토큰에 출발 위치를 저장하지 않습니다. 상세 요청·응답은 [`docs/api-contract.yaml`](docs/api-contract.yaml)을 기준으로 합니다.
 

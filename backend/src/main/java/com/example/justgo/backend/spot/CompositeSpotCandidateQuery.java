@@ -2,12 +2,16 @@ package com.example.justgo.backend.spot;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Deque;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -66,9 +70,16 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
         }
 
         LinkedHashMap<String, SpotCandidateRecord> unique = new LinkedHashMap<>();
+        Set<String> verifiedNames = combined.stream()
+                .filter(candidate -> candidate != null && "VERIFIED_DB".equals(candidate.source()))
+                .filter(candidate -> candidate.name() != null)
+                .map(candidate -> normalizedName(candidate.name()))
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
         combined.stream()
                 .filter(candidate -> candidate != null && theme.includes(candidate.theme()))
                 .filter(this::hasValidCoordinate)
+                .filter(candidate -> "VERIFIED_DB".equals(candidate.source())
+                        || !verifiedNames.contains(normalizedName(candidate.name())))
                 .filter(candidate -> ScenicPlaceDistance.meters(
                         originLatitude,
                         originLongitude,
@@ -76,6 +87,7 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
                         candidate.longitude()) <= maxDistanceMeters)
                 .sorted(Comparator
                         .comparingInt(this::sourcePriority)
+                        .thenComparingInt(SpotCandidateRecord::selectionPriority)
                         .thenComparingLong(candidate -> ScenicPlaceDistance.meters(
                                 originLatitude,
                                 originLongitude,
@@ -84,7 +96,10 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
                         .thenComparing(SpotCandidateRecord::name)
                         .thenComparing(SpotCandidateRecord::id))
                 .forEach(candidate -> unique.putIfAbsent(deduplicationKey(candidate), candidate));
-        return unique.values().stream().limit(limit).toList();
+        List<SpotCandidateRecord> ordered = List.copyOf(unique.values());
+        return theme == ScenicTheme.ANYWHERE || theme == ScenicTheme.WATER
+                ? diversifyThemes(ordered, theme, limit)
+                : ordered.stream().limit(limit).toList();
     }
 
     @Override
@@ -119,12 +134,67 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
         return "VERIFIED_DB".equals(candidate.source()) ? 0 : 1;
     }
 
+    /** 어디든·강/호수에서는 한 테마가 외부 후보 목록을 독점하지 않도록 번갈아 채웁니다. */
+    private List<SpotCandidateRecord> diversifyThemes(
+            List<SpotCandidateRecord> ordered,
+            ScenicTheme requestedTheme,
+            int limit) {
+        List<SpotCandidateRecord> result = new ArrayList<>();
+        ordered.stream()
+                .filter(candidate -> "VERIFIED_DB".equals(candidate.source()))
+                .limit(limit)
+                .forEach(result::add);
+        if (result.size() >= limit) {
+            return List.copyOf(result);
+        }
+
+        List<ScenicTheme> themeOrder = requestedTheme == ScenicTheme.WATER
+                ? List.of(ScenicTheme.RIVER, ScenicTheme.LAKE)
+                : List.of(
+                        ScenicTheme.CITY,
+                        ScenicTheme.MOUNTAIN,
+                        ScenicTheme.RIVER,
+                        ScenicTheme.LAKE,
+                        ScenicTheme.SEA,
+                        ScenicTheme.PARK);
+        Map<ScenicTheme, Deque<SpotCandidateRecord>> queues = new EnumMap<>(ScenicTheme.class);
+        themeOrder.forEach(theme -> queues.put(theme, new ArrayDeque<>()));
+        ordered.stream()
+                .filter(candidate -> !"VERIFIED_DB".equals(candidate.source()))
+                .forEach(candidate -> {
+                    Deque<SpotCandidateRecord> queue = queues.get(candidate.theme());
+                    if (queue != null) {
+                        queue.addLast(candidate);
+                    }
+                });
+
+        boolean added;
+        do {
+            added = false;
+            for (ScenicTheme theme : themeOrder) {
+                SpotCandidateRecord candidate = queues.get(theme).pollFirst();
+                if (candidate != null) {
+                    result.add(candidate);
+                    added = true;
+                    if (result.size() >= limit) {
+                        return List.copyOf(result);
+                    }
+                }
+            }
+        } while (added);
+        return List.copyOf(result);
+    }
+
     private String deduplicationKey(SpotCandidateRecord candidate) {
-        return candidate.name().replaceAll("[^가-힣a-zA-Z0-9]", "")
-                .toLowerCase(Locale.ROOT)
+        return normalizedName(candidate.name())
                 + '|'
                 + candidate.latitude().setScale(4, RoundingMode.HALF_UP)
                 + '|'
                 + candidate.longitude().setScale(4, RoundingMode.HALF_UP);
+    }
+
+    private String normalizedName(String name) {
+        return name.replaceAll("[^가-힣a-zA-Z0-9]", "")
+                .toLowerCase(Locale.ROOT);
     }
 }
