@@ -12,6 +12,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
@@ -162,6 +163,70 @@ class TmapRouteClientTest {
         server.verify();
     }
 
+    /** 동일 경로 재요청은 요약 캐시를 사용하고 다른 좌표만 새 호출권을 요구하는지 확인합니다. */
+    @Test
+    void reusesCachedSummaryWithoutConsumingAnotherCall() {
+        RestClient.Builder builder = RestClient.builder().baseUrl(BASE_URL);
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        TmapRouteClient client = new TmapRouteClient(
+                builder.build(),
+                new TmapDailyCallLimiter(1, FIXED_CLOCK),
+                FIXED_CLOCK,
+                Duration.ofMinutes(10),
+                16);
+        server.expect(requestTo(BASE_URL + "/tmap/routes/routeSequential30?version=1"))
+                .andRespond(withSuccess("""
+                        {
+                          "type": "FeatureCollection",
+                          "properties": {"totalDistance": "100", "totalTime": "60"}
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        TmapRouteSummary first = client.findRoute(testSearch());
+        TmapRouteSummary cached = client.findRoute(testSearch());
+        TmapRouteSearch differentDestination = new TmapRouteSearch(
+                testSearch().start(),
+                new TmapCoordinate(new BigDecimal("0.310000"), new BigDecimal("0.410000")),
+                testSearch().waypoints());
+
+        assertThat(cached).isEqualTo(first);
+        assertThatThrownBy(() -> client.findRoute(differentDestination))
+                .isInstanceOfSatisfying(TmapRouteClientException.class, exception ->
+                        assertThat(exception.errorType())
+                                .isEqualTo(TmapClientErrorType.QUOTA_EXCEEDED));
+        server.verify();
+    }
+
+    /** TTL이 지난 동일 경로는 캐시를 폐기하고 새 외부 요청으로 갱신하는지 확인합니다. */
+    @Test
+    void refreshesCachedSummaryAfterTtlExpires() {
+        MutableClock clock = new MutableClock(
+                Instant.parse("2026-11-01T00:00:00Z"),
+                ZoneId.of("Asia/Seoul"));
+        RestClient.Builder builder = RestClient.builder().baseUrl(BASE_URL);
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        TmapRouteClient client = new TmapRouteClient(
+                builder.build(),
+                new TmapDailyCallLimiter(2, clock),
+                clock,
+                Duration.ofMinutes(10),
+                16);
+        for (String distance : List.of("100", "200")) {
+            server.expect(requestTo(BASE_URL + "/tmap/routes/routeSequential30?version=1"))
+                    .andRespond(withSuccess("""
+                            {
+                              "type": "FeatureCollection",
+                              "properties": {"totalDistance": "%s", "totalTime": "60"}
+                            }
+                            """.formatted(distance), MediaType.APPLICATION_JSON));
+        }
+
+        assertThat(client.findRoute(testSearch()).distanceMeters()).isEqualTo(100L);
+        clock.advance(Duration.ofMinutes(11));
+        assertThat(client.findRoute(testSearch()).distanceMeters()).isEqualTo(200L);
+        server.verify();
+    }
+
     /**
      * 거리나 시간이 0인 응답을 실제 경로로 받아들이지 않는지 확인합니다.
      */
@@ -255,5 +320,34 @@ class TmapRouteClientTest {
                         new TmapCoordinate(
                                 new BigDecimal("0.500000"),
                                 new BigDecimal("0.600000")))));
+    }
+
+    private static final class MutableClock extends Clock {
+        private Instant currentInstant;
+        private final ZoneId zone;
+
+        private MutableClock(Instant currentInstant, ZoneId zone) {
+            this.currentInstant = currentInstant;
+            this.zone = zone;
+        }
+
+        @Override
+        public ZoneId getZone() {
+            return zone;
+        }
+
+        @Override
+        public Clock withZone(ZoneId requestedZone) {
+            return new MutableClock(currentInstant, requestedZone);
+        }
+
+        @Override
+        public Instant instant() {
+            return currentInstant;
+        }
+
+        private void advance(Duration duration) {
+            currentInstant = currentInstant.plus(duration);
+        }
     }
 }

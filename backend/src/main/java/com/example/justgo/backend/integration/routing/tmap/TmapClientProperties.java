@@ -38,6 +38,13 @@ public class TmapClientProperties {
     private int dailyCallLimit = 90;
 
     @NotNull
+    private Duration routeCacheTtl = Duration.ofMinutes(10);
+
+    @Min(1)
+    @Max(2048)
+    private int routeCacheMaxEntries = 256;
+
+    @NotNull
     private Duration poiCacheTtl = Duration.ofMinutes(10);
 
     @Min(1)
@@ -86,6 +93,22 @@ public class TmapClientProperties {
 
     public void setDailyCallLimit(int dailyCallLimit) {
         this.dailyCallLimit = dailyCallLimit;
+    }
+
+    public Duration getRouteCacheTtl() {
+        return routeCacheTtl;
+    }
+
+    public void setRouteCacheTtl(Duration routeCacheTtl) {
+        this.routeCacheTtl = routeCacheTtl;
+    }
+
+    public int getRouteCacheMaxEntries() {
+        return routeCacheMaxEntries;
+    }
+
+    public void setRouteCacheMaxEntries(int routeCacheMaxEntries) {
+        this.routeCacheMaxEntries = routeCacheMaxEntries;
     }
 
     public Duration getPoiCacheTtl() {

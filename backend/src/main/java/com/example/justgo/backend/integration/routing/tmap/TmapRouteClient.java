@@ -1,11 +1,19 @@
 package com.example.justgo.backend.integration.routing.tmap;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.http.HttpStatusCode;
@@ -30,15 +38,36 @@ public class TmapRouteClient {
     private final RestClient restClient;
     private final TmapCallLimiter callLimiter;
     private final Clock clock;
+    private final Duration routeCacheTtl;
+    private final int routeCacheMaxEntries;
+    private final Map<String, CachedRoute> routeCache = new LinkedHashMap<>();
     private final TmapRouteShapeAnalyzer shapeAnalyzer = new TmapRouteShapeAnalyzer();
 
     public TmapRouteClient(
             RestClient restClient,
             TmapCallLimiter callLimiter,
             Clock clock) {
+        this(restClient, callLimiter, clock, Duration.ZERO, 0);
+    }
+
+    TmapRouteClient(
+            RestClient restClient,
+            TmapCallLimiter callLimiter,
+            Clock clock,
+            Duration routeCacheTtl,
+            int routeCacheMaxEntries) {
         this.restClient = restClient;
         this.callLimiter = callLimiter;
         this.clock = clock;
+        this.routeCacheTtl = routeCacheTtl;
+        this.routeCacheMaxEntries = routeCacheMaxEntries;
+        if (routeCacheTtl == null || routeCacheTtl.isNegative()) {
+            throw new IllegalArgumentException("TMAP 경로 캐시 TTL은 0초 이상이어야 합니다.");
+        }
+        if (routeCacheTtl.isZero() != (routeCacheMaxEntries == 0)
+                || routeCacheMaxEntries < 0) {
+            throw new IllegalArgumentException("TMAP 경로 캐시 TTL과 최대 항목 수를 함께 설정해야 합니다.");
+        }
     }
 
     /**
@@ -48,6 +77,11 @@ public class TmapRouteClient {
     public TmapRouteSummary findRoute(TmapRouteSearch search) {
         if (search == null) {
             throw new IllegalArgumentException("TMAP 경로 검색 조건이 필요합니다.");
+        }
+        String cacheKey = routeCacheKey(search);
+        TmapRouteSummary cached = cachedRoute(cacheKey);
+        if (cached != null) {
+            return cached;
         }
         callLimiter.acquire();
 
@@ -67,7 +101,9 @@ public class TmapRouteClient {
                         throw mapHttpError(upstreamResponse.getStatusCode());
                     })
                     .body(TmapApiResponse.class);
-            return validateAndMap(response);
+            TmapRouteSummary summary = validateAndMap(response);
+            cacheRoute(cacheKey, summary);
+            return summary;
         } catch (TmapRouteClientException exception) {
             throw exception;
         } catch (RestClientException exception) {
@@ -76,6 +112,56 @@ public class TmapRouteClient {
                     "TMAP 네트워크 호출에 실패했습니다.",
                     exception);
         }
+    }
+
+    /** 같은 좌표 조합을 다시 눌렀을 때 호출권을 재소비하지 않도록 요약값만 재사용합니다. */
+    private TmapRouteSummary cachedRoute(String key) {
+        if (routeCacheTtl.isZero()) {
+            return null;
+        }
+        Instant now = Instant.now(clock);
+        synchronized (routeCache) {
+            routeCache.entrySet().removeIf(entry -> !entry.getValue().expiresAt().isAfter(now));
+            CachedRoute cached = routeCache.get(key);
+            return cached == null ? null : cached.summary();
+        }
+    }
+
+    private void cacheRoute(String key, TmapRouteSummary summary) {
+        if (routeCacheTtl.isZero()) {
+            return;
+        }
+        synchronized (routeCache) {
+            while (routeCache.size() >= routeCacheMaxEntries) {
+                routeCache.remove(routeCache.keySet().iterator().next());
+            }
+            routeCache.put(key, new CachedRoute(
+                    summary,
+                    Instant.now(clock).plus(routeCacheTtl)));
+        }
+    }
+
+    /** 원시 좌표 대신 출발·도착·경유 순서를 SHA-256으로 축약해 메모리 키로 사용합니다. */
+    private String routeCacheKey(TmapRouteSearch search) {
+        StringBuilder material = new StringBuilder();
+        appendCoordinate(material, search.start());
+        appendCoordinate(material, search.end());
+        for (TmapWaypoint waypoint : search.waypoints()) {
+            appendCoordinate(material, waypoint.coordinate());
+        }
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                    .digest(material.toString().getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256을 사용할 수 없습니다.", exception);
+        }
+    }
+
+    private void appendCoordinate(StringBuilder material, TmapCoordinate coordinate) {
+        material.append(coordinate.latitude().stripTrailingZeros().toPlainString())
+                .append(',')
+                .append(coordinate.longitude().stripTrailingZeros().toPlainString())
+                .append(';');
     }
 
     /**
@@ -216,6 +302,9 @@ public class TmapRouteClient {
         } catch (IllegalArgumentException exception) {
             return List.of();
         }
+    }
+
+    private record CachedRoute(TmapRouteSummary summary, Instant expiresAt) {
     }
 
     private record TmapMultiApiRequest(

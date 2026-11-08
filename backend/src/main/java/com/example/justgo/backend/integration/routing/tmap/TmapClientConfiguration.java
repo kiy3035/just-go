@@ -32,6 +32,7 @@ public class TmapClientConfiguration {
             TmapCallUsageMapper callUsageMapper) {
         validateTimeout(properties.getConnectTimeout(), "connect timeout");
         validateTimeout(properties.getReadTimeout(), "read timeout");
+        validateCacheTtl(properties.getRouteCacheTtl(), "경로");
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(properties.getConnectTimeout());
         requestFactory.setReadTimeout(properties.getReadTimeout());
@@ -46,7 +47,9 @@ public class TmapClientConfiguration {
                 restClient,
                 new PersistentTmapDailyCallLimiter(
                         properties.getDailyCallLimit(), clock, callUsageMapper),
-                clock);
+                clock,
+                properties.getRouteCacheTtl(),
+                properties.getRouteCacheMaxEntries());
     }
 
     /** 공식 주변 카테고리를 장소 후보 원천으로 제공하되 경로 호출량과는 분리합니다. */
@@ -56,12 +59,7 @@ public class TmapClientConfiguration {
             TmapClientProperties properties) {
         validateTimeout(properties.getConnectTimeout(), "connect timeout");
         validateTimeout(properties.getReadTimeout(), "read timeout");
-        if (properties.getPoiCacheTtl() == null
-                || properties.getPoiCacheTtl().isZero()
-                || properties.getPoiCacheTtl().isNegative()
-                || properties.getPoiCacheTtl().compareTo(Duration.ofHours(23)) > 0) {
-            throw new IllegalArgumentException("TMAP POI 캐시 TTL은 0초 초과 23시간 이하여야 합니다.");
-        }
+        validateCacheTtl(properties.getPoiCacheTtl(), "POI");
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(properties.getConnectTimeout());
         requestFactory.setReadTimeout(properties.getReadTimeout());
@@ -81,6 +79,15 @@ public class TmapClientConfiguration {
                 || timeout.compareTo(Duration.ofSeconds(30)) > 0) {
             throw new IllegalArgumentException(
                     "TMAP " + fieldName + "은 0초 초과 30초 이하여야 합니다.");
+        }
+    }
+
+    /** TMAP 응답은 약관 한도보다 보수적으로 최대 23시간까지만 메모리에 둡니다. */
+    private void validateCacheTtl(Duration ttl, String cacheName) {
+        if (ttl == null || ttl.isZero() || ttl.isNegative()
+                || ttl.compareTo(Duration.ofHours(23)) > 0) {
+            throw new IllegalArgumentException(
+                    "TMAP " + cacheName + " 캐시 TTL은 0초 초과 23시간 이하여야 합니다.");
         }
     }
 }
