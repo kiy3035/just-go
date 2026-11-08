@@ -6,11 +6,15 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import java.math.BigDecimal;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 import com.example.justgo.backend.spot.ScenicTheme;
+import com.example.justgo.backend.spot.SpotCandidateRecord;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.test.web.client.ExpectedCount;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
@@ -27,6 +31,7 @@ class TourApiScenicPlaceSourceTest {
         properties.setParkApiKey("TEST_KEY_ONLY");
         properties.setTourApiKey("TEST_KEY_ONLY");
         properties.setTourPageSize(200);
+        properties.setTourSearchMaxCenters(1);
         TourApiScenicPlaceSource source = new TourApiScenicPlaceSource(
                 builder.build(), properties);
 
@@ -90,6 +95,56 @@ class TourApiScenicPlaceSourceTest {
         assertThat(cityResultFromSameCachedResponse).singleElement()
                 .extracting(candidate -> candidate.name())
                 .isEqualTo("도시박물관 테스트");
+        server.verify();
+    }
+
+    @Test
+    void expandsLongDistanceSearchWithBoundedDistinctCentersAndDeduplicatesItems() {
+        RestClient.Builder builder = RestClient.builder().baseUrl(BASE_URL);
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        PublicDataProperties properties = new PublicDataProperties();
+        properties.setParkApiKey("TEST_KEY_ONLY");
+        properties.setTourApiKey("TEST_KEY_ONLY");
+        properties.setTourSearchMaxCenters(7);
+        properties.setTourSearchRingStepMeters(40000);
+        Set<String> requestedUris = new LinkedHashSet<>();
+        TourApiScenicPlaceSource source = new TourApiScenicPlaceSource(
+                builder.build(), properties);
+
+        server.expect(ExpectedCount.times(7), request ->
+                        requestedUris.add(request.getURI().toString()))
+                .andRespond(withSuccess("""
+                        {
+                          "response": {
+                            "header": {"resultCode": "0000"},
+                            "body": {
+                              "items": {
+                                "item": [{
+                                  "contentid": "WIDE-SEA-1",
+                                  "contenttypeid": "12",
+                                  "title": "광역 바다 후보 테스트",
+                                  "lclsSystm2": "NA02",
+                                  "lclsSystm3": "NA020800",
+                                  "mapx": "126.500000",
+                                  "mapy": "37.500000"
+                                }]
+                              }
+                            }
+                          }
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        var result = source.findNearby(
+                ScenicTheme.SEA,
+                new BigDecimal("37.566500"),
+                new BigDecimal("126.978000"),
+                75_000,
+                20);
+
+        assertThat(requestedUris).hasSize(7);
+        assertThat(result).singleElement()
+                .extracting(SpotCandidateRecord::name)
+                .isEqualTo("광역 바다 후보 테스트");
         server.verify();
     }
 

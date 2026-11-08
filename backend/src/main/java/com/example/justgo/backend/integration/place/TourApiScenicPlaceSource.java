@@ -14,6 +14,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+import com.example.justgo.backend.spot.ScenicPlaceDistance;
 import com.example.justgo.backend.spot.ScenicPlaceSource;
 import com.example.justgo.backend.spot.ScenicTheme;
 import com.example.justgo.backend.spot.SpotCandidateRecord;
@@ -30,6 +31,8 @@ public class TourApiScenicPlaceSource implements ScenicPlaceSource {
     private static final String PATH = "/locationBasedList2";
     private static final Set<String> SCENIC_CONTENT_TYPES = Set.of("12", "14", "25", "28");
     private static final int MAX_CACHE_ENTRIES = 64;
+    private static final double EARTH_RADIUS_METERS = 6_371_008.8;
+    private static final int CENTERS_PER_RING = 6;
 
     private final RestClient restClient;
     private final PublicDataProperties properties;
@@ -77,18 +80,43 @@ public class TourApiScenicPlaceSource implements ScenicPlaceSource {
         int radius = Math.toIntExact(Math.min(
                 maxDistanceMeters,
                 properties.getTourRadiusMeters()));
-        return cachedCandidates(originLatitude, originLongitude, radius).stream()
+        return cachedCandidates(
+                        originLatitude,
+                        originLongitude,
+                        radius,
+                        maxDistanceMeters)
+                .stream()
                 .filter(candidate -> theme.includes(candidate.theme()))
+                .filter(candidate -> ScenicPlaceDistance.meters(
+                        originLatitude,
+                        originLongitude,
+                        candidate.latitude(),
+                        candidate.longitude()) <= maxDistanceMeters)
+                .sorted((first, second) -> {
+                    int priority = Integer.compare(
+                            first.selectionPriority(), second.selectionPriority());
+                    if (priority != 0) {
+                        return priority;
+                    }
+                    return Long.compare(
+                            ScenicPlaceDistance.meters(
+                                    originLatitude, originLongitude,
+                                    first.latitude(), first.longitude()),
+                            ScenicPlaceDistance.meters(
+                                    originLatitude, originLongitude,
+                                    second.latitude(), second.longitude()));
+                })
                 .limit(limit)
                 .toList();
     }
 
-    /** 같은 위치·반경의 테마 전환은 원시 좌표 대신 해시 키로 10분간 재사용합니다. */
+    /** 같은 위치·범위의 다중 중심 조회는 원시 좌표 대신 해시 키로 10분간 재사용합니다. */
     private List<SpotCandidateRecord> cachedCandidates(
             BigDecimal latitude,
             BigDecimal longitude,
-            int radius) {
-        String key = cacheKey(latitude, longitude, radius);
+            int radius,
+            long maxDistanceMeters) {
+        String key = cacheKey(latitude, longitude, radius, maxDistanceMeters);
         Instant now = Instant.now(clock);
         synchronized (cache) {
             cache.entrySet().removeIf(entry -> !entry.getValue().expiresAt().isAfter(now));
@@ -98,12 +126,15 @@ public class TourApiScenicPlaceSource implements ScenicPlaceSource {
             }
         }
 
-        JsonNode response = fetch(latitude, longitude, radius);
-        List<SpotCandidateRecord> loaded = new ArrayList<>();
-        for (JsonNode item : responseItems(response)) {
-            toCandidate(item).ifPresent(loaded::add);
+        Map<Long, SpotCandidateRecord> loaded = new LinkedHashMap<>();
+        for (SearchCenter center : searchCenters(latitude, longitude, radius, maxDistanceMeters)) {
+            JsonNode response = fetch(center.latitude(), center.longitude(), radius);
+            for (JsonNode item : responseItems(response)) {
+                toCandidate(item).ifPresent(candidate -> loaded.putIfAbsent(
+                        candidate.id(), candidate));
+            }
         }
-        List<SpotCandidateRecord> immutable = List.copyOf(loaded);
+        List<SpotCandidateRecord> immutable = List.copyOf(loaded.values());
         synchronized (cache) {
             while (cache.size() >= MAX_CACHE_ENTRIES) {
                 cache.remove(cache.keySet().iterator().next());
@@ -115,18 +146,83 @@ public class TourApiScenicPlaceSource implements ScenicPlaceSource {
         return immutable;
     }
 
-    private String cacheKey(BigDecimal latitude, BigDecimal longitude, int radius) {
+    private String cacheKey(
+            BigDecimal latitude,
+            BigDecimal longitude,
+            int radius,
+            long maxDistanceMeters) {
         String rawKey = latitude.stripTrailingZeros().toPlainString()
                 + '|'
                 + longitude.stripTrailingZeros().toPlainString()
                 + '|'
-                + radius;
+                + radius
+                + '|'
+                + maxDistanceMeters
+                + '|'
+                + properties.getTourSearchMaxCenters()
+                + '|'
+                + properties.getTourSearchRingStepMeters();
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             return HexFormat.of().formatHex(digest.digest(rawKey.getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("필수 SHA-256 알고리즘을 사용할 수 없습니다.", exception);
         }
+    }
+
+    /** 20km 단일 반경을 넘어설 때 원점 주위 육각 링을 제한된 개수만 조회합니다. */
+    private List<SearchCenter> searchCenters(
+            BigDecimal originLatitude,
+            BigDecimal originLongitude,
+            int radius,
+            long maxDistanceMeters) {
+        List<SearchCenter> centers = new ArrayList<>();
+        centers.add(new SearchCenter(originLatitude, originLongitude));
+        if (maxDistanceMeters <= radius || properties.getTourSearchMaxCenters() == 1) {
+            return List.copyOf(centers);
+        }
+
+        long ringDistance = properties.getTourSearchRingStepMeters();
+        while (centers.size() < properties.getTourSearchMaxCenters()
+                && ringDistance - radius <= maxDistanceMeters) {
+            for (int index = 0;
+                    index < CENTERS_PER_RING
+                            && centers.size() < properties.getTourSearchMaxCenters();
+                    index++) {
+                centers.add(destination(
+                        originLatitude,
+                        originLongitude,
+                        ringDistance,
+                        index * (360.0 / CENTERS_PER_RING)));
+            }
+            ringDistance += properties.getTourSearchRingStepMeters();
+        }
+        return List.copyOf(centers);
+    }
+
+    /** 구면 지구 근사로 원점에서 거리·방위각만큼 이동한 WGS84 검색 중심을 계산합니다. */
+    private SearchCenter destination(
+            BigDecimal latitude,
+            BigDecimal longitude,
+            long distanceMeters,
+            double bearingDegrees) {
+        double latitudeRadians = Math.toRadians(latitude.doubleValue());
+        double longitudeRadians = Math.toRadians(longitude.doubleValue());
+        double bearingRadians = Math.toRadians(bearingDegrees);
+        double angularDistance = distanceMeters / EARTH_RADIUS_METERS;
+        double destinationLatitude = Math.asin(
+                Math.sin(latitudeRadians) * Math.cos(angularDistance)
+                        + Math.cos(latitudeRadians) * Math.sin(angularDistance)
+                        * Math.cos(bearingRadians));
+        double destinationLongitude = longitudeRadians + Math.atan2(
+                Math.sin(bearingRadians) * Math.sin(angularDistance)
+                        * Math.cos(latitudeRadians),
+                Math.cos(angularDistance)
+                        - Math.sin(latitudeRadians) * Math.sin(destinationLatitude));
+        destinationLongitude = (destinationLongitude + 3 * Math.PI) % (2 * Math.PI) - Math.PI;
+        return new SearchCenter(
+                BigDecimal.valueOf(Math.toDegrees(destinationLatitude)),
+                BigDecimal.valueOf(Math.toDegrees(destinationLongitude)));
     }
 
     private JsonNode fetch(BigDecimal latitude, BigDecimal longitude, int radius) {
@@ -308,5 +404,8 @@ public class TourApiScenicPlaceSource implements ScenicPlaceSource {
     private record TourCache(
             List<SpotCandidateRecord> candidates,
             Instant expiresAt) {
+    }
+
+    private record SearchCenter(BigDecimal latitude, BigDecimal longitude) {
     }
 }

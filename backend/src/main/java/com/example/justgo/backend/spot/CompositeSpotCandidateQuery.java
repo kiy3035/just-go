@@ -26,6 +26,13 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CompositeSpotCandidateQuery.class);
     private static final int SOURCE_FETCH_MULTIPLIER = 3;
+    private static final List<ScenicTheme> ACTUAL_THEME_ORDER = List.of(
+            ScenicTheme.CITY,
+            ScenicTheme.MOUNTAIN,
+            ScenicTheme.RIVER,
+            ScenicTheme.LAKE,
+            ScenicTheme.SEA,
+            ScenicTheme.PARK);
 
     private final SpotService verifiedSpotService;
     private final List<ScenicPlaceSource> externalSources;
@@ -99,9 +106,10 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
                         .thenComparing(SpotCandidateRecord::id))
                 .forEach(candidate -> unique.putIfAbsent(deduplicationKey(candidate), candidate));
         List<SpotCandidateRecord> ordered = List.copyOf(unique.values());
+        List<SpotCandidateRecord> sourceDiversified = diversifySourcesWithinThemes(ordered);
         return theme == ScenicTheme.ANYWHERE || theme == ScenicTheme.WATER
-                ? diversifyThemes(ordered, theme, limit)
-                : ordered.stream().limit(limit).toList();
+                ? diversifyThemes(sourceDiversified, theme, limit)
+                : sourceDiversified.stream().limit(limit).toList();
     }
 
     /** 비활성 검수 행은 같은 이름의 외부 후보를 제외하고, 활성 행은 DB 보정본만 남깁니다. */
@@ -155,13 +163,7 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
         List<SpotCandidateRecord> result = new ArrayList<>();
         List<ScenicTheme> themeOrder = requestedTheme == ScenicTheme.WATER
                 ? List.of(ScenicTheme.RIVER, ScenicTheme.LAKE)
-                : List.of(
-                        ScenicTheme.CITY,
-                        ScenicTheme.MOUNTAIN,
-                        ScenicTheme.RIVER,
-                        ScenicTheme.LAKE,
-                        ScenicTheme.SEA,
-                        ScenicTheme.PARK);
+                : ACTUAL_THEME_ORDER;
         Map<ScenicTheme, Deque<SpotCandidateRecord>> queues = new EnumMap<>(ScenicTheme.class);
         themeOrder.forEach(theme -> queues.put(theme, new ArrayDeque<>()));
         ordered.forEach(candidate -> {
@@ -185,6 +187,38 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
                 }
             }
         } while (added);
+        return List.copyOf(result);
+    }
+
+    /** 같은 테마 안에서도 한 외부 원천이 목록을 독점하지 않도록 원천별로 번갈아 채웁니다. */
+    private List<SpotCandidateRecord> diversifySourcesWithinThemes(
+            List<SpotCandidateRecord> ordered) {
+        Map<ScenicTheme, Map<String, Deque<SpotCandidateRecord>>> byTheme =
+                new EnumMap<>(ScenicTheme.class);
+        ACTUAL_THEME_ORDER.forEach(theme -> byTheme.put(theme, new LinkedHashMap<>()));
+        ordered.forEach(candidate -> {
+            Map<String, Deque<SpotCandidateRecord>> sourceQueues = byTheme.get(candidate.theme());
+            if (sourceQueues != null) {
+                sourceQueues.computeIfAbsent(candidate.source(), ignored -> new ArrayDeque<>())
+                        .addLast(candidate);
+            }
+        });
+
+        List<SpotCandidateRecord> result = new ArrayList<>(ordered.size());
+        for (ScenicTheme theme : ACTUAL_THEME_ORDER) {
+            var sourceQueues = byTheme.get(theme).values();
+            boolean added;
+            do {
+                added = false;
+                for (Deque<SpotCandidateRecord> queue : sourceQueues) {
+                    SpotCandidateRecord candidate = queue.pollFirst();
+                    if (candidate != null) {
+                        result.add(candidate);
+                        added = true;
+                    }
+                }
+            } while (added);
+        }
         return List.copyOf(result);
     }
 

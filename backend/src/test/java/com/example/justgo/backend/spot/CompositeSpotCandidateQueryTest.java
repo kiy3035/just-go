@@ -18,6 +18,34 @@ import org.junit.jupiter.api.Test;
 class CompositeSpotCandidateQueryTest {
 
     @Test
+    void concreteThemeAlternatesExternalSources() {
+        SpotService verifiedSpotService = mock(SpotService.class);
+        when(verifiedSpotService.loadNearbyVerifiedCandidates(
+                any(), any(), any(), anyLong(), anyInt())).thenReturn(List.of());
+        when(verifiedSpotService.loadCandidateOverrides()).thenReturn(List.of());
+
+        ScenicPlaceSource firstSource = source("FIRST_SOURCE", "FIRST", 10);
+        ScenicPlaceSource secondSource = source("SECOND_SOURCE", "SECOND", 10);
+        CompositeSpotCandidateQuery query = new CompositeSpotCandidateQuery(
+                verifiedSpotService,
+                List.of(firstSource, secondSource));
+
+        List<SpotCandidateRecord> result = query.loadNearbyVerifiedCandidates(
+                ScenicTheme.CITY,
+                new BigDecimal("37.5000"),
+                new BigDecimal("127.0000"),
+                100_000,
+                6);
+
+        assertThat(result).hasSize(6);
+        assertThat(result).extracting(SpotCandidateRecord::source)
+                .containsExactly(
+                        "FIRST_SOURCE", "SECOND_SOURCE",
+                        "FIRST_SOURCE", "SECOND_SOURCE",
+                        "FIRST_SOURCE", "SECOND_SOURCE");
+    }
+
+    @Test
     void anywhereAlternatesThemesAndKeepsLandmarkPriority() {
         SpotService verifiedSpotService = mock(SpotService.class);
         when(verifiedSpotService.loadNearbyVerifiedCandidates(
@@ -163,5 +191,40 @@ class CompositeSpotCandidateQueryTest {
                 new BigDecimal("127.0000"),
                 "TEST_SOURCE",
                 selectionPriority);
+    }
+
+    private ScenicPlaceSource source(String sourceName, String namePrefix, int count) {
+        return new ScenicPlaceSource() {
+            @Override
+            public String sourceName() {
+                return sourceName;
+            }
+
+            @Override
+            public Set<ScenicTheme> supportedThemes() {
+                return Set.of(ScenicTheme.CITY);
+            }
+
+            @Override
+            public List<SpotCandidateRecord> findNearby(
+                    ScenicTheme theme,
+                    BigDecimal originLatitude,
+                    BigDecimal originLongitude,
+                    long maxDistanceMeters,
+                    int limit) {
+                List<SpotCandidateRecord> candidates = new ArrayList<>();
+                for (int index = 0; index < count; index++) {
+                    candidates.add(new SpotCandidateRecord(
+                            -100L - index,
+                            namePrefix + '_' + index,
+                            ScenicTheme.CITY,
+                            new BigDecimal("37.50" + String.format("%02d", index + 1)),
+                            new BigDecimal("127.0000"),
+                            sourceName,
+                            0));
+                }
+                return candidates;
+            }
+        };
     }
 }

@@ -63,6 +63,14 @@ public class PublicDataProperties {
     @Max(1000)
     private int tourPageSize = 200;
 
+    @Min(1)
+    @Max(19)
+    private int tourSearchMaxCenters = 13;
+
+    @Min(10000)
+    @Max(50000)
+    private int tourSearchRingStepMeters = 40000;
+
     public String getParkApiKey() {
         return parkApiKey;
     }
@@ -157,5 +165,21 @@ public class PublicDataProperties {
 
     public void setTourPageSize(int tourPageSize) {
         this.tourPageSize = tourPageSize;
+    }
+
+    public int getTourSearchMaxCenters() {
+        return tourSearchMaxCenters;
+    }
+
+    public void setTourSearchMaxCenters(int tourSearchMaxCenters) {
+        this.tourSearchMaxCenters = tourSearchMaxCenters;
+    }
+
+    public int getTourSearchRingStepMeters() {
+        return tourSearchRingStepMeters;
+    }
+
+    public void setTourSearchRingStepMeters(int tourSearchRingStepMeters) {
+        this.tourSearchRingStepMeters = tourSearchRingStepMeters;
     }
 }

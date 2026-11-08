@@ -17,3 +17,5 @@ integration:
     park-page-size: ${PARK_API_PAGE_SIZE:1000}
     tour-radius-meters: ${TOUR_API_RADIUS_METERS:20000}
     tour-page-size: ${TOUR_API_PAGE_SIZE:200}
+    tour-search-max-centers: ${TOUR_API_SEARCH_MAX_CENTERS:13}
+    tour-search-ring-step-meters: ${TOUR_API_SEARCH_RING_STEP_METERS:40000}
