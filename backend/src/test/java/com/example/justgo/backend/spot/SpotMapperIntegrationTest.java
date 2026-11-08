@@ -137,6 +137,36 @@ class SpotMapperIntegrationTest {
                 .doesNotContain("PENDING_RIVER_TEST_ONLY", "DISABLED_RIVER_TEST_ONLY");
     }
 
+    /** 활성 보정과 비활성 제외 행을 모두 테마와 무관한 규칙으로 읽는지 확인합니다. */
+    @Test
+    void findsEnabledCorrectionsAndDisabledExclusions() {
+        spotMapper.insertCandidate(candidate(
+                "ENABLED_CORRECTION_TEST_ONLY",
+                ScenicTheme.PARK,
+                new BigDecimal("0.510000"),
+                new BigDecimal("0.610000"),
+                SpotVerificationStatus.VERIFIED,
+                true));
+        spotMapper.insertCandidate(candidate(
+                "DISABLED_EXCLUSION_TEST_ONLY",
+                ScenicTheme.LAKE,
+                new BigDecimal("0.520000"),
+                new BigDecimal("0.620000"),
+                SpotVerificationStatus.VERIFIED,
+                false));
+
+        assertThat(spotMapper.findCandidateOverrides())
+                .extracting(
+                        SpotCandidateOverrideRecord::name,
+                        SpotCandidateOverrideRecord::theme,
+                        SpotCandidateOverrideRecord::enabled)
+                .contains(
+                        org.assertj.core.groups.Tuple.tuple(
+                                "ENABLED_CORRECTION_TEST_ONLY", ScenicTheme.PARK, true),
+                        org.assertj.core.groups.Tuple.tuple(
+                                "DISABLED_EXCLUSION_TEST_ONLY", ScenicTheme.LAKE, false));
+    }
+
     /** VERIFIED 후보에 출처·이용권한·검수 시각이 없으면 DB가 저장을 거부하는지 확인합니다. */
     @Test
     void rejectsVerifiedCandidateWithoutProvenance() {

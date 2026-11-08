@@ -73,6 +73,12 @@ public class SpotService implements SpotCandidateQuery {
                 limit));
     }
 
+    /** 외부 후보보다 먼저 적용할 수동 분류 보정·제외 규칙을 반환합니다. */
+    @Transactional(readOnly = true)
+    public List<SpotCandidateOverrideRecord> loadCandidateOverrides() {
+        return List.copyOf(spotMapper.findCandidateOverrides());
+    }
+
     /** 검수 후보가 실제로 존재하는 테마를 확정된 화면 표시 순서로 반환합니다. */
     @Override
     @Transactional(readOnly = true)

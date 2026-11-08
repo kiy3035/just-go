@@ -10,3 +10,6 @@ integration:
     connect-timeout: ${TMAP_CONNECT_TIMEOUT:2s}
     read-timeout: ${TMAP_READ_TIMEOUT:5s}
     daily-call-limit: ${TMAP_DAILY_CALL_LIMIT:90}
+    poi-cache-ttl: ${TMAP_POI_CACHE_TTL:10m}
+    poi-radius-km: ${TMAP_POI_RADIUS_KM:33}
+    poi-page-size: ${TMAP_POI_PAGE_SIZE:100}

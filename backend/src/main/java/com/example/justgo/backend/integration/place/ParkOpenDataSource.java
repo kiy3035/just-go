@@ -183,13 +183,15 @@ public class ParkOpenDataSource implements ScenicPlaceSource {
         if (externalId == null || externalId.isBlank()) {
             externalId = name + '|' + latitude + '|' + longitude;
         }
+        String parkType = text(item, "PARK_SE", "parkSe", "parkType");
         return java.util.Optional.of(new SpotCandidateRecord(
                 ExternalCandidateId.from(SOURCE, externalId),
                 name.strip(),
                 ScenicTheme.PARK,
                 latitude,
                 longitude,
-                SOURCE));
+                SOURCE,
+                parkType == null ? "도시공원" : parkType.strip()));
     }
 
     private String text(JsonNode node, String... fieldNames) {

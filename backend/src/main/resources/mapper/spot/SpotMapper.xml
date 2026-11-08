@@ -21,11 +21,8 @@
         </constructor>
     </resultMap>
 
-    <sql id="verifiedCandidateEligibility">
+    <sql id="verifiedCandidateReview">
         verification_status = 'VERIFIED'
-        AND enabled = TRUE
-        AND latitude IS NOT NULL
-        AND longitude IS NOT NULL
         AND NULLIF(BTRIM(source_name), '') IS NOT NULL
         AND NULLIF(BTRIM(source_reference), '') IS NOT NULL
         AND NULLIF(BTRIM(usage_rights_note), '') IS NOT NULL
@@ -34,6 +31,13 @@
         AND scenic_quality_score BETWEEN 3 AND 5
         AND route_suitability_score BETWEEN 3 AND 5
         AND NULLIF(BTRIM(quality_review_note), '') IS NOT NULL
+    </sql>
+
+    <sql id="verifiedCandidateEligibility">
+        <include refid="verifiedCandidateReview"/>
+        AND enabled = TRUE
+        AND latitude IS NOT NULL
+        AND longitude IS NOT NULL
     </sql>
 
     <insert id="insert">
@@ -148,6 +152,14 @@
                  straight_line_distance_meters,
                  id
         LIMIT #{limit}
+    </select>
+
+    <select id="findCandidateOverrides"
+            resultType="com.example.justgo.backend.spot.SpotCandidateOverrideRecord">
+        SELECT name, theme, enabled
+        FROM spot
+        WHERE <include refid="verifiedCandidateReview"/>
+        ORDER BY id
     </select>
 
     <select id="findAvailableVerifiedThemes"

@@ -30,7 +30,7 @@ flowchart TB
       Recommendation --> Mapper[MyBatis Mapper XML]
       Other --> Mapper
       Mapper --> DB[(PostgreSQL 17)]
-      Recommendation --> PlaceSources[공원 공공데이터 / TourAPI]
+      Recommendation --> PlaceSources[공원 공공데이터 / TourAPI / TMAP POI]
       Recommendation --> RouteProvider[DrivingRouteProvider 인터페이스]
     end
     RouteProvider -->|tmap 프로필, 앱 키는 환경변수| MapAPI[TMAP API Free]
@@ -65,7 +65,7 @@ GitHub (하나의 저장소)
 ## 4. 핵심 데이터 흐름
 
 1. Android: 출발지(`lat`, `lon`), 시간(분), 테마, 주행 방식(`ROUND_TRIP`/`ONE_WAY`) 입력.
-2. Backend: `public-data` 프로필이면 `SPOT`의 VERIFIED 후보와 공원 공공데이터·TourAPI 후보를 합쳐 직선거리 안에서 최대 50건을 반환. 외부 원천 장애 시 DB 후보로 축소하고 출발 좌표는 저장하지 않음.
+2. Backend: `public-data,tmap` 프로필이면 공원 공공데이터·TourAPI·TMAP 주변 POI를 우선 조회하고 `SPOT`의 VERIFIED 보정/fallback 후보와 합쳐 직선거리 안에서 최대 50건을 반환. 출발 좌표는 저장하지 않음.
 3. Android: 사용자가 후보를 고르면 30분 유효 `candidateToken`을 추천 API에 전달. 토큰은 서버 메모리에만 있고 재시작·만료 시 다시 조회해야 함.
 4. Backend: 선택 토큰이 있으면 해당 장소 한 곳만, 없으면 기존 상위 `SPOT` 단일·조합 후보를 실제 자동차 경로 API로 조회.
 5. Backend: 예상 주행시간, 경관 적합성, 중복 구간을 기준으로 점수화. 과거 방문 이력 활용은 P1 검토.
@@ -98,14 +98,14 @@ MyBatis SQL은 Mapper XML에 둔다. 데이터 모델과 API DTO를 혼용하지
 
 ## 6. 데이터 저장 설계 (아직 확정하지 않은 논리 모델)
 
-- `SPOT`: 명소 기본 정보, 좌표, 테마, 검수 상태와 원본·이용허락·품질 근거. 출처와 세 품질 점수가 완전한 VERIFIED 행만 추천에 사용하며, V6부터 불완전한 레거시 행은 PENDING으로 전환해 DB 제약 전체를 검증함.
+- `SPOT`: 외부 원천의 분류 오류를 수동 보정하거나 제외하고 외부 장애 시 fallback할 장소만 저장. 외부 API 목록의 복제 저장소로 사용하지 않으며, 출처와 세 품질 점수가 완전한 VERIFIED 행만 추천에 사용함. V8에서 초기 관광지 PoC 13건을 제거함.
 - `SCENIC_SEGMENT`: 실제 운전 중 경관을 감상할 수 있는 검수 도로/경유 좌표.
 - `ROUTE_TEMPLATE`, `ROUTE_STOP`: 검수 코스 후보 / 순서.
 - `TMAP_DAILY_CALL_USAGE`: 서울 날짜별 외부 호출 예약 건수. 앱 키·좌표·경로·응답은 저장하지 않음.
 - `APP_USER`, `DRIVE_TRIP`: P1. 익명 계정·드라이브 이력 저장 범위 확정 후 생성.
 - 인덱스: 테마+지역+좌표 후보 검색 패턴을 먼저 측정한 뒤 결정. 공간 검색 증가 시 PostGIS 검토.
 - TMAP 경로 API 응답 원본은 영구 저장하지 않는다. 약관의 24시간 사용 제한보다 보수적으로 요청 처리 중 메모리에서만 사용한다.
-- TourAPI 위치기반 후보는 같은 좌표·반경의 테마 전환에 한해 기본 10분 메모리 캐시를 사용한다. 캐시 키에는 원시 출발 좌표를 넣지 않고 SHA-256 해시만 사용하며 최대 64개, 24시간 미만 TTL로 제한한다.
+- TourAPI와 TMAP 주변 POI 후보는 짧은 수명 메모리 캐시만 사용한다. 캐시 키에는 원시 출발 좌표를 넣지 않고 SHA-256 해시만 사용하며 24시간 미만 TTL로 제한한다.
 - 수동 검수 후보 등록은 공개 관리 API를 만들지 않고 `candidate-import` 프로필의 로컬 JSON 가져오기로 제한한다. 실제 파일은 Git에서 제외하고 전체 검증 후 한 트랜잭션으로 반영한다.
 
 ## 7. 추천 및 경로 계산

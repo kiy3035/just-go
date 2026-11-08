@@ -243,7 +243,7 @@ components:
             $ref: '#/components/schemas/CandidatePlaceResponse'
     CandidatePlaceResponse:
       type: object
-      required: [candidateToken, name, theme, latitude, longitude, straightLineDistanceMeters, source]
+      required: [candidateToken, name, theme, latitude, longitude, straightLineDistanceMeters, source, sourceCategory]
       properties:
         candidateToken:
           type: string
@@ -267,7 +267,12 @@ components:
           description: 후보 축소·정렬용 직선거리이며 실제 자동차 경로 거리가 아닙니다.
         source:
           type: string
-          enum: [VERIFIED_DB, PUBLIC_PARK, TOUR_API]
+          enum: [VERIFIED_DB, PUBLIC_PARK, TOUR_API, TMAP_POI]
+        sourceCategory:
+          type: string
+          description: >-
+            원천이 제공한 공식 분류값입니다. 화면 테마는 이 값을 명시적 매핑한 결과이며
+            장소명 키워드로 재분류하지 않습니다.
     SpotCandidateResponse:
       type: object
       required: [id, name, theme, latitude, longitude]

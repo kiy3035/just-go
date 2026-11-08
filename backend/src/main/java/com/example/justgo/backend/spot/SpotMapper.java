@@ -71,6 +71,9 @@ public interface SpotMapper {
             @Param("maxDistanceMeters") long maxDistanceMeters,
             @Param("limit") int limit);
 
+    /** 테마와 무관하게 검수된 수동 보정·제외 규칙을 조회합니다. */
+    List<SpotCandidateOverrideRecord> findCandidateOverrides();
+
     /** 검수·출처·품질 조건을 모두 만족하는 후보가 있는 테마만 조회합니다. */
     List<ScenicTheme> findAvailableVerifiedThemes();
 }

@@ -13,7 +13,20 @@ public record SpotCandidateRecord(
         BigDecimal latitude,
         BigDecimal longitude,
         String source,
-        int selectionPriority) {
+        int selectionPriority,
+        String sourceCategory) {
+
+    /** 원천 분류가 없는 기존 호출부는 내부 테마명을 출처 분류로 명시합니다. */
+    public SpotCandidateRecord(
+            Long id,
+            String name,
+            ScenicTheme theme,
+            BigDecimal latitude,
+            BigDecimal longitude,
+            String source,
+            int selectionPriority) {
+        this(id, name, theme, latitude, longitude, source, selectionPriority, theme.name());
+    }
 
     /** 외부 원천이 별도 우선순위를 제공하지 않으면 거리 정렬과 같은 기본 등급을 사용합니다. */
     public SpotCandidateRecord(
@@ -23,7 +36,19 @@ public record SpotCandidateRecord(
             BigDecimal latitude,
             BigDecimal longitude,
             String source) {
-        this(id, name, theme, latitude, longitude, source, 0);
+        this(id, name, theme, latitude, longitude, source, 0, theme.name());
+    }
+
+    /** 외부 원천이 제공한 공식 분류명을 보존합니다. */
+    public SpotCandidateRecord(
+            Long id,
+            String name,
+            ScenicTheme theme,
+            BigDecimal latitude,
+            BigDecimal longitude,
+            String source,
+            String sourceCategory) {
+        this(id, name, theme, latitude, longitude, source, 0, sourceCategory);
     }
 
     /** 기존 DB Mapper와 테스트는 명시적으로 검수 DB 출처를 사용합니다. */
@@ -33,6 +58,6 @@ public record SpotCandidateRecord(
             ScenicTheme theme,
             BigDecimal latitude,
             BigDecimal longitude) {
-        this(id, name, theme, latitude, longitude, "VERIFIED_DB", 0);
+        this(id, name, theme, latitude, longitude, "VERIFIED_DB", 0, "MANUAL_VERIFIED");
     }
 }

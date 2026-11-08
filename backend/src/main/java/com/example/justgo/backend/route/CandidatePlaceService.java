@@ -54,7 +54,8 @@ public class CandidatePlaceService {
                                 longitude,
                                 candidate.latitude(),
                                 candidate.longitude()),
-                        candidate.source()))
+                        candidate.source(),
+                        candidate.sourceCategory()))
                 .toList();
         return new CandidatePlaceListResponse(
                 theme,

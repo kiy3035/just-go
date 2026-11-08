@@ -37,6 +37,17 @@ public class TmapClientProperties {
     @Max(100)
     private int dailyCallLimit = 90;
 
+    @NotNull
+    private Duration poiCacheTtl = Duration.ofMinutes(10);
+
+    @Min(1)
+    @Max(33)
+    private int poiRadiusKm = 33;
+
+    @Min(1)
+    @Max(200)
+    private int poiPageSize = 100;
+
     public String getBaseUrl() {
         return baseUrl;
     }
@@ -75,5 +86,29 @@ public class TmapClientProperties {
 
     public void setDailyCallLimit(int dailyCallLimit) {
         this.dailyCallLimit = dailyCallLimit;
+    }
+
+    public Duration getPoiCacheTtl() {
+        return poiCacheTtl;
+    }
+
+    public void setPoiCacheTtl(Duration poiCacheTtl) {
+        this.poiCacheTtl = poiCacheTtl;
+    }
+
+    public int getPoiRadiusKm() {
+        return poiRadiusKm;
+    }
+
+    public void setPoiRadiusKm(int poiRadiusKm) {
+        this.poiRadiusKm = poiRadiusKm;
+    }
+
+    public int getPoiPageSize() {
+        return poiPageSize;
+    }
+
+    public void setPoiPageSize(int poiPageSize) {
+        this.poiPageSize = poiPageSize;
     }
 }

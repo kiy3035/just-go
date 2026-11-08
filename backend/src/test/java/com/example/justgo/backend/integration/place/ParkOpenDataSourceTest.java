@@ -44,6 +44,7 @@ class ParkOpenDataSourceTest {
                               {
                                 "manageNo": "PARK-1",
                                 "parkNm": "NEAR_PARK_TEST_ONLY",
+                                "parkSe": "근린공원",
                                 "latitude": "37.566500",
                                 "longitude": "126.978000"
                               },
@@ -69,6 +70,7 @@ class ParkOpenDataSourceTest {
             assertThat(candidate.name()).isEqualTo("NEAR_PARK_TEST_ONLY");
             assertThat(candidate.theme()).isEqualTo(ScenicTheme.PARK);
             assertThat(candidate.source()).isEqualTo("PUBLIC_PARK");
+            assertThat(candidate.sourceCategory()).isEqualTo("근린공원");
             assertThat(candidate.id()).isNegative();
         });
         server.verify();

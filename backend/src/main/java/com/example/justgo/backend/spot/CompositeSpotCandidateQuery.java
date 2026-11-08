@@ -49,6 +49,14 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
             BigDecimal originLongitude,
             long maxDistanceMeters,
             int limit) {
+        Map<String, SpotCandidateOverrideRecord> overrides = verifiedSpotService
+                .loadCandidateOverrides()
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        override -> normalizedName(override.name()),
+                        override -> override,
+                        (first, ignored) -> first,
+                        LinkedHashMap::new));
         List<SpotCandidateRecord> combined = new ArrayList<>(
                 verifiedSpotService.loadNearbyVerifiedCandidates(
                         theme, originLatitude, originLongitude, maxDistanceMeters, limit));
@@ -70,16 +78,10 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
         }
 
         LinkedHashMap<String, SpotCandidateRecord> unique = new LinkedHashMap<>();
-        Set<String> verifiedNames = combined.stream()
-                .filter(candidate -> candidate != null && "VERIFIED_DB".equals(candidate.source()))
-                .filter(candidate -> candidate.name() != null)
-                .map(candidate -> normalizedName(candidate.name()))
-                .collect(java.util.stream.Collectors.toUnmodifiableSet());
         combined.stream()
                 .filter(candidate -> candidate != null && theme.includes(candidate.theme()))
                 .filter(this::hasValidCoordinate)
-                .filter(candidate -> "VERIFIED_DB".equals(candidate.source())
-                        || !verifiedNames.contains(normalizedName(candidate.name())))
+                .filter(candidate -> isAllowedByOverride(candidate, overrides))
                 .filter(candidate -> ScenicPlaceDistance.meters(
                         originLatitude,
                         originLongitude,
@@ -100,6 +102,17 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
         return theme == ScenicTheme.ANYWHERE || theme == ScenicTheme.WATER
                 ? diversifyThemes(ordered, theme, limit)
                 : ordered.stream().limit(limit).toList();
+    }
+
+    /** 비활성 검수 행은 같은 이름의 외부 후보를 제외하고, 활성 행은 DB 보정본만 남깁니다. */
+    private boolean isAllowedByOverride(
+            SpotCandidateRecord candidate,
+            Map<String, SpotCandidateOverrideRecord> overrides) {
+        SpotCandidateOverrideRecord override = overrides.get(normalizedName(candidate.name()));
+        if (override == null) {
+            return true;
+        }
+        return override.enabled() && "VERIFIED_DB".equals(candidate.source());
     }
 
     @Override
@@ -131,23 +144,15 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
     }
 
     private int sourcePriority(SpotCandidateRecord candidate) {
-        return "VERIFIED_DB".equals(candidate.source()) ? 0 : 1;
+        return "VERIFIED_DB".equals(candidate.source()) ? 1 : 0;
     }
 
-    /** 어디든·강/호수에서는 한 테마가 외부 후보 목록을 독점하지 않도록 번갈아 채웁니다. */
+    /** 어디든·강/호수에서는 원천과 무관하게 한 테마가 목록을 독점하지 않도록 번갈아 채웁니다. */
     private List<SpotCandidateRecord> diversifyThemes(
             List<SpotCandidateRecord> ordered,
             ScenicTheme requestedTheme,
             int limit) {
         List<SpotCandidateRecord> result = new ArrayList<>();
-        ordered.stream()
-                .filter(candidate -> "VERIFIED_DB".equals(candidate.source()))
-                .limit(limit)
-                .forEach(result::add);
-        if (result.size() >= limit) {
-            return List.copyOf(result);
-        }
-
         List<ScenicTheme> themeOrder = requestedTheme == ScenicTheme.WATER
                 ? List.of(ScenicTheme.RIVER, ScenicTheme.LAKE)
                 : List.of(
@@ -159,14 +164,12 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
                         ScenicTheme.PARK);
         Map<ScenicTheme, Deque<SpotCandidateRecord>> queues = new EnumMap<>(ScenicTheme.class);
         themeOrder.forEach(theme -> queues.put(theme, new ArrayDeque<>()));
-        ordered.stream()
-                .filter(candidate -> !"VERIFIED_DB".equals(candidate.source()))
-                .forEach(candidate -> {
-                    Deque<SpotCandidateRecord> queue = queues.get(candidate.theme());
-                    if (queue != null) {
-                        queue.addLast(candidate);
-                    }
-                });
+        ordered.forEach(candidate -> {
+            Deque<SpotCandidateRecord> queue = queues.get(candidate.theme());
+            if (queue != null) {
+                queue.addLast(candidate);
+            }
+        });
 
         boolean added;
         do {

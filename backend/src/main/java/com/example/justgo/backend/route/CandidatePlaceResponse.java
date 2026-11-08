@@ -12,5 +12,6 @@ public record CandidatePlaceResponse(
         BigDecimal latitude,
         BigDecimal longitude,
         long straightLineDistanceMeters,
-        String source) {
+        String source,
+        String sourceCategory) {
 }

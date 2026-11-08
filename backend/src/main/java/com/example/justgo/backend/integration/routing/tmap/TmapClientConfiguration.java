@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.ZoneId;
 
+import com.example.justgo.backend.integration.place.TmapPoiPlaceSource;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -46,6 +47,30 @@ public class TmapClientConfiguration {
                 new PersistentTmapDailyCallLimiter(
                         properties.getDailyCallLimit(), clock, callUsageMapper),
                 clock);
+    }
+
+    /** 공식 주변 카테고리를 장소 후보 원천으로 제공하되 경로 호출량과는 분리합니다. */
+    @Bean
+    TmapPoiPlaceSource tmapPoiPlaceSource(
+            RestClient.Builder restClientBuilder,
+            TmapClientProperties properties) {
+        validateTimeout(properties.getConnectTimeout(), "connect timeout");
+        validateTimeout(properties.getReadTimeout(), "read timeout");
+        if (properties.getPoiCacheTtl() == null
+                || properties.getPoiCacheTtl().isZero()
+                || properties.getPoiCacheTtl().isNegative()
+                || properties.getPoiCacheTtl().compareTo(Duration.ofHours(23)) > 0) {
+            throw new IllegalArgumentException("TMAP POI 캐시 TTL은 0초 초과 23시간 이하여야 합니다.");
+        }
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(properties.getConnectTimeout());
+        requestFactory.setReadTimeout(properties.getReadTimeout());
+        RestClient restClient = restClientBuilder
+                .baseUrl(properties.getBaseUrl())
+                .requestFactory(requestFactory)
+                .defaultHeader("appKey", properties.getAppKey())
+                .build();
+        return new TmapPoiPlaceSource(restClient, properties, Clock.systemUTC());
     }
 
     /**

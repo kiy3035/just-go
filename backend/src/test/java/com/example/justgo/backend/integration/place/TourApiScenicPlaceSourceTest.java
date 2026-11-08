@@ -56,6 +56,8 @@ class TourApiScenicPlaceSourceTest {
                                     "contentid": "CITY-1",
                                     "contenttypeid": "14",
                                     "title": "도시박물관 테스트",
+                                    "lclsSystm2": "VE07",
+                                    "lclsSystm3": "VE070100",
                                     "mapx": "126.981000",
                                     "mapy": "37.569000"
                                   }
@@ -77,6 +79,7 @@ class TourApiScenicPlaceSourceTest {
             assertThat(candidate.name()).contains("자연전망대");
             assertThat(candidate.theme()).isEqualTo(ScenicTheme.SEA);
             assertThat(candidate.source()).isEqualTo("TOUR_API");
+            assertThat(candidate.sourceCategory()).isEqualTo("NA02/NA020800");
         });
         var cityResultFromSameCachedResponse = source.findNearby(
                 ScenicTheme.CITY,
@@ -87,6 +90,45 @@ class TourApiScenicPlaceSourceTest {
         assertThat(cityResultFromSameCachedResponse).singleElement()
                 .extracting(candidate -> candidate.name())
                 .isEqualTo("도시박물관 테스트");
+        server.verify();
+    }
+
+    @Test
+    void excludesUnclassifiedItemsInsteadOfGuessingFromTheirNames() {
+        RestClient.Builder builder = RestClient.builder().baseUrl(BASE_URL);
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        PublicDataProperties properties = new PublicDataProperties();
+        properties.setParkApiKey("TEST_KEY_ONLY");
+        properties.setTourApiKey("TEST_KEY_ONLY");
+        TourApiScenicPlaceSource source = new TourApiScenicPlaceSource(
+                builder.build(), properties);
+
+        server.expect(requestTo(org.hamcrest.Matchers.containsString("/locationBasedList2?")))
+                .andRespond(withSuccess("""
+                        {
+                          "response": {
+                            "header": {"resultCode": "0000"},
+                            "body": {
+                              "items": {
+                                "item": [{
+                                  "contentid": "LEGACY-1",
+                                  "contenttypeid": "12",
+                                  "title": "이름만 호수공원인 미분류 장소",
+                                  "mapx": "126.980000",
+                                  "mapy": "37.568000"
+                                }]
+                              }
+                            }
+                          }
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        assertThat(source.findNearby(
+                ScenicTheme.ANYWHERE,
+                new BigDecimal("37.566500"),
+                new BigDecimal("126.978000"),
+                20_000,
+                20)).isEmpty();
         server.verify();
     }
 
