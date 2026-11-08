@@ -8,45 +8,27 @@ import com.example.justgo.backend.integration.routing.DrivingRouteCandidate;
 import com.example.justgo.backend.spot.ScenicTheme;
 import org.junit.jupiter.api.Test;
 
-/** 희망 시간 허용 오차와 안정적인 추천 순서를 검증합니다. */
+/** 실제 계산 경로를 숨기지 않는 안정적인 추천 순서를 검증합니다. */
 class RouteRecommendationPolicyTest {
 
     private final RouteRecommendationPolicy policy = new RouteRecommendationPolicy();
 
-    /** 60분 기준 기본 비대칭 경계값 48~69분만 허용되는지 확인합니다. */
+    /** 희망 시간에서 멀리 벗어난 경로도 시간 차이가 가까운 순으로 모두 유지합니다. */
     @Test
-    void keepsCandidatesWithinDefaultAsymmetricDurationTolerance() {
-        var ranked = policy.rankWithinDurationTolerance(60, List.of(
-                candidate("TOO_SHORT", 47, 1_000),
-                candidate("LOWER_BOUND", 48, 2_000),
-                candidate("UPPER_BOUND", 69, 3_000),
-                candidate("TOO_LONG", 70, 4_000)));
+    void keepsCalculatedCandidatesOutsideFormerDurationTolerance() {
+        var ranked = policy.rankByDurationProximity(60, List.of(
+                candidate("LONG", 123, 2_000),
+                candidate("NEAR", 90, 1_000)));
 
         assertThat(ranked)
                 .extracting(DrivingRouteCandidate::routeId)
-                .containsExactly("UPPER_BOUND", "LOWER_BOUND");
-    }
-
-    /** 환경별 비율을 적용해 하한과 상한을 독립적으로 조정할 수 있는지 확인합니다. */
-    @Test
-    void appliesConfiguredUnderrunAndOverrunPercentages() {
-        var configuredPolicy = new RouteRecommendationPolicy(10, 5);
-
-        var ranked = configuredPolicy.rankWithinDurationTolerance(60, List.of(
-                candidate("TOO_SHORT", 53, 1_000),
-                candidate("LOWER_BOUND", 54, 2_000),
-                candidate("UPPER_BOUND", 63, 3_000),
-                candidate("TOO_LONG", 64, 4_000)));
-
-        assertThat(ranked)
-                .extracting(DrivingRouteCandidate::routeId)
-                .containsExactly("UPPER_BOUND", "LOWER_BOUND");
+                .containsExactly("NEAR", "LONG");
     }
 
     /** 목표 시간 차이와 거리로 정렬한 뒤 최대 세 건만 반환하는지 확인합니다. */
     @Test
     void sortsByDurationDifferenceAndDistanceThenLimitsToThree() {
-        var ranked = policy.rankWithinDurationTolerance(60, List.of(
+        var ranked = policy.rankByDurationProximity(60, List.of(
                 candidate("FARTHER_DISTANCE", 63, 9_000),
                 candidate("EXACT", 60, 8_000),
                 candidate("THIRD", 65, 1_000),
@@ -60,7 +42,7 @@ class RouteRecommendationPolicyTest {
     /** 시간 차이가 같으면 중복 주행 비율이 낮은 왕복 후보를 거리보다 먼저 선택합니다. */
     @Test
     void prefersLowerRepeatedSegmentPercentForEqualDurationDifference() {
-        var ranked = policy.rankWithinDurationTolerance(60, List.of(
+        var ranked = policy.rankByDurationProximity(60, List.of(
                 candidate("UNKNOWN_SHAPE", 60, 1_000, null),
                 candidate("HIGH_REPEAT", 60, 2_000, 45),
                 candidate("LOW_REPEAT", 60, 9_000, 10)));
@@ -68,19 +50,6 @@ class RouteRecommendationPolicyTest {
         assertThat(ranked)
                 .extracting(DrivingRouteCandidate::routeId)
                 .containsExactly("LOW_REPEAT", "HIGH_REPEAT", "UNKNOWN_SHAPE");
-    }
-
-    /** 실제 후보 시간을 지원 범위의 5분 단위로 중복 없이 제안하는지 확인합니다. */
-    @Test
-    void suggestsNearestSupportedDurationsFromCalculatedCandidates() {
-        var suggestions = policy.suggestAlternativeDurations(60, List.of(
-                candidate("NEAR_90_A", 88, 1_000),
-                candidate("NEAR_90_B", 91, 2_000),
-                candidate("NEAR_125", 123, 3_000),
-                candidate("SAME", 60, 4_000),
-                candidate("OUT_OF_RANGE", 241, 5_000)));
-
-        assertThat(suggestions).containsExactly(90, 125);
     }
 
     /** 테스트 전용 후보를 명백한 가짜 값으로 생성합니다. */

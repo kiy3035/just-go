@@ -2,7 +2,7 @@
 
 `just go`는 출발지, 희망 주행 시간, 풍경 테마를 바탕으로 드라이브 코스를 추천하는 Pleos Connect 차량용 앱 프로젝트입니다.
 
-초기 0~3단계 백엔드·인프라 구성 이후, 드라이브 조건을 고르는 반응형 웹 화면 시안과 추천 요청 API 초안을 추가했습니다. 외부 자동차 경로는 TMAP API Free로 결정했고 왕복·편도 Provider, 출발지·희망 시간 기반 후보 거리 필터, 설정 가능한 -20%~+15% 목표 시간 추천, 검수 후보가 있는 대체 풍경 제안, 수동 경관 후보 품질 점수와 왕복 선분 중복률까지 구현했습니다. 서울·수도권 총 13건의 초기 후보는 Git 제외 로컬 파일로 준비하고 PostgreSQL 등록·중복 검증을 마쳤습니다. Android Java/XML 화면 골격은 일반 Automotive API 34 에뮬레이터에서 실행했으나 실제 API·Pleos 연동은 아직 구현하지 않았습니다. TMAP Free 상품 활성화 후 실제 일반 자동차·다중 경유지 요청의 LIVE 처리를 확인했으며, 실주행 기반 순환 품질 조정은 아직 남아 있습니다.
+초기 0~3단계 백엔드·인프라 구성 이후, 드라이브 조건을 고르는 반응형 웹 화면 시안과 추천 요청 API 초안을 추가했습니다. 외부 자동차 경로는 TMAP API Free로 결정했고 왕복·편도 Provider, 출발지·희망 시간 기반 후보 거리 필터, 실제 계산 경로의 시간 근접도 정렬, 검수 후보가 있는 대체 풍경 제안, 수동 경관 후보 품질 점수와 왕복 선분 중복률까지 구현했습니다. 서울·수도권 총 13건의 초기 후보는 Git 제외 로컬 파일로 준비하고 PostgreSQL 등록·중복 검증을 마쳤습니다. Android Java/XML 화면 골격은 일반 Automotive API 34 에뮬레이터에서 실행했으나 실제 API·Pleos 연동은 아직 구현하지 않았습니다. TMAP Free 상품 활성화 후 실제 일반 자동차·다중 경유지 요청의 LIVE 처리를 확인했으며, 실주행 기반 순환 품질 조정은 아직 남아 있습니다.
 
 현재 완료·보류·차단 항목과 다음 작업은 [`docs/progress.md`](docs/progress.md)에서 확인합니다. 실제 실행 명령과 검증 이력은 [`docs/setup-report.md`](docs/setup-report.md)에 날짜순으로 기록합니다. 외부 경로 업체의 공식 가격·쿼터·제약 비교는 [`docs/routing-provider-comparison.md`](docs/routing-provider-comparison.md), 키·쿼터·공개 배포 보호 기준은 [`docs/security.md`](docs/security.md), 실제 경관 후보의 출처·이용권한 기준은 [`docs/scenic-data-policy.md`](docs/scenic-data-policy.md), 1~5점 품질 평가표는 [`docs/scenic-quality-rubric.md`](docs/scenic-quality-rubric.md), 로컬 후보 등록 절차는 [`docs/scenic-candidate-import.md`](docs/scenic-candidate-import.md), 왕복 선형 분석 기준은 [`docs/route-shape-quality.md`](docs/route-shape-quality.md)에 정리했습니다.
 
@@ -97,7 +97,7 @@ $env:SERVER_PORT = "18080"
 
 풍경 테마별 검수 완료 장소 후보는 `GET /api/v1/spots?theme=RIVER&limit=10`으로 확인합니다. 이 API는 DB에서 `VERIFIED`, 활성, 좌표 등록 조건을 모두 만족하는 장소만 반환합니다. 실제 장소 시드는 검수와 사용권 확인 전까지 저장소에 포함하지 않습니다.
 
-추천 서비스는 같은 검수 조건의 장소 후보를 최대 20건 조회해 `DrivingRouteProvider` 요청에 전달합니다. `tmap` Provider는 무료 쿼터 보호를 위해 품질 우선순위가 높은 후보 두 곳의 단일 경로 2건과 두 곳을 잇는 조합 경로 1건만 계산합니다. LIVE 결과는 기본적으로 희망 시간보다 최대 20% 짧고 15% 긴 범위에서 시간 차이·거리·경로 ID 순으로 정렬합니다. `ROUTE_ALLOWED_UNDERRUN_PERCENT`, `ROUTE_ALLOWED_OVERRUN_PERCENT`로 환경별 조정할 수 있습니다. 맞는 후보가 없으면 가짜 코스 대신 실제 계산 후보 시간을 5분 단위로 맞춘 가까운 재검색 조건을 `suggestions`에 최대 3건 반환합니다. 각 LIVE 코스에는 Android가 내비 전달에 사용할 순서·역할·이름·WGS84 좌표의 `stops` 목록이 포함되고, MOCK은 가짜 좌표와 제안 없이 빈 목록을 반환합니다.
+추천 서비스는 같은 검수 조건의 장소 후보를 최대 20건 조회해 `DrivingRouteProvider` 요청에 전달합니다. `tmap` Provider는 무료 쿼터 보호를 위해 품질 우선순위가 높은 후보 두 곳의 단일 경로 2건과 두 곳을 잇는 조합 경로 1건만 계산합니다. LIVE 결과는 희망 시간과 차이가 크더라도 숨기지 않고 시간 차이·왕복 중복률·거리·경로 ID 순으로 최대 3건을 반환합니다. 선택 풍경에 검수 후보가 없을 때만 후보가 있는 다른 풍경을 `suggestions`에 최대 3건 반환합니다. 각 LIVE 코스에는 Android가 내비 전달에 사용할 순서·역할·이름·WGS84 좌표의 `stops` 목록이 포함되고, MOCK은 가짜 좌표와 제안 없이 빈 목록을 반환합니다.
 
 ### TMAP Provider 준비
 
