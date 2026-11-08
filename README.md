@@ -111,6 +111,8 @@ $env:SERVER_PORT = "18080"
 
 백엔드는 실행 디렉터리의 `backend/.env`를 선택적으로 읽습니다. `.env.example`을 복사한 뒤 로컬 실행에는 DB 비밀번호, TMAP 앱 키, 공원 API와 TourAPI의 키·엔드포인트를 입력하고, 공개 `production` 실행에는 별도 추천 API 접근 토큰도 입력합니다. 실제 `.env`는 Git에서 제외되며 저장소에는 예시 파일만 둡니다. 공원 URL은 전체 엔드포인트와 기본 URL을 모두 허용하고, TourAPI URL도 `locationBasedList2` 포함 여부를 자동 정규화합니다.
 
+최종 통합·화면 캡처는 김인영 PC 한 대에서 PostgreSQL, 백엔드, Android Studio와 Pleos Emulator를 모두 실행합니다. 정도혜는 프론트 코드만 Git으로 전달하며 DB 비밀번호, TMAP·공공데이터 키, `.env` 파일을 공유하지 않습니다. 같은 위치·주행 조건에서 테마만 바꾸는 TourAPI 결과는 원시 위치 대신 SHA-256 해시 키로 기본 10분간 메모리에서 재사용해 탭 전환 호출량을 줄입니다.
+
 ```powershell
 cd C:\myProject\just-go\backend
 Copy-Item .env.example .env
