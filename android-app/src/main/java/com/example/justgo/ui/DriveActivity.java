@@ -45,6 +45,7 @@ import java.util.concurrent.Executors;
 
 public final class DriveActivity extends Activity {
     private static final String SEARCH_PROMPT = "이 조건으로 코스 찾기 →";
+    private static final int CANDIDATE_LIMIT = 50;
     private static final int LOCATION_PERMISSION_REQUEST = 1;
     private static final long PREFETCHED_LOCATION_MAX_AGE_NANOS = 30_000_000_000L;
     private final ExecutorService routeExecutor = Executors.newSingleThreadExecutor();
@@ -55,6 +56,7 @@ public final class DriveActivity extends Activity {
     private NavigationGateway navigationGateway;
     private DrivingRestrictionsMonitor restrictionsMonitor;
     private RouteRecommendationClient.Route selectedRoute;
+    private RouteRecommendationClient.Candidate selectedCandidate;
     private boolean navigationConnectionFailed;
     private boolean drivingRestricted;
     private boolean searchInProgress;
@@ -252,7 +254,7 @@ public final class DriveActivity extends Activity {
         binding.findRoute.setText("현재 위치를 확인하고 있어요…");
         Location location = freshPrefetchedLocation();
         if (location != null) {
-            requestRecommendations(location.getLatitude(), location.getLongitude(),
+            requestCandidates(location.getLatitude(), location.getLongitude(),
                     minutes, roundTrip, theme);
             return;
         }
@@ -260,7 +262,7 @@ public final class DriveActivity extends Activity {
             @Override public void onLocation(Location location) {
                 if (binding == null) return;
                 prefetchedLocation = location;
-                requestRecommendations(location.getLatitude(), location.getLongitude(),
+                requestCandidates(location.getLatitude(), location.getLongitude(),
                         minutes, roundTrip, theme);
             }
 
@@ -270,13 +272,49 @@ public final class DriveActivity extends Activity {
         });
     }
 
-    private void requestRecommendations(double latitude, double longitude, int minutes,
-                                        boolean roundTrip, String theme) {
+    private void requestCandidates(double latitude, double longitude, int minutes,
+                                   boolean roundTrip, String theme) {
         String tripType = roundTrip ? "ROUND_TRIP" : "ONE_WAY";
         String conditions = (roundTrip ? "왕복" : "편도") + " · " + minutes + "분 · " + themeLabel(theme);
+        CandidateSearchContext context = new CandidateSearchContext(
+                latitude, longitude, minutes, tripType, theme, conditions);
+        showSearchProgress("갈 만한 장소를 찾고 있어요…   ", conditions);
+        routeExecutor.execute(() -> {
+            try {
+                RouteRecommendationClient.CandidateList candidates = routeClient.findCandidates(
+                        latitude, longitude, minutes, tripType, theme, CANDIDATE_LIMIT);
+                runOnUiThread(() -> {
+                    if (binding != null) showCandidates(context, candidates);
+                });
+            } catch (IOException error) {
+                showRequestError("장소 조회 실패", conditions, error);
+            }
+        });
+    }
+
+    private void requestRecommendations(CandidateSearchContext context,
+                                        RouteRecommendationClient.Candidate candidate) {
+        dismissResult();
+        searchInProgress = true;
+        showSearchProgress("선택한 장소의 코스를 계산하고 있어요…   ", context.conditions());
+        String resultConditions = context.conditions() + "\n목적지 · " + candidate.name();
+        routeExecutor.execute(() -> {
+            try {
+                Recommendation result = routeClient.recommend(
+                        context.latitude(), context.longitude(), context.minutes(),
+                        context.tripType(), context.theme(), candidate.token());
+                runOnUiThread(() -> {
+                    if (binding != null) showRecommendation(resultConditions, result);
+                });
+            } catch (IOException error) {
+                showRequestError("추천 요청 실패", resultConditions, error);
+            }
+        });
+    }
+
+    private void showSearchProgress(String prefix, String conditions) {
         binding.findRoute.setActivated(true);
         binding.findRoute.setEnabled(false);
-        String prefix = "좋은 길을 찾고 있어요…   ";
         SpannableString label = new SpannableString(prefix + conditions);
         // 로딩 중에도 선택 조건의 굵기를 유지하고 크기와 색상만 낮춘다.
         label.setSpan(new StyleSpan(Typeface.BOLD), prefix.length(), label.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -284,23 +322,14 @@ public final class DriveActivity extends Activity {
         label.setSpan(new ForegroundColorSpan(0xFFD8E8FF), prefix.length(), label.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         binding.findRoute.setText(label);
         binding.findRoute.setContentDescription(prefix + conditions);
-        routeExecutor.execute(() -> {
-            try {
-                Recommendation result = routeClient.recommend(latitude, longitude, minutes,
-                        tripType, theme);
-                runOnUiThread(() -> {
-                    if (binding != null) showRecommendation(conditions, result);
-                });
-            } catch (IOException error) {
-                String message = describeError(error);
-                runOnUiThread(() -> {
-                    if (binding != null) {
-                        if (prepareResult("추천 요청 실패", conditions)) {
-                            showResultDetails(message);
-                            showResultDialog();
-                        }
-                    }
-                });
+    }
+
+    private void showRequestError(String title, String conditions, IOException error) {
+        String message = describeError(error);
+        runOnUiThread(() -> {
+            if (binding != null && prepareResult(title, conditions)) {
+                showResultDetails(message);
+                showResultDialog();
             }
         });
     }
@@ -335,6 +364,48 @@ public final class DriveActivity extends Activity {
         navigationGateway.release();
         binding = null;
         super.onDestroy();
+    }
+
+    private void showCandidates(CandidateSearchContext context,
+                                RouteRecommendationClient.CandidateList result) {
+        if (result.candidates().isEmpty()) {
+            renderResult("주변 장소를 찾지 못했어요", "시간이나 풍경을 바꿔 다시 검색해 주세요.");
+            return;
+        }
+        if (!prepareResult("어디로 달릴까요?", context.conditions())) return;
+        resultBinding.routeChoices.setOnCheckedChangeListener((group, checkedId) -> {
+            View checked = group.findViewById(checkedId);
+            selectedCandidate = checked == null
+                    ? null
+                    : (RouteRecommendationClient.Candidate) checked.getTag();
+            resultBinding.confirm.setEnabled(selectedCandidate != null && !drivingRestricted);
+        });
+        for (RouteRecommendationClient.Candidate candidate : result.candidates()) {
+            addCandidateChoice(candidate);
+        }
+        resultBinding.cancel.setVisibility(View.VISIBLE);
+        resultBinding.cancel.setText("취소");
+        resultBinding.confirm.setText("이 장소로 코스 찾기");
+        resultBinding.confirm.setEnabled(false);
+        resultBinding.confirm.setOnClickListener(v -> {
+            RouteRecommendationClient.Candidate chosen = selectedCandidate;
+            if (chosen != null) requestRecommendations(context, chosen);
+        });
+        if (result.partial()) {
+            showResultDetails("일부 장소 데이터 연결이 지연되어 현재 확인된 후보만 보여드려요.");
+        } else {
+            showResultDetails("장소를 선택하면 실제 도로 시간과 거리를 계산합니다.");
+        }
+        showResultDialog();
+    }
+
+    private void addCandidateChoice(RouteRecommendationClient.Candidate candidate) {
+        String label = String.format(Locale.KOREA, "%s  ·  %s  ·  %.1f km",
+                candidate.name(), themeLabel(candidate.theme()),
+                candidate.distanceMeters() / 1000.0);
+        RadioButton choice = createResultChoice(label, candidate, true);
+        resultBinding.routeChoices.addView(choice);
+        resultBinding.routeChoices.setVisibility(View.VISIBLE);
     }
 
     private void showRecommendation(String conditions, Recommendation result) {
@@ -378,9 +449,15 @@ public final class DriveActivity extends Activity {
     }
 
     private void addResultChoice(String label, RouteRecommendationClient.Route route, boolean enabled) {
+        RadioButton choice = createResultChoice(label, route, enabled);
+        resultBinding.routeChoices.addView(choice);
+        resultBinding.routeChoices.setVisibility(View.VISIBLE);
+    }
+
+    private RadioButton createResultChoice(String label, Object tag, boolean enabled) {
         RadioButton choice = new RadioButton(this, null, 0, R.style.RouteChoice);
         choice.setId(View.generateViewId());
-        choice.setTag(route);
+        choice.setTag(tag);
         choice.setText(label);
         // Pleos에서 스타일로 생성한 선택 항목의 터치와 포커스를 활성화한다.
         choice.setClickable(true);
@@ -390,8 +467,7 @@ public final class DriveActivity extends Activity {
         choice.setEnabled(enabled);
         choice.setLayoutParams(new RadioGroup.LayoutParams(
                 RadioGroup.LayoutParams.MATCH_PARENT, RadioGroup.LayoutParams.WRAP_CONTENT));
-        resultBinding.routeChoices.addView(choice);
-        resultBinding.routeChoices.setVisibility(View.VISIBLE);
+        return choice;
     }
 
     private void startNavigation() {
@@ -525,6 +601,7 @@ public final class DriveActivity extends Activity {
                 resultDialog = null;
                 resultBinding = null;
                 selectedRoute = null;
+                selectedCandidate = null;
                 resultOffersNavigation = false;
             }
         });
@@ -556,6 +633,7 @@ public final class DriveActivity extends Activity {
         resultDialog = null;
         resultBinding = null;
         selectedRoute = null;
+        selectedCandidate = null;
         resultOffersNavigation = false;
         dialog.dismiss();
     }
@@ -567,4 +645,12 @@ public final class DriveActivity extends Activity {
         out.putString("minutes", binding.customMinutes.getText().toString());
         super.onSaveInstanceState(out);
     }
+
+    private record CandidateSearchContext(
+            double latitude,
+            double longitude,
+            int minutes,
+            String tripType,
+            String theme,
+            String conditions) { }
 }

@@ -12,6 +12,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.example.justgo.backend.integration.routing.tmap.TmapClientProperties;
 import com.example.justgo.backend.spot.ScenicPlaceDistance;
@@ -37,6 +40,8 @@ public class TmapPoiPlaceSource implements ScenicPlaceSource {
     private final TmapClientProperties properties;
     private final Clock clock;
     private final Map<String, PoiCache> cache = new LinkedHashMap<>();
+    private final Map<String, CompletableFuture<List<SpotCandidateRecord>>> inFlightLoads =
+            new ConcurrentHashMap<>();
 
     public TmapPoiPlaceSource(
             RestClient restClient,
@@ -109,30 +114,85 @@ public class TmapPoiPlaceSource implements ScenicPlaceSource {
                 properties.getPoiRadiusKm(),
                 Math.toIntExact((maxDistanceMeters + 999L) / 1000L)));
         String key = cacheKey(categories, latitude, longitude, radiusKm);
+        List<SpotCandidateRecord> cached = cachedValue(key);
+        if (cached != null) {
+            return cached;
+        }
+
+        CompletableFuture<List<SpotCandidateRecord>> current = new CompletableFuture<>();
+        CompletableFuture<List<SpotCandidateRecord>> existing = inFlightLoads.putIfAbsent(
+                key, current);
+        if (existing != null) {
+            return awaitCandidates(existing);
+        }
+
+        try {
+            List<SpotCandidateRecord> cachedAfterRegistration = cachedValue(key);
+            if (cachedAfterRegistration != null) {
+                current.complete(cachedAfterRegistration);
+                return cachedAfterRegistration;
+            }
+            List<SpotCandidateRecord> loaded = loadCandidates(
+                    theme, categories, latitude, longitude, radiusKm);
+            cacheValue(key, loaded);
+            current.complete(loaded);
+            return loaded;
+        } catch (RuntimeException | Error exception) {
+            current.completeExceptionally(exception);
+            throw exception;
+        } finally {
+            inFlightLoads.remove(key, current);
+        }
+    }
+
+    private List<SpotCandidateRecord> cachedValue(String key) {
         Instant now = Instant.now(clock);
         synchronized (cache) {
             cache.entrySet().removeIf(entry -> !entry.getValue().expiresAt().isAfter(now));
             PoiCache cached = cache.get(key);
-            if (cached != null) {
-                return cached.candidates();
-            }
+            return cached == null ? null : cached.candidates();
         }
+    }
 
+    private List<SpotCandidateRecord> loadCandidates(
+            ScenicTheme theme,
+            String categories,
+            BigDecimal latitude,
+            BigDecimal longitude,
+            int radiusKm) {
         JsonNode response = fetch(categories, latitude, longitude, radiusKm);
         List<SpotCandidateRecord> loaded = new ArrayList<>();
         for (JsonNode item : responseItems(response)) {
             toCandidate(item, theme, categories).ifPresent(loaded::add);
         }
-        List<SpotCandidateRecord> immutable = List.copyOf(loaded);
+        return List.copyOf(loaded);
+    }
+
+    private void cacheValue(String key, List<SpotCandidateRecord> candidates) {
         synchronized (cache) {
             while (cache.size() >= MAX_CACHE_ENTRIES) {
                 cache.remove(cache.keySet().iterator().next());
             }
             cache.put(key, new PoiCache(
-                    immutable,
+                    candidates,
                     Instant.now(clock).plus(properties.getPoiCacheTtl())));
         }
-        return immutable;
+    }
+
+    /** 같은 좌표·카테고리의 진행 중 POI 조회를 공유해 외부 호출량을 줄입니다. */
+    private List<SpotCandidateRecord> awaitCandidates(
+            CompletableFuture<List<SpotCandidateRecord>> inFlight) {
+        try {
+            return inFlight.join();
+        } catch (CompletionException exception) {
+            if (exception.getCause() instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            if (exception.getCause() instanceof Error error) {
+                throw error;
+            }
+            throw exception;
+        }
     }
 
     private JsonNode fetch(
