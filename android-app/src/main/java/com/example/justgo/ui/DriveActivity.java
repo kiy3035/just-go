@@ -427,13 +427,22 @@ public final class DriveActivity extends Activity {
             case UNAVAILABLE -> "추천 서비스 연결 실패";
         };
         if (!prepareResult(heading, conditions)) return;
+        if (result.notice() != null && !result.notice().isBlank()) {
+            resultBinding.selectionSummary.setText(conditions + "\n" + result.notice());
+        }
 
         boolean live = result.mode() == RouteRecommendationClient.Mode.LIVE;
         resultOffersNavigation = live;
         for (RouteRecommendationClient.Route route : routes) {
             String name = alternative ? themeLabel(route.theme()) + " · " + route.title() : route.title();
-            addResultChoice(String.format(Locale.KOREA, "%s  ·  %d분  ·  %.1f km",
-                    name, route.minutes(), route.meters() / 1000.0),
+            String repeated = route.repeatedSegmentPercent() == null
+                    ? ""
+                    : "  ·  왕복 중복 " + route.repeatedSegmentPercent() + "%";
+            String reason = route.reason() == null || route.reason().isBlank()
+                    ? ""
+                    : "\n" + route.reason();
+            addResultChoice(String.format(Locale.KOREA, "%s  ·  %d분  ·  %.1f km%s%s",
+                    name, route.minutes(), route.meters() / 1000.0, repeated, reason),
                     route, live && !route.stops().isEmpty());
         }
         if (live) {

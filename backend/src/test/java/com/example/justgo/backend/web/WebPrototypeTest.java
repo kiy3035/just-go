@@ -41,6 +41,7 @@ class WebPrototypeTest {
                     .contains("candidateToken")
                     .contains("AbortController")
                     .contains("CANDIDATE_TIMEOUT_MS", "ROUTE_TIMEOUT_MS")
+                    .contains("repeatedSegmentPercent", "route.reason", "response.notice")
                     .contains("이 장소로 코스 찾기")
                     .doesNotContain("PREVIEW_DURATION_MS");
         }

@@ -204,8 +204,11 @@ public final class RouteRecommendationClient {
                 || (mode != Mode.LIVE && alternativesJson != null && alternativesJson.length() != 0)) {
             throw new InvalidResponse();
         }
-        return new Recommendation(mode, parseRoutes(routesJson),
-                alternativesJson == null ? List.of() : parseRoutes(alternativesJson));
+        return new Recommendation(
+                mode,
+                parseRoutes(routesJson),
+                alternativesJson == null ? List.of() : parseRoutes(alternativesJson),
+                json.optString("notice", ""));
     }
 
     private List<Route> parseRoutes(JSONArray routesJson) throws JSONException, InvalidResponse {
@@ -226,9 +229,17 @@ public final class RouteRecommendationClient {
                         stop.getString("name"), latitude, longitude));
             }
             stops.sort(Comparator.comparingInt(Stop::sequence));
+            Integer repeatedSegmentPercent = route.isNull("repeatedSegmentPercent")
+                    ? null
+                    : route.getInt("repeatedSegmentPercent");
+            if (repeatedSegmentPercent != null
+                    && (repeatedSegmentPercent < 0 || repeatedSegmentPercent > 100)) {
+                throw new InvalidResponse();
+            }
             routes.add(new Route(route.getString("routeId"), route.getString("title"),
                     route.getInt("estimatedMinutes"), route.getLong("distanceMeters"),
-                    route.getString("theme"), stops));
+                    route.getString("theme"), repeatedSegmentPercent, List.copyOf(stops),
+                    route.optString("reason", "")));
         }
         return routes;
     }
@@ -244,8 +255,10 @@ public final class RouteRecommendationClient {
     public record Stop(int sequence, StopType type, String name,
                        double latitude, double longitude) { }
     public record Route(String routeId, String title, int minutes, long meters,
-                        String theme, List<Stop> stops) { }
-    public record Recommendation(Mode mode, List<Route> routes, List<Route> alternativeRoutes) { }
+                        String theme, Integer repeatedSegmentPercent,
+                        List<Stop> stops, String reason) { }
+    public record Recommendation(Mode mode, List<Route> routes,
+                                 List<Route> alternativeRoutes, String notice) { }
 
     public static final class HttpError extends IOException {
         public final int status;

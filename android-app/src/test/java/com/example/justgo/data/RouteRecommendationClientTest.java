@@ -3,6 +3,7 @@ package com.example.justgo.data;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -120,6 +121,9 @@ public class RouteRecommendationClientTest {
         assertEquals("PARK", request.getString("theme"));
         assertEquals(RouteRecommendationClient.Mode.LIVE, recommendation.mode());
         assertEquals("contract-route", recommendation.routes().get(0).routeId());
+        assertEquals("계약 테스트", recommendation.notice());
+        assertEquals("계약 테스트", recommendation.routes().get(0).reason());
+        assertNull(recommendation.routes().get(0).repeatedSegmentPercent());
         assertEquals(RouteRecommendationClient.StopType.DESTINATION,
                 recommendation.routes().get(0).stops().get(0).type());
 

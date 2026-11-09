@@ -231,12 +231,17 @@ function renderCandidates(search, response) {
 
 function renderRoutes(search, candidate, response) {
     const routes = response.routes?.length ? response.routes : response.alternativeRoutes || [];
+    const webNotice = '웹에서는 경로 결과를 확인할 수 있습니다. 내비 시작은 Pleos 앱에서 진행해 주세요.';
     openResult('추천 코스', search.summary + ' · ' + candidate.name,
-        routes.length ? '웹에서는 경로 결과를 확인할 수 있습니다. 내비 시작은 Pleos 앱에서 진행해 주세요.'
+        routes.length ? [response.notice, webNotice].filter(Boolean).join(' ')
             : '계산된 코스가 없습니다. 다른 장소를 선택해 주세요.');
     for (const route of routes) {
+        const repeated = Number.isInteger(route.repeatedSegmentPercent)
+            ? ' · 왕복 중복 ' + route.repeatedSegmentPercent + '%' : '';
+        const reason = route.reason ? ' · ' + route.reason : '';
         resultOptions.append(optionButton(route.title,
-            route.estimatedMinutes + '분 · ' + (route.distanceMeters / 1000).toFixed(1) + ' km', () => {}));
+            route.estimatedMinutes + '분 · ' + (route.distanceMeters / 1000).toFixed(1)
+                + ' km' + repeated + reason, () => {}));
     }
 }
 
