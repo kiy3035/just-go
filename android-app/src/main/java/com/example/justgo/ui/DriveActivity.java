@@ -553,6 +553,19 @@ public final class DriveActivity extends Activity {
 
     private String describeError(IOException error) {
         if (error instanceof RouteRecommendationClient.HttpError http) {
+            if ("INVALID_CANDIDATE_TOKEN".equals(http.code)) {
+                return "선택한 장소가 만료됐습니다. 장소를 다시 검색해 주세요.";
+            }
+            if ("ROUTE_API_BUSY".equals(http.code)) {
+                return "다른 추천을 계산하고 있습니다. 잠시 후 다시 시도해 주세요.";
+            }
+            if ("ROUTE_API_RATE_LIMITED".equals(http.code)) {
+                return "추천 요청이 많습니다. 잠시 후 다시 검색해 주세요.";
+            }
+            if (http.code != null && http.code.startsWith("INVALID_")
+                    && http.getMessage() != null && !http.getMessage().isBlank()) {
+                return http.getMessage();
+            }
             return switch (http.status) {
                 case 401, 403 -> "추천 서버의 접근 권한 설정을 확인해 주세요.";
                 case 429 -> "추천 요청 한도에 도달했습니다. 잠시 후 다시 검색해 주세요.";

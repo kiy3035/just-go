@@ -2,6 +2,7 @@ package com.example.justgo.data;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -47,9 +48,9 @@ public final class RouteRecommendationClient {
             configure(connection, 20_000);
             int status = connection.getResponseCode();
             if (status != HttpURLConnection.HTTP_OK) {
-                throw new HttpError(status);
+                throw readHttpError(connection, status);
             }
-            return parseCandidates(readJson(connection));
+            return parseCandidates(readJson(connection.getInputStream()));
         } catch (JSONException | IllegalArgumentException exception) {
             throw new InvalidResponse();
         } finally {
@@ -79,9 +80,9 @@ public final class RouteRecommendationClient {
             }
             int status = connection.getResponseCode();
             if (status != HttpURLConnection.HTTP_OK) {
-                throw new HttpError(status);
+                throw readHttpError(connection, status);
             }
-            return parse(readJson(connection));
+            return parse(readJson(connection.getInputStream()));
         } catch (JSONException | IllegalArgumentException exception) {
             throw new InvalidResponse();
         } finally {
@@ -105,9 +106,9 @@ public final class RouteRecommendationClient {
         connection.setRequestProperty("Accept", "application/json");
     }
 
-    private JSONObject readJson(HttpURLConnection connection) throws IOException, JSONException {
+    private JSONObject readJson(InputStream input) throws IOException, JSONException {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(
-                connection.getInputStream(), StandardCharsets.UTF_8))) {
+                input, StandardCharsets.UTF_8))) {
             StringBuilder json = new StringBuilder();
             char[] buffer = new char[2048];
             int count;
@@ -118,6 +119,22 @@ public final class RouteRecommendationClient {
                 }
             }
             return new JSONObject(json.toString());
+        }
+    }
+
+    private HttpError readHttpError(HttpURLConnection connection, int status) {
+        InputStream errorStream = connection.getErrorStream();
+        if (errorStream == null) {
+            return new HttpError(status, null, null);
+        }
+        try {
+            JSONObject error = readJson(errorStream);
+            return new HttpError(
+                    status,
+                    error.optString("code", null),
+                    error.optString("message", null));
+        } catch (IOException | JSONException exception) {
+            return new HttpError(status, null, null);
         }
     }
 
@@ -218,9 +235,12 @@ public final class RouteRecommendationClient {
 
     public static final class HttpError extends IOException {
         public final int status;
+        public final String code;
 
-        HttpError(int status) {
+        HttpError(int status, String code, String message) {
+            super(message);
             this.status = status;
+            this.code = code;
         }
     }
 

@@ -3,6 +3,7 @@ package com.example.justgo.data;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
 
 import java.util.concurrent.TimeUnit;
 
@@ -110,6 +111,25 @@ public class RouteRecommendationClientTest {
         assertEquals("contract-route", recommendation.routes().get(0).routeId());
         assertEquals(RouteRecommendationClient.StopType.DESTINATION,
                 recommendation.routes().get(0).stops().get(0).type());
+
+        server.enqueue(new MockResponse()
+                .setResponseCode(400)
+                .setHeader("Content-Type", "application/json; charset=utf-8")
+                .setBody("""
+                        {
+                          "code": "INVALID_CANDIDATE_TOKEN",
+                          "message": "장소 후보가 만료됐습니다.",
+                          "fieldErrors": {"candidateToken": "만료"}
+                        }
+                        """));
+        try {
+            client.recommend(37.5, 127.0, 60, "ONE_WAY", "PARK", token);
+            fail("구조화된 HTTP 오류가 필요합니다.");
+        } catch (RouteRecommendationClient.HttpError error) {
+            assertEquals(400, error.status);
+            assertEquals("INVALID_CANDIDATE_TOKEN", error.code);
+            assertEquals("장소 후보가 만료됐습니다.", error.getMessage());
+        }
     }
 
     private MockResponse jsonResponse(String body) {

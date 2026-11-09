@@ -672,3 +672,10 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - 같은 좌표·반경·공식 카테고리의 TMAP POI 요청이 동시에 들어오면 첫 응답이 캐시에 저장되기 전에 외부 호출을 중복 수행할 수 있었습니다.
 - SHA-256 위치·카테고리 키별 진행 중 작업을 공유해 동일 POI 검색은 외부 호출 한 건의 성공 결과 또는 분류 오류를 함께 사용하도록 보강했습니다. 성공 후보만 기존 TTL 캐시에 남기고 실패는 저장하지 않습니다.
 - 동시 동일 CITY 조회 두 건이 모두 후보를 받으면서 모의 외부 HTTP 요청은 한 번만 소비되는 테스트를 추가했습니다. 실제 TMAP 호출권은 사용하지 않았습니다.
+
+## 60. 2026-11-09 Android 구조화 오류 응답 연결
+
+- Android가 HTTP 상태만 읽고 백엔드의 `ApiErrorResponse`를 버려 후보 토큰 만료, 잘못된 입력, 요청 제한, 서버 혼잡을 구체적으로 구분하지 못하는 문제를 보완했습니다.
+- 비정상 응답 본문도 정상 응답과 같은 64KiB 상한으로 읽고 `code`와 안전한 `message`만 보존합니다. `INVALID_CANDIDATE_TOKEN`, `ROUTE_API_RATE_LIMITED`, `ROUTE_API_BUSY`는 사용자가 취할 수 있는 다음 행동으로 변환합니다.
+- MockWebServer가 반환한 HTTP 400 `INVALID_CANDIDATE_TOKEN`을 Android 클라이언트가 상태·코드·메시지로 정확히 파싱하는 계약 테스트를 추가했습니다.
+- `testDebugUnitTest`, `lintDebug`, `assembleDebug`가 성공했습니다. 실제 서버나 외부 API는 호출하지 않았고 Android Studio·Emulator도 실행하지 않았습니다.
