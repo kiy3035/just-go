@@ -400,12 +400,32 @@ public class TourApiScenicPlaceSource implements ScenicPlaceSource {
         return level3.isBlank() ? level2 : level2 + '/' + level3;
     }
 
-    /** CITY 안에서는 공식 랜드마크·전시·역사 분류를 일반 시설보다 먼저 보여 줍니다. */
+    /**
+     * 원천의 공식 분류는 그대로 유지하면서 같은 테마 안에서 대표성이 높은 분류를 먼저
+     * 보여 줍니다. MOUNTAIN은 산악 장소를 자연공원·생태 장소보다 우선하되 후자를
+     * 제외하지 않아 넓은 선택지를 보존합니다.
+     */
     private int selectionPriority(JsonNode item, ScenicTheme theme) {
+        String level2 = valueOrEmpty(text(item, "lclsSystm2")).toUpperCase(Locale.ROOT);
+        String level3 = valueOrEmpty(text(item, "lclsSystm3")).toUpperCase(Locale.ROOT);
+        if (theme == ScenicTheme.MOUNTAIN) {
+            if (level3.equals("NA010100")) {
+                return 0;
+            }
+            if (level2.equals("NA01")) {
+                return 1;
+            }
+            if (level3.equals("NA040600")) {
+                return 2;
+            }
+            if (level2.equals("NA04")) {
+                return 3;
+            }
+            return 4;
+        }
         if (theme != ScenicTheme.CITY) {
             return 0;
         }
-        String level2 = valueOrEmpty(text(item, "lclsSystm2")).toUpperCase(Locale.ROOT);
         String contentType = valueOrEmpty(text(item, "contenttypeid", "contentTypeId"));
         if (level2.equals("VE01")) {
             return 0;

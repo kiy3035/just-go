@@ -324,4 +324,57 @@ class TourApiScenicPlaceSourceTest {
         assertThat(result.get(1).selectionPriority()).isEqualTo(5);
         server.verify();
     }
+
+    @Test
+    void keepsBroadMountainCategoriesButRanksOfficialMountainsFirst() {
+        RestClient.Builder builder = RestClient.builder().baseUrl(BASE_URL);
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        PublicDataProperties properties = new PublicDataProperties();
+        properties.setParkApiKey("TEST_KEY_ONLY");
+        properties.setTourApiKey("TEST_KEY_ONLY");
+        TourApiScenicPlaceSource source = new TourApiScenicPlaceSource(
+                builder.build(), properties);
+
+        server.expect(requestTo(org.hamcrest.Matchers.containsString("/locationBasedList2?")))
+                .andRespond(withSuccess("""
+                        {
+                          "response": {
+                            "header": {"resultCode": "0000"},
+                            "body": {"items": {"item": [
+                              {
+                                "contentid": "NATURAL-PARK-1",
+                                "contenttypeid": "12",
+                                "title": "가까운 자연공원 테스트",
+                                "lclsSystm2": "NA04",
+                                "lclsSystm3": "NA040100",
+                                "mapx": "126.978100",
+                                "mapy": "37.566600"
+                              },
+                              {
+                                "contentid": "MOUNTAIN-1",
+                                "contenttypeid": "12",
+                                "title": "대표 산악 장소 테스트",
+                                "lclsSystm2": "NA01",
+                                "lclsSystm3": "NA010100",
+                                "mapx": "126.990000",
+                                "mapy": "37.580000"
+                              }
+                            ]}}
+                          }
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        var result = source.findNearby(
+                ScenicTheme.MOUNTAIN,
+                new BigDecimal("37.566500"),
+                new BigDecimal("126.978000"),
+                20_000,
+                20);
+
+        assertThat(result).extracting(SpotCandidateRecord::name)
+                .containsExactly("대표 산악 장소 테스트", "가까운 자연공원 테스트");
+        assertThat(result).extracting(SpotCandidateRecord::selectionPriority)
+                .containsExactly(0, 3);
+        server.verify();
+    }
 }
