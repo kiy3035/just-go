@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -22,6 +23,7 @@ public final class RouteRecommendationClient {
     static final String RECOMMENDATION_PATH = "/api/v1/routes/recommendations";
     private static final int MAX_RESPONSE_CHARACTERS = 65_536;
     private final String baseUrl;
+    private final AtomicReference<HttpURLConnection> activeConnection = new AtomicReference<>();
 
     public RouteRecommendationClient(String baseUrl) {
         this.baseUrl = baseUrl != null && baseUrl.endsWith("/")
@@ -43,6 +45,7 @@ public final class RouteRecommendationClient {
                 + "&theme=" + encode(theme)
                 + "&limit=" + limit;
         HttpURLConnection connection = open(CANDIDATE_PATH + query);
+        activeConnection.set(connection);
         try {
             connection.setRequestMethod("GET");
             configure(connection, 20_000);
@@ -54,6 +57,7 @@ public final class RouteRecommendationClient {
         } catch (JSONException | IllegalArgumentException exception) {
             throw new InvalidResponse();
         } finally {
+            activeConnection.compareAndSet(connection, null);
             connection.disconnect();
         }
     }
@@ -62,6 +66,7 @@ public final class RouteRecommendationClient {
                                     String tripType, String theme, String candidateToken)
             throws IOException {
         HttpURLConnection connection = open(RECOMMENDATION_PATH);
+        activeConnection.set(connection);
         try {
             connection.setRequestMethod("POST");
             configure(connection, 45_000);
@@ -86,6 +91,15 @@ public final class RouteRecommendationClient {
         } catch (JSONException | IllegalArgumentException exception) {
             throw new InvalidResponse();
         } finally {
+            activeConnection.compareAndSet(connection, null);
+            connection.disconnect();
+        }
+    }
+
+    /** 화면 종료나 주행 제한 시 진행 중 로컬 백엔드 요청의 소켓을 닫습니다. */
+    public void cancelActiveRequest() {
+        HttpURLConnection connection = activeConnection.getAndSet(null);
+        if (connection != null) {
             connection.disconnect();
         }
     }

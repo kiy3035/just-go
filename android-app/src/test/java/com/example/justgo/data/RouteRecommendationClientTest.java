@@ -3,13 +3,20 @@ package com.example.justgo.data;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
+import okhttp3.mockwebserver.SocketPolicy;
 import org.json.JSONObject;
 import org.junit.After;
 import org.junit.Before;
@@ -24,6 +31,11 @@ public class RouteRecommendationClientTest {
     @Before
     public void setUp() throws Exception {
         server = new MockWebServer();
+        server.start();
+        client = new RouteRecommendationClient(server.url("/").toString());
+    }
+
+    private void enqueueSuccessfulCandidateAndRoute() {
         server.enqueue(jsonResponse("""
                     {
                       "theme": "PARK",
@@ -68,8 +80,6 @@ public class RouteRecommendationClientTest {
                       "notice": "계약 테스트"
                     }
                     """));
-        server.start();
-        client = new RouteRecommendationClient(server.url("/").toString());
     }
 
     @After
@@ -79,6 +89,7 @@ public class RouteRecommendationClientTest {
 
     @Test
     public void candidateTokenConnectsCandidateAndRecommendationEndpoints() throws Exception {
+        enqueueSuccessfulCandidateAndRoute();
         RouteRecommendationClient.CandidateList candidates = client.findCandidates(
                 37.5, 127.0, 60, "ONE_WAY", "PARK", 50);
 
@@ -129,6 +140,29 @@ public class RouteRecommendationClientTest {
             assertEquals(400, error.status);
             assertEquals("INVALID_CANDIDATE_TOKEN", error.code);
             assertEquals("장소 후보가 만료됐습니다.", error.getMessage());
+        }
+    }
+
+    @Test
+    public void disconnectsAnActiveRequestWhenScreenStops() throws Exception {
+        server.enqueue(new MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE));
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try {
+            Future<RouteRecommendationClient.Recommendation> pending = executor.submit(() ->
+                    client.recommend(37.5, 127.0, 60, "ONE_WAY", "PARK", null));
+            assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
+
+            client.cancelActiveRequest();
+
+            try {
+                pending.get(5, TimeUnit.SECONDS);
+                fail("취소된 요청은 성공하면 안 됩니다.");
+            } catch (ExecutionException expected) {
+                assertTrue(expected.getCause() instanceof IOException);
+            }
+        } finally {
+            client.cancelActiveRequest();
+            executor.shutdownNow();
         }
     }
 

@@ -352,6 +352,7 @@ public final class DriveActivity extends Activity {
         foreground = false;
         dismissResult();
         restrictionsMonitor.stop();
+        routeClient.cancelActiveRequest();
         if (locationProvider.cancel()) resetSearchButton();
         super.onStop();
     }
@@ -359,6 +360,7 @@ public final class DriveActivity extends Activity {
     @Override protected void onDestroy() {
         dismissResult();
         locationProvider.cancel();
+        routeClient.cancelActiveRequest();
         routeExecutor.shutdownNow();
         restrictionsMonitor.stop();
         navigationGateway.release();
@@ -525,6 +527,7 @@ public final class DriveActivity extends Activity {
         binding.findRoute.setEnabled(!restricted && !searchInProgress);
         if (restricted) {
             dismissResult();
+            routeClient.cancelActiveRequest();
             if (locationProvider.cancel()) resetSearchButton();
             ((InputMethodManager) getSystemService(INPUT_METHOD_SERVICE))
                     .hideSoftInputFromWindow(binding.getRoot().getWindowToken(), 0);
