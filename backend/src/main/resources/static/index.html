@@ -919,13 +919,21 @@
 </button>
 </form>
 
-<section class="selection-result" id="selection-result" aria-live="polite">
-<strong>선택한 조건</strong>
-<p id="selection-summary">
-</p>
-</section>
 </div>
 </section>
 </main>
+<dialog class="result-dialog" id="result-dialog" aria-labelledby="result-title">
+<section class="result-panel">
+<button type="button" class="result-close" id="result-close" aria-label="결과 닫기">×</button>
+<h3 id="result-title">검색 결과</h3>
+<p class="result-summary" id="result-summary"></p>
+<p class="result-status" id="result-status" aria-live="polite"></p>
+<div class="result-options" id="result-options"></div>
+<div class="result-actions">
+<button type="button" class="result-cancel" id="result-cancel">닫기</button>
+<button type="button" class="result-confirm" id="result-confirm" hidden disabled>선택한 장소로 코스 찾기</button>
+</div>
+</section>
+</dialog>
 </body>
 </html>

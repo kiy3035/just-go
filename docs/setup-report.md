@@ -679,3 +679,11 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - 비정상 응답 본문도 정상 응답과 같은 64KiB 상한으로 읽고 `code`와 안전한 `message`만 보존합니다. `INVALID_CANDIDATE_TOKEN`, `ROUTE_API_RATE_LIMITED`, `ROUTE_API_BUSY`는 사용자가 취할 수 있는 다음 행동으로 변환합니다.
 - MockWebServer가 반환한 HTTP 400 `INVALID_CANDIDATE_TOKEN`을 Android 클라이언트가 상태·코드·메시지로 정확히 파싱하는 계약 테스트를 추가했습니다.
 - `testDebugUnitTest`, `lintDebug`, `assembleDebug`가 성공했습니다. 실제 서버나 외부 API는 호출하지 않았고 Android Studio·Emulator도 실행하지 않았습니다.
+
+## 61. 2026-11-09 웹 후보·추천 REST 흐름 연결
+
+- 기존 웹 화면은 제출 시 1.8초 타이머 뒤 선택 조건만 보여 주는 시안이어서 실제 후보·추천 엔드포인트와 연결되지 않았습니다.
+- 브라우저에서 사용자가 검색을 눌렀을 때만 현재 위치 권한을 요청하고, Android와 같은 `후보 GET → 장소 모달 → 선택 토큰 추천 POST → 실제 코스 모달` 흐름을 사용하도록 변경했습니다.
+- API에서 받은 장소명은 `textContent`로만 삽입해 외부 문자열을 HTML로 실행하지 않습니다. 현재 위치는 브라우저 메모리와 요청에만 사용하며 로그·DB·정적 파일에 기록하지 않습니다.
+- 웹에는 Pleos NaviHelper가 없으므로 실제 시간·거리 결과 확인까지만 제공하고 내비 시작은 Android 앱 전용임을 명시했습니다. 가짜 타이머 결과는 제거했습니다.
+- `node --check`로 JavaScript 문법을 검증하고, 정적 자원 테스트에서 두 REST 경로·현재 위치·선택 토큰 연결과 가짜 타이머 제거를 확인했습니다.

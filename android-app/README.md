@@ -14,7 +14,7 @@ Java/XML + ViewBinding 앱입니다. 저장소명은 `just-go`, Gradle 프로젝
 - `src/main/java/.../pleos/PleosNavigationGateway.java`: NaviHelper 3.0.5 목적지·경유지·내비 화면 요청 구현.
 - `src/main/java/.../pleos/DrivingRestrictionsMonitor.java`: `CarUxRestrictions` 변경 감시와 주행 중 입력 제한.
 - `../backend/src/main/resources/static/index.html`: 웹 화면 구조와 SVG 풍경.
-- 같은 폴더의 `drive.css`, `drive.js`: 웹 스타일과 화면 동작.
+- 같은 폴더의 `drive.css`, `drive.js`: 웹 스타일과 현재 위치 기반 후보 GET·추천 POST 화면 동작. 웹은 실제 경로 확인까지만 제공하며 NaviHelper는 Android 전용입니다.
 
 ## 빌드·실행
 JDK 17 / API 34 / minSdk 28.

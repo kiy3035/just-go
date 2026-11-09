@@ -1,21 +1,27 @@
 'use strict';
 
-const PREVIEW_DURATION_MS = 1800;
 const form = document.querySelector('#drive-form');
 const scene = document.querySelector('.drive-scene');
 const customTime = document.querySelector('#custom-time');
 const customMinutes = document.querySelector('#customMinutes');
 const timeHint = document.querySelector('#time-hint');
-const result = document.querySelector('#selection-result');
-const summary = document.querySelector('#selection-summary');
 const searchButton = document.querySelector('.submit-button');
 const buttonLabel = searchButton.querySelector('.button-label');
 const buttonSummary = searchButton.querySelector('.button-summary');
 const originalLabel = buttonLabel.textContent;
-let searchTimer;
 const selectedTrip = document.querySelector('#selected-trip');
 const selectedTime = document.querySelector('#selected-time');
 const selectedPlace = document.querySelector('#selected-place');
+const resultDialog = document.querySelector('#result-dialog');
+const resultTitle = document.querySelector('#result-title');
+const resultSummary = document.querySelector('#result-summary');
+const resultStatus = document.querySelector('#result-status');
+const resultOptions = document.querySelector('#result-options');
+const resultClose = document.querySelector('#result-close');
+const resultCancel = document.querySelector('#result-cancel');
+const resultConfirm = document.querySelector('#result-confirm');
+let selectedCandidate = null;
+let activeRequestId = 0;
 
 
 function syncForm() {
@@ -44,28 +50,197 @@ function setSearching(searching, selection = '') {
     buttonSummary.hidden = !searching;
 }
 
-function showSelection(event) {
-    event.preventDefault();
+function apiTheme() {
+    return form.querySelector('input[name="theme"]:checked').id.toUpperCase();
+}
+
+function apiTripType() {
+    return form.elements.tripType.value === '왕복' ? 'ROUND_TRIP' : 'ONE_WAY';
+}
+
+function selectedMinutes() {
     const value = form.elements.duration.value === 'custom' ? customMinutes.value : form.elements.duration.value;
     const minutes = Number(value);
     if (!Number.isInteger(minutes) || minutes < 10 || minutes > 240 || minutes % 5 !== 0) {
         customMinutes.reportValidity();
+        return null;
+    }
+    return minutes;
+}
+
+function conditions(minutes) {
+    return form.elements.tripType.value + ' · ' + minutes + '분 · ' + form.elements.theme.value;
+}
+
+function openResult(title, summary, status) {
+    resultTitle.textContent = title;
+    resultSummary.textContent = summary;
+    resultStatus.textContent = status;
+    resultOptions.replaceChildren();
+    selectedCandidate = null;
+    resultConfirm.hidden = true;
+    resultConfirm.disabled = true;
+    if (!resultDialog.open) resultDialog.showModal();
+}
+
+function closeResult() {
+    activeRequestId++;
+    if (resultDialog.open) resultDialog.close();
+}
+
+function optionButton(primary, secondary, onSelect) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'result-option';
+    button.textContent = primary;
+    const detail = document.createElement('small');
+    detail.textContent = secondary;
+    button.append(detail);
+    button.addEventListener('click', () => {
+        resultOptions.querySelectorAll('.result-option').forEach(item => item.classList.remove('is-selected'));
+        button.classList.add('is-selected');
+        onSelect();
+    });
+    return button;
+}
+
+function currentPosition() {
+    return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+            reject(new Error('이 브라우저에서는 현재 위치를 사용할 수 없습니다.'));
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(resolve, () => {
+            reject(new Error('현재 위치를 확인하지 못했습니다. 브라우저 위치 권한을 확인해 주세요.'));
+        }, {enableHighAccuracy: true, timeout: 10000, maximumAge: 30000});
+    });
+}
+
+async function readResponse(response) {
+    let body = null;
+    try { body = await response.json(); } catch (ignored) { }
+    if (!response.ok) {
+        const error = new Error(body?.message || '서버 요청에 실패했습니다.');
+        error.code = body?.code;
+        throw error;
+    }
+    return body;
+}
+
+async function loadCandidates(search) {
+    const query = new URLSearchParams({
+        latitude: search.latitude,
+        longitude: search.longitude,
+        desiredMinutes: search.minutes,
+        tripType: search.tripType,
+        theme: search.theme,
+        limit: 50
+    });
+    return readResponse(await fetch('/api/v1/places/candidates?' + query, {
+        headers: {'Accept': 'application/json'},
+        cache: 'no-store'
+    }));
+}
+
+async function loadRoutes(search, candidateToken) {
+    return readResponse(await fetch('/api/v1/routes/recommendations', {
+        method: 'POST',
+        headers: {'Accept': 'application/json', 'Content-Type': 'application/json'},
+        cache: 'no-store',
+        body: JSON.stringify({
+            latitude: search.latitude,
+            longitude: search.longitude,
+            desiredMinutes: search.minutes,
+            tripType: search.tripType,
+            theme: search.theme,
+            candidateToken
+        })
+    }));
+}
+
+function renderCandidates(search, response) {
+    if (!Array.isArray(response.candidates) || response.candidates.length === 0) {
+        openResult('주변 장소를 찾지 못했어요', search.summary, '시간이나 풍경을 바꿔 다시 검색해 주세요.');
         return;
     }
+    openResult('어디로 달릴까요?', search.summary,
+        response.partial ? '일부 장소 데이터 연결이 지연되어 현재 확인된 후보만 보여드려요.'
+            : '장소를 선택하면 실제 도로 시간과 거리를 계산합니다.');
+    resultConfirm.hidden = false;
+    resultConfirm.textContent = '이 장소로 코스 찾기';
+    for (const candidate of response.candidates) {
+        const distance = (candidate.straightLineDistanceMeters / 1000).toFixed(1) + ' km';
+        resultOptions.append(optionButton(candidate.name,
+            candidate.theme + ' · 직선거리 ' + distance, () => {
+                selectedCandidate = candidate;
+                resultConfirm.disabled = false;
+            }));
+    }
+    resultConfirm.onclick = async () => {
+        if (!selectedCandidate) return;
+        const requestId = search.requestId;
+        resultConfirm.disabled = true;
+        resultStatus.textContent = '선택한 장소의 실제 코스를 계산하고 있어요…';
+        try {
+            const response = await loadRoutes(search, selectedCandidate.candidateToken);
+            if (requestId === activeRequestId && resultDialog.open) {
+                renderRoutes(search, selectedCandidate, response);
+            }
+        } catch (error) {
+            if (requestId !== activeRequestId || !resultDialog.open) return;
+            resultStatus.textContent = error.code === 'INVALID_CANDIDATE_TOKEN'
+                ? '선택한 장소가 만료됐습니다. 장소를 다시 검색해 주세요.' : error.message;
+            resultConfirm.disabled = false;
+        }
+    };
+}
 
-    // Local UI feedback only; no location lookup or route API is invoked.
-    summary.textContent = form.elements.tripType.value + ' · ' + minutes + '분 · ' + form.elements.theme.value;
-    result.classList.remove('is-visible');
-    clearTimeout(searchTimer);
-    setSearching(true, summary.textContent);
-    searchTimer = setTimeout(() => {
-        setSearching(false);
-        result.classList.add('is-visible');
-    }, PREVIEW_DURATION_MS);
+function renderRoutes(search, candidate, response) {
+    const routes = response.routes?.length ? response.routes : response.alternativeRoutes || [];
+    openResult('추천 코스', search.summary + ' · ' + candidate.name,
+        routes.length ? '웹에서는 경로 결과를 확인할 수 있습니다. 내비 시작은 Pleos 앱에서 진행해 주세요.'
+            : '계산된 코스가 없습니다. 다른 장소를 선택해 주세요.');
+    for (const route of routes) {
+        resultOptions.append(optionButton(route.title,
+            route.estimatedMinutes + '분 · ' + (route.distanceMeters / 1000).toFixed(1) + ' km', () => {}));
+    }
+}
+
+async function showSelection(event) {
+    event.preventDefault();
+    const minutes = selectedMinutes();
+    if (minutes === null) return;
+    const summary = conditions(minutes);
+    const requestId = ++activeRequestId;
+    setSearching(true, summary);
+    try {
+        const position = await currentPosition();
+        const search = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            minutes,
+            tripType: apiTripType(),
+            theme: apiTheme(),
+            summary,
+            requestId
+        };
+        const response = await loadCandidates(search);
+        if (requestId === activeRequestId) renderCandidates(search, response);
+    } catch (error) {
+        if (requestId === activeRequestId) openResult('추천 요청 실패', summary, error.message);
+    } finally {
+        if (requestId === activeRequestId) setSearching(false);
+    }
 }
 
 form.addEventListener('change', syncForm);
 form.addEventListener('submit', showSelection);
 customMinutes.addEventListener('input', syncForm);
+resultClose.addEventListener('click', closeResult);
+resultCancel.addEventListener('click', closeResult);
+resultDialog.addEventListener('cancel', event => {
+    event.preventDefault();
+    closeResult();
+});
 syncForm();
 

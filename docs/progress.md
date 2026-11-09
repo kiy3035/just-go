@@ -26,7 +26,7 @@
 | 경관 후보 로컬 등록 | 보류 | 초기 13건은 분류 근거 부족으로 제거. 가져오기 도구만 유지 | 명시적 보정·제외·fallback 후보가 생길 때만 사용 |
 | 추천 후보 연결 | 완료 | 검수 완료 장소를 최대 20건 조회해 경로 제공자 요청 경계로 전달 | 외부 제공자 호출 없이 단위 테스트로 전달 구조 검증 |
 | 출발지 기반 후보 거리 필터 | 완료 | 희망 시간·왕복/편도별 150km/h 보수 상한과 PostgreSQL Haversine 직선거리 적용 | 실제 후보·TMAP 결과 분포로 상한 조정 필요 |
-| 웹 입력 화면 시안 | 완료 | `/`에서 왕복·편도, 시간, 여섯 풍경 선택과 요약 가능 | 화면 시안이며 Android 대체물·실제 추천 결과가 아님 |
+| 웹 통합 확인 화면 | 완료 | `/`에서 현재 위치→최대 50개 후보 GET→장소 선택→토큰 기반 추천 POST→실제 경로 결과를 모달로 확인 | NaviHelper·차량 UX는 Android 전용이며 웹이 이를 대체하지 않음 |
 | Android Studio | 완료 | Android Studio와 일반 Automotive API 34 에뮬레이터에서 앱 설치·기동 확인 | Pleos 전용 SDK·AVD 검증은 별도 |
 | Android SDK·프로젝트 | 진행 가능 | 시작 시 현재 위치 선확보, 후보 GET→장소 모달→선택 토큰 추천 POST→코스 모달 연결, 부분 원천 실패 안내, CarUxRestrictions 입력·애니메이션 제한과 REST 계약 자동 테스트 | 변경된 2단계 모달을 Pleos Emulator의 실제 LIVE 데이터로 검수 필요 |
 | Pleos Emulator·NaviHelper | 진행 가능 | LIVE 편도 코스 선택, NaviHelper 3.0.5 단일 목적지 전달, Navigation 화면 전환과 실제 경로 안내 시작을 Pleos Emulator에서 확인 | 최대 2개 다중 경유지 전달은 `NOT VERIFIED` |
