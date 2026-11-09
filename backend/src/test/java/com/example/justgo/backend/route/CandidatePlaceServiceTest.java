@@ -59,6 +59,8 @@ class CandidatePlaceServiceTest {
 
         assertThat(listed.count()).isEqualTo(1);
         assertThat(listed.tokenExpiresInMinutes()).isEqualTo(30);
+        assertThat(listed.partial()).isFalse();
+        assertThat(listed.unavailableSources()).isEmpty();
         assertThat(captured.get().waypointCandidates()).singleElement().satisfies(waypoint -> {
             assertThat(waypoint.spotId()).isEqualTo(-7L);
             assertThat(waypoint.name()).isEqualTo("SELECTED_PUBLIC_PLACE_TEST_ONLY");

@@ -56,6 +56,21 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
             BigDecimal originLongitude,
             long maxDistanceMeters,
             int limit) {
+        return searchNearbyCandidates(
+                theme,
+                originLatitude,
+                originLongitude,
+                maxDistanceMeters,
+                limit).candidates();
+    }
+
+    @Override
+    public SpotCandidateSearchResult searchNearbyCandidates(
+            ScenicTheme theme,
+            BigDecimal originLatitude,
+            BigDecimal originLongitude,
+            long maxDistanceMeters,
+            int limit) {
         Map<String, SpotCandidateOverrideRecord> overrides = verifiedSpotService
                 .loadCandidateOverrides()
                 .stream()
@@ -67,6 +82,7 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
         List<SpotCandidateRecord> combined = new ArrayList<>(
                 verifiedSpotService.loadNearbyVerifiedCandidates(
                         theme, originLatitude, originLongitude, maxDistanceMeters, limit));
+        Set<String> unavailableSources = new LinkedHashSet<>();
         int sourceLimit = Math.min(50, Math.max(limit, limit * SOURCE_FETCH_MULTIPLIER));
         for (ScenicPlaceSource source : externalSources) {
             if (!supports(source.supportedThemes(), theme)) {
@@ -80,6 +96,7 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
                         maxDistanceMeters,
                         sourceLimit));
             } catch (RuntimeException exception) {
+                unavailableSources.add(source.sourceName());
                 LOGGER.warn("외부 장소 후보 조회 실패: source={}", source.sourceName());
             }
         }
@@ -107,9 +124,10 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
                 .forEach(candidate -> unique.putIfAbsent(deduplicationKey(candidate), candidate));
         List<SpotCandidateRecord> ordered = List.copyOf(unique.values());
         List<SpotCandidateRecord> sourceDiversified = diversifySourcesWithinThemes(ordered);
-        return theme == ScenicTheme.ANYWHERE || theme == ScenicTheme.WATER
+        List<SpotCandidateRecord> candidates = theme == ScenicTheme.ANYWHERE || theme == ScenicTheme.WATER
                 ? diversifyThemes(sourceDiversified, theme, limit)
                 : sourceDiversified.stream().limit(limit).toList();
+        return new SpotCandidateSearchResult(candidates, List.copyOf(unavailableSources));
     }
 
     /** 비활성 검수 행은 같은 이름의 외부 후보를 제외하고, 활성 행은 DB 보정본만 남깁니다. */

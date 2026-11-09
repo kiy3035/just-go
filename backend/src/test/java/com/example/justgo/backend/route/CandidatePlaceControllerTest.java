@@ -37,6 +37,8 @@ class CandidatePlaceControllerTest {
                         ScenicTheme.PARK,
                         0,
                         30,
+                        true,
+                        List.of("PUBLIC_PARK"),
                         List.of()));
 
         mockMvc.perform(get("/api/v1/places/candidates")
@@ -49,6 +51,8 @@ class CandidatePlaceControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.theme").value("PARK"))
                 .andExpect(jsonPath("$.tokenExpiresInMinutes").value(30))
+                .andExpect(jsonPath("$.partial").value(true))
+                .andExpect(jsonPath("$.unavailableSources[0]").value("PUBLIC_PARK"))
                 .andExpect(jsonPath("$.candidates").isArray());
     }
 

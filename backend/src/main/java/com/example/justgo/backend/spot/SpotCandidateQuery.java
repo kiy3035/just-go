@@ -32,6 +32,26 @@ public interface SpotCandidateQuery {
     }
 
     /**
+     * 후보 목록과 외부 원천의 부분 실패 정보를 함께 조회합니다.
+     * 단순 구현체는 기존 후보 조회 결과를 완전 성공으로 간주합니다.
+     */
+    default SpotCandidateSearchResult searchNearbyCandidates(
+            ScenicTheme theme,
+            BigDecimal originLatitude,
+            BigDecimal originLongitude,
+            long maxDistanceMeters,
+            int limit) {
+        return new SpotCandidateSearchResult(
+                loadNearbyVerifiedCandidates(
+                        theme,
+                        originLatitude,
+                        originLongitude,
+                        maxDistanceMeters,
+                        limit),
+                List.of());
+    }
+
+    /**
      * 검수 완료 후보가 하나 이상 준비된 풍경 테마를 조회합니다.
      * 간단한 테스트 대역은 이 기능을 구현하지 않아도 되도록 기본값을 빈 목록으로 둡니다.
      */

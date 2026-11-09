@@ -40,9 +40,9 @@ public class CandidatePlaceService {
         }
         long maxDistanceMeters = distancePolicy.maxStraightLineDistanceMeters(
                 desiredMinutes, tripType);
-        var candidates = candidateQuery.loadNearbyVerifiedCandidates(
+        var searchResult = candidateQuery.searchNearbyCandidates(
                 theme, latitude, longitude, maxDistanceMeters, limit);
-        var responses = candidates.stream()
+        var responses = searchResult.candidates().stream()
                 .map(candidate -> new CandidatePlaceResponse(
                         selectionStore.register(candidate),
                         candidate.name(),
@@ -61,6 +61,8 @@ public class CandidatePlaceService {
                 theme,
                 responses.size(),
                 Math.toIntExact(CandidatePlaceSelectionStore.TOKEN_TTL.toMinutes()),
+                searchResult.partial(),
+                searchResult.unavailableSources(),
                 responses);
     }
 }

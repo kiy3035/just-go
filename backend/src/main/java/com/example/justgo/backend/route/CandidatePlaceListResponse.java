@@ -9,9 +9,12 @@ public record CandidatePlaceListResponse(
         ScenicTheme theme,
         int count,
         int tokenExpiresInMinutes,
+        boolean partial,
+        List<String> unavailableSources,
         List<CandidatePlaceResponse> candidates) {
 
     public CandidatePlaceListResponse {
+        unavailableSources = List.copyOf(unavailableSources);
         candidates = List.copyOf(candidates);
     }
 }

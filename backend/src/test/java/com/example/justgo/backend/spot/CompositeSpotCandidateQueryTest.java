@@ -177,6 +177,52 @@ class CompositeSpotCandidateQueryTest {
                 10)).isEmpty();
     }
 
+    @Test
+    void reportsFailedSourceWhileKeepingCandidatesFromHealthySource() {
+        SpotService verifiedSpotService = mock(SpotService.class);
+        when(verifiedSpotService.loadNearbyVerifiedCandidates(
+                any(), any(), any(), anyLong(), anyInt())).thenReturn(List.of());
+        when(verifiedSpotService.loadCandidateOverrides()).thenReturn(List.of());
+
+        ScenicPlaceSource healthySource = source("HEALTHY_SOURCE", "HEALTHY", 1);
+        ScenicPlaceSource failedSource = new ScenicPlaceSource() {
+            @Override
+            public String sourceName() {
+                return "FAILED_SOURCE";
+            }
+
+            @Override
+            public Set<ScenicTheme> supportedThemes() {
+                return Set.of(ScenicTheme.CITY);
+            }
+
+            @Override
+            public List<SpotCandidateRecord> findNearby(
+                    ScenicTheme theme,
+                    BigDecimal originLatitude,
+                    BigDecimal originLongitude,
+                    long maxDistanceMeters,
+                    int limit) {
+                throw new IllegalStateException("TEST_FAILURE_ONLY");
+            }
+        };
+        CompositeSpotCandidateQuery query = new CompositeSpotCandidateQuery(
+                verifiedSpotService,
+                List.of(healthySource, failedSource));
+
+        SpotCandidateSearchResult result = query.searchNearbyCandidates(
+                ScenicTheme.CITY,
+                new BigDecimal("37.5000"),
+                new BigDecimal("127.0000"),
+                100_000,
+                10);
+
+        assertThat(result.partial()).isTrue();
+        assertThat(result.unavailableSources()).containsExactly("FAILED_SOURCE");
+        assertThat(result.candidates()).extracting(SpotCandidateRecord::source)
+                .containsExactly("HEALTHY_SOURCE");
+    }
+
     private SpotCandidateRecord candidate(
             long id,
             String name,
