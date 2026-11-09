@@ -14,6 +14,9 @@ import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.http.HttpStatusCode;
@@ -41,6 +44,8 @@ public class TmapRouteClient {
     private final Duration routeCacheTtl;
     private final int routeCacheMaxEntries;
     private final Map<String, CachedRoute> routeCache = new LinkedHashMap<>();
+    private final Map<String, CompletableFuture<TmapRouteSummary>> inFlightRoutes =
+            new ConcurrentHashMap<>();
     private final TmapRouteShapeAnalyzer shapeAnalyzer = new TmapRouteShapeAnalyzer();
 
     public TmapRouteClient(
@@ -83,6 +88,51 @@ public class TmapRouteClient {
         if (cached != null) {
             return cached;
         }
+
+        if (routeCacheTtl.isZero()) {
+            return requestRoute(search, cacheKey);
+        }
+
+        CompletableFuture<TmapRouteSummary> current = new CompletableFuture<>();
+        CompletableFuture<TmapRouteSummary> existing = inFlightRoutes.putIfAbsent(
+                cacheKey, current);
+        if (existing != null) {
+            return awaitRoute(existing);
+        }
+
+        try {
+            TmapRouteSummary cachedAfterRegistration = cachedRoute(cacheKey);
+            if (cachedAfterRegistration != null) {
+                current.complete(cachedAfterRegistration);
+                return cachedAfterRegistration;
+            }
+            TmapRouteSummary summary = requestRoute(search, cacheKey);
+            current.complete(summary);
+            return summary;
+        } catch (RuntimeException | Error exception) {
+            current.completeExceptionally(exception);
+            throw exception;
+        } finally {
+            inFlightRoutes.remove(cacheKey, current);
+        }
+    }
+
+    /** 동일 좌표 조합의 진행 중 외부 호출 하나를 공유해 호출권 중복 소비를 막습니다. */
+    private TmapRouteSummary awaitRoute(CompletableFuture<TmapRouteSummary> inFlight) {
+        try {
+            return inFlight.join();
+        } catch (CompletionException exception) {
+            if (exception.getCause() instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            if (exception.getCause() instanceof Error error) {
+                throw error;
+            }
+            throw exception;
+        }
+    }
+
+    private TmapRouteSummary requestRoute(TmapRouteSearch search, String cacheKey) {
         callLimiter.acquire();
 
         try {

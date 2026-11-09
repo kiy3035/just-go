@@ -16,6 +16,11 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
@@ -194,6 +199,54 @@ class TmapRouteClientTest {
                 .isInstanceOfSatisfying(TmapRouteClientException.class, exception ->
                         assertThat(exception.errorType())
                                 .isEqualTo(TmapClientErrorType.QUOTA_EXCEEDED));
+        server.verify();
+    }
+
+    /** 동시에 들어온 동일 경로 요청도 한 번의 외부 호출과 호출권을 공유하는지 확인합니다. */
+    @Test
+    void sharesOneUpstreamCallForConcurrentIdenticalRoutes() throws Exception {
+        RestClient.Builder builder = RestClient.builder().baseUrl(BASE_URL);
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        TmapRouteClient client = new TmapRouteClient(
+                builder.build(),
+                new TmapDailyCallLimiter(1, FIXED_CLOCK),
+                FIXED_CLOCK,
+                Duration.ofMinutes(10),
+                16);
+        CountDownLatch upstreamStarted = new CountDownLatch(1);
+        CountDownLatch releaseUpstream = new CountDownLatch(1);
+        server.expect(requestTo(BASE_URL + "/tmap/routes/routeSequential30?version=1"))
+                .andRespond(request -> {
+                    upstreamStarted.countDown();
+                    try {
+                        if (!releaseUpstream.await(5, TimeUnit.SECONDS)) {
+                            throw new IllegalStateException("TEST_UPSTREAM_RELEASE_TIMEOUT");
+                        }
+                    } catch (InterruptedException exception) {
+                        Thread.currentThread().interrupt();
+                        throw new IllegalStateException("TEST_UPSTREAM_INTERRUPTED", exception);
+                    }
+                    return withSuccess("""
+                            {
+                              "type": "FeatureCollection",
+                              "properties": {"totalDistance": "100", "totalTime": "60"}
+                            }
+                            """, MediaType.APPLICATION_JSON).createResponse(request);
+                });
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<TmapRouteSummary> first = executor.submit(() -> client.findRoute(testSearch()));
+            assertThat(upstreamStarted.await(5, TimeUnit.SECONDS)).isTrue();
+            Future<TmapRouteSummary> second = executor.submit(() -> client.findRoute(testSearch()));
+            releaseUpstream.countDown();
+
+            assertThat(first.get(5, TimeUnit.SECONDS).distanceMeters()).isEqualTo(100L);
+            assertThat(second.get(5, TimeUnit.SECONDS).distanceMeters()).isEqualTo(100L);
+        } finally {
+            releaseUpstream.countDown();
+            executor.shutdownNow();
+        }
         server.verify();
     }
 
