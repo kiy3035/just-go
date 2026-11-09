@@ -170,6 +170,96 @@ public class RouteRecommendationClientTest {
         }
     }
 
+    @Test
+    public void rejectsCandidateResponseThatBreaksBackendContract() throws Exception {
+        server.enqueue(jsonResponse("""
+                {
+                  "theme": "PARK",
+                  "count": 1,
+                  "tokenExpiresInMinutes": 30,
+                  "partial": false,
+                  "unavailableSources": [],
+                  "candidates": [{
+                    "candidateToken": "not-a-uuid",
+                    "name": "손상 응답 테스트",
+                    "theme": "PARK",
+                    "latitude": 37.5,
+                    "longitude": 127.0,
+                    "straightLineDistanceMeters": 1,
+                    "source": "PUBLIC_PARK",
+                    "sourceCategory": "도시공원"
+                  }]
+                }
+                """));
+
+        try {
+            client.findCandidates(37.5, 127.0, 60, "ONE_WAY", "PARK", 50);
+            fail("백엔드 계약을 벗어난 후보 응답은 거부해야 합니다.");
+        } catch (RouteRecommendationClient.InvalidResponse expected) {
+            assertNotNull(expected);
+        }
+    }
+
+    @Test
+    public void rejectsRouteResponseWithInvalidNumbersAndStopOrder() throws Exception {
+        server.enqueue(jsonResponse("""
+                {
+                  "mode": "LIVE",
+                  "mock": false,
+                  "routes": [{
+                    "routeId": "invalid-route",
+                    "title": "손상 경로 테스트",
+                    "estimatedMinutes": -1,
+                    "distanceMeters": 100,
+                    "theme": "PARK",
+                    "repeatedSegmentPercent": null,
+                    "stops": [
+                      {"sequence": 1, "type": "WAYPOINT", "name": "첫 지점", "latitude": 37.5, "longitude": 127.0},
+                      {"sequence": 2, "type": "DESTINATION", "name": "도착지", "latitude": 37.6, "longitude": 127.1}
+                    ],
+                    "reason": "손상 응답"
+                  }],
+                  "alternativeRoutes": [],
+                  "notice": ""
+                }
+                """));
+
+        try {
+            client.recommend(37.5, 127.0, 60, "ONE_WAY", "PARK", null);
+            fail("백엔드 계약을 벗어난 경로 응답은 거부해야 합니다.");
+        } catch (RouteRecommendationClient.InvalidResponse expected) {
+            assertNotNull(expected);
+        }
+
+        server.enqueue(jsonResponse("""
+                {
+                  "mode": "LIVE",
+                  "mock": false,
+                  "routes": [{
+                    "routeId": "invalid-stop-order",
+                    "title": "중복 순서 테스트",
+                    "estimatedMinutes": 60,
+                    "distanceMeters": 100,
+                    "theme": "PARK",
+                    "repeatedSegmentPercent": null,
+                    "stops": [
+                      {"sequence": 1, "type": "WAYPOINT", "name": "첫 지점", "latitude": 37.5, "longitude": 127.0},
+                      {"sequence": 1, "type": "DESTINATION", "name": "도착지", "latitude": 37.6, "longitude": 127.1}
+                    ],
+                    "reason": "손상 응답"
+                  }],
+                  "alternativeRoutes": [],
+                  "notice": ""
+                }
+                """));
+        try {
+            client.recommend(37.5, 127.0, 60, "ONE_WAY", "PARK", null);
+            fail("중복된 지점 순번은 거부해야 합니다.");
+        } catch (RouteRecommendationClient.InvalidResponse expected) {
+            assertNotNull(expected);
+        }
+    }
+
     private MockResponse jsonResponse(String body) {
         return new MockResponse()
                 .setResponseCode(200)

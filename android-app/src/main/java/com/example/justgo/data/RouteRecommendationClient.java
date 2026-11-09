@@ -12,7 +12,10 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -22,6 +25,14 @@ public final class RouteRecommendationClient {
     static final String CANDIDATE_PATH = "/api/v1/places/candidates";
     static final String RECOMMENDATION_PATH = "/api/v1/routes/recommendations";
     private static final int MAX_RESPONSE_CHARACTERS = 65_536;
+    private static final Set<String> THEMES = Set.of(
+            "CITY", "MOUNTAIN", "RIVER", "LAKE", "SEA", "PARK", "ANYWHERE", "WATER");
+    private static final Set<String> CANDIDATE_THEMES = Set.of(
+            "CITY", "MOUNTAIN", "RIVER", "LAKE", "SEA", "PARK");
+    private static final Set<String> CANDIDATE_SOURCES = Set.of(
+            "VERIFIED_DB", "PUBLIC_PARK", "TOUR_API", "TMAP_POI");
+    private static final Set<String> EXTERNAL_SOURCES = Set.of(
+            "PUBLIC_PARK", "TOUR_API", "TMAP_POI");
     private final String baseUrl;
     private final AtomicReference<HttpURLConnection> activeConnection = new AtomicReference<>();
 
@@ -158,39 +169,59 @@ public final class RouteRecommendationClient {
 
     private CandidateList parseCandidates(JSONObject json) throws JSONException, InvalidResponse {
         JSONArray candidatesJson = json.getJSONArray("candidates");
-        if (json.getInt("count") != candidatesJson.length()) {
+        int count = json.getInt("count");
+        String requestedTheme = json.getString("theme");
+        int tokenExpiresInMinutes = json.getInt("tokenExpiresInMinutes");
+        if (count != candidatesJson.length() || count < 0 || count > 50
+                || !THEMES.contains(requestedTheme) || tokenExpiresInMinutes != 30) {
             throw new InvalidResponse();
         }
         List<Candidate> candidates = new ArrayList<>();
         for (int index = 0; index < candidatesJson.length(); index++) {
             JSONObject item = candidatesJson.getJSONObject(index);
+            String token = item.getString("candidateToken");
+            String name = item.getString("name");
+            String theme = item.getString("theme");
+            String source = item.getString("source");
+            String sourceCategory = item.getString("sourceCategory");
             double latitude = item.getDouble("latitude");
             double longitude = item.getDouble("longitude");
             long distanceMeters = item.getLong("straightLineDistanceMeters");
-            if (!Double.isFinite(latitude) || latitude < -90 || latitude > 90
+            if (!isUuid(token) || name.isBlank() || !CANDIDATE_THEMES.contains(theme)
+                    || !CANDIDATE_SOURCES.contains(source) || sourceCategory.isBlank()
+                    || !Double.isFinite(latitude) || latitude < -90 || latitude > 90
                     || !Double.isFinite(longitude) || longitude < -180 || longitude > 180
                     || distanceMeters < 0) {
                 throw new InvalidResponse();
             }
             candidates.add(new Candidate(
-                    item.getString("candidateToken"),
-                    item.getString("name"),
-                    item.getString("theme"),
+                    token,
+                    name,
+                    theme,
                     latitude,
                     longitude,
                     distanceMeters,
-                    item.getString("source"),
-                    item.getString("sourceCategory")));
+                    source,
+                    sourceCategory));
         }
         JSONArray unavailableJson = json.getJSONArray("unavailableSources");
         List<String> unavailableSources = new ArrayList<>();
         for (int index = 0; index < unavailableJson.length(); index++) {
-            unavailableSources.add(unavailableJson.getString(index));
+            String unavailableSource = unavailableJson.getString(index);
+            if (!EXTERNAL_SOURCES.contains(unavailableSource)
+                    || unavailableSources.contains(unavailableSource)) {
+                throw new InvalidResponse();
+            }
+            unavailableSources.add(unavailableSource);
+        }
+        boolean partial = json.getBoolean("partial");
+        if (partial != !unavailableSources.isEmpty()) {
+            throw new InvalidResponse();
         }
         return new CandidateList(
-                json.getString("theme"),
-                json.getInt("tokenExpiresInMinutes"),
-                json.getBoolean("partial"),
+                requestedTheme,
+                tokenExpiresInMinutes,
+                partial,
                 List.copyOf(unavailableSources),
                 List.copyOf(candidates));
     }
@@ -215,18 +246,31 @@ public final class RouteRecommendationClient {
         List<Route> routes = new ArrayList<>();
         for (int index = 0; index < routesJson.length(); index++) {
             JSONObject route = routesJson.getJSONObject(index);
+            String routeId = route.getString("routeId");
+            String title = route.getString("title");
+            String theme = route.getString("theme");
+            int estimatedMinutes = route.getInt("estimatedMinutes");
+            long distanceMeters = route.getLong("distanceMeters");
+            if (routeId.isBlank() || title.isBlank() || !THEMES.contains(theme)
+                    || estimatedMinutes < 0 || distanceMeters < 0) {
+                throw new InvalidResponse();
+            }
             JSONArray stopsJson = route.getJSONArray("stops");
             List<Stop> stops = new ArrayList<>();
+            Set<Integer> stopSequences = new HashSet<>();
             for (int stopIndex = 0; stopIndex < stopsJson.length(); stopIndex++) {
                 JSONObject stop = stopsJson.getJSONObject(stopIndex);
+                int sequence = stop.getInt("sequence");
+                String name = stop.getString("name");
                 double latitude = stop.getDouble("latitude");
                 double longitude = stop.getDouble("longitude");
-                if (!Double.isFinite(latitude) || latitude < -90 || latitude > 90
+                if (sequence < 1 || !stopSequences.add(sequence) || name.isBlank()
+                        || !Double.isFinite(latitude) || latitude < -90 || latitude > 90
                         || !Double.isFinite(longitude) || longitude < -180 || longitude > 180) {
                     throw new InvalidResponse();
                 }
-                stops.add(new Stop(stop.getInt("sequence"), StopType.valueOf(stop.getString("type")),
-                        stop.getString("name"), latitude, longitude));
+                stops.add(new Stop(sequence, StopType.valueOf(stop.getString("type")),
+                        name, latitude, longitude));
             }
             stops.sort(Comparator.comparingInt(Stop::sequence));
             Integer repeatedSegmentPercent = route.isNull("repeatedSegmentPercent")
@@ -236,12 +280,21 @@ public final class RouteRecommendationClient {
                     && (repeatedSegmentPercent < 0 || repeatedSegmentPercent > 100)) {
                 throw new InvalidResponse();
             }
-            routes.add(new Route(route.getString("routeId"), route.getString("title"),
-                    route.getInt("estimatedMinutes"), route.getLong("distanceMeters"),
-                    route.getString("theme"), repeatedSegmentPercent, List.copyOf(stops),
+            routes.add(new Route(routeId, title,
+                    estimatedMinutes, distanceMeters,
+                    theme, repeatedSegmentPercent, List.copyOf(stops),
                     route.optString("reason", "")));
         }
         return routes;
+    }
+
+    private boolean isUuid(String value) {
+        try {
+            UUID.fromString(value);
+            return true;
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
     }
 
     public enum Mode { MOCK, LIVE, UNAVAILABLE }
