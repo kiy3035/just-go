@@ -1,5 +1,7 @@
 'use strict';
 
+const CANDIDATE_TIMEOUT_MS = 20000;
+const ROUTE_TIMEOUT_MS = 45000;
 const form = document.querySelector('#drive-form');
 const scene = document.querySelector('.drive-scene');
 const customTime = document.querySelector('#custom-time');
@@ -22,6 +24,7 @@ const resultCancel = document.querySelector('#result-cancel');
 const resultConfirm = document.querySelector('#result-confirm');
 let selectedCandidate = null;
 let activeRequestId = 0;
+let activeAbortController = null;
 
 
 function syncForm() {
@@ -85,7 +88,13 @@ function openResult(title, summary, status) {
 
 function closeResult() {
     activeRequestId++;
+    cancelActiveRequest();
     if (resultDialog.open) resultDialog.close();
+}
+
+function cancelActiveRequest() {
+    if (activeAbortController) activeAbortController.abort();
+    activeAbortController = null;
 }
 
 function optionButton(primary, secondary, onSelect) {
@@ -127,6 +136,24 @@ async function readResponse(response) {
     return body;
 }
 
+async function requestJson(url, options, timeoutMillis) {
+    cancelActiveRequest();
+    const controller = new AbortController();
+    activeAbortController = controller;
+    const timeout = setTimeout(() => controller.abort(), timeoutMillis);
+    try {
+        return await readResponse(await fetch(url, {...options, signal: controller.signal}));
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            throw new Error('서버 응답 시간이 초과됐습니다. 다시 시도해 주세요.');
+        }
+        throw error;
+    } finally {
+        clearTimeout(timeout);
+        if (activeAbortController === controller) activeAbortController = null;
+    }
+}
+
 async function loadCandidates(search) {
     const query = new URLSearchParams({
         latitude: search.latitude,
@@ -136,14 +163,14 @@ async function loadCandidates(search) {
         theme: search.theme,
         limit: 50
     });
-    return readResponse(await fetch('/api/v1/places/candidates?' + query, {
+    return requestJson('/api/v1/places/candidates?' + query, {
         headers: {'Accept': 'application/json'},
         cache: 'no-store'
-    }));
+    }, CANDIDATE_TIMEOUT_MS);
 }
 
 async function loadRoutes(search, candidateToken) {
-    return readResponse(await fetch('/api/v1/routes/recommendations', {
+    return requestJson('/api/v1/routes/recommendations', {
         method: 'POST',
         headers: {'Accept': 'application/json', 'Content-Type': 'application/json'},
         cache: 'no-store',
@@ -155,7 +182,14 @@ async function loadRoutes(search, candidateToken) {
             theme: search.theme,
             candidateToken
         })
-    }));
+    }, ROUTE_TIMEOUT_MS);
+}
+
+function themeLabel(theme) {
+    return {
+        ANYWHERE: '어디든', CITY: '도시', MOUNTAIN: '산', SEA: '바다',
+        WATER: '강/호수', RIVER: '강', LAKE: '호수', PARK: '공원'
+    }[theme] || theme;
 }
 
 function renderCandidates(search, response) {
@@ -171,7 +205,7 @@ function renderCandidates(search, response) {
     for (const candidate of response.candidates) {
         const distance = (candidate.straightLineDistanceMeters / 1000).toFixed(1) + ' km';
         resultOptions.append(optionButton(candidate.name,
-            candidate.theme + ' · 직선거리 ' + distance, () => {
+            themeLabel(candidate.theme) + ' · 직선거리 ' + distance, () => {
                 selectedCandidate = candidate;
                 resultConfirm.disabled = false;
             }));
@@ -212,6 +246,7 @@ async function showSelection(event) {
     if (minutes === null) return;
     const summary = conditions(minutes);
     const requestId = ++activeRequestId;
+    cancelActiveRequest();
     setSearching(true, summary);
     try {
         const position = await currentPosition();

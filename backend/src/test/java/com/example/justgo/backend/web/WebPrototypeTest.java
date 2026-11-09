@@ -39,6 +39,8 @@ class WebPrototypeTest {
                     .contains("/api/v1/places/candidates")
                     .contains("/api/v1/routes/recommendations")
                     .contains("candidateToken")
+                    .contains("AbortController")
+                    .contains("CANDIDATE_TIMEOUT_MS", "ROUTE_TIMEOUT_MS")
                     .contains("이 장소로 코스 찾기")
                     .doesNotContain("PREVIEW_DURATION_MS");
         }

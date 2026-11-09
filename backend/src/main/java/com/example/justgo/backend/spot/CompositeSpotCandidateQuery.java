@@ -97,7 +97,10 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
                         sourceLimit));
             } catch (RuntimeException exception) {
                 unavailableSources.add(source.sourceName());
-                LOGGER.warn("외부 장소 후보 조회 실패: source={}", source.sourceName());
+                LOGGER.warn(
+                        "외부 장소 후보 조회 실패: source={}, errorType={}",
+                        source.sourceName(),
+                        exception.getClass().getSimpleName());
             }
         }
 
