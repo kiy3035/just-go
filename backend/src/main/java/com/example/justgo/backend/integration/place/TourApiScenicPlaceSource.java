@@ -13,6 +13,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.example.justgo.backend.spot.ScenicPlaceDistance;
 import com.example.justgo.backend.spot.ScenicPlaceSource;
@@ -38,6 +41,8 @@ public class TourApiScenicPlaceSource implements ScenicPlaceSource {
     private final PublicDataProperties properties;
     private final Clock clock;
     private final Map<String, TourCache> cache = new LinkedHashMap<>();
+    private final Map<String, CompletableFuture<List<SpotCandidateRecord>>> inFlightLoads =
+            new ConcurrentHashMap<>();
 
     public TourApiScenicPlaceSource(
             RestClient restClient,
@@ -117,15 +122,51 @@ public class TourApiScenicPlaceSource implements ScenicPlaceSource {
             int radius,
             long maxDistanceMeters) {
         String key = cacheKey(latitude, longitude, radius, maxDistanceMeters);
+        List<SpotCandidateRecord> cached = cachedValue(key);
+        if (cached != null) {
+            return cached;
+        }
+
+        CompletableFuture<List<SpotCandidateRecord>> current = new CompletableFuture<>();
+        CompletableFuture<List<SpotCandidateRecord>> existing = inFlightLoads.putIfAbsent(
+                key, current);
+        if (existing != null) {
+            return awaitCandidates(existing);
+        }
+
+        try {
+            List<SpotCandidateRecord> cachedAfterRegistration = cachedValue(key);
+            if (cachedAfterRegistration != null) {
+                current.complete(cachedAfterRegistration);
+                return cachedAfterRegistration;
+            }
+            List<SpotCandidateRecord> loaded = loadCandidates(
+                    latitude, longitude, radius, maxDistanceMeters);
+            cacheValue(key, loaded);
+            current.complete(loaded);
+            return loaded;
+        } catch (RuntimeException | Error exception) {
+            current.completeExceptionally(exception);
+            throw exception;
+        } finally {
+            inFlightLoads.remove(key, current);
+        }
+    }
+
+    private List<SpotCandidateRecord> cachedValue(String key) {
         Instant now = Instant.now(clock);
         synchronized (cache) {
             cache.entrySet().removeIf(entry -> !entry.getValue().expiresAt().isAfter(now));
             TourCache cached = cache.get(key);
-            if (cached != null) {
-                return cached.candidates();
-            }
+            return cached == null ? null : cached.candidates();
         }
+    }
 
+    private List<SpotCandidateRecord> loadCandidates(
+            BigDecimal latitude,
+            BigDecimal longitude,
+            int radius,
+            long maxDistanceMeters) {
         Map<Long, SpotCandidateRecord> loaded = new LinkedHashMap<>();
         for (SearchCenter center : searchCenters(latitude, longitude, radius, maxDistanceMeters)) {
             JsonNode response = fetch(center.latitude(), center.longitude(), radius);
@@ -134,16 +175,34 @@ public class TourApiScenicPlaceSource implements ScenicPlaceSource {
                         candidate.id(), candidate));
             }
         }
-        List<SpotCandidateRecord> immutable = List.copyOf(loaded.values());
+        return List.copyOf(loaded.values());
+    }
+
+    private void cacheValue(String key, List<SpotCandidateRecord> candidates) {
         synchronized (cache) {
             while (cache.size() >= MAX_CACHE_ENTRIES) {
                 cache.remove(cache.keySet().iterator().next());
             }
             cache.put(key, new TourCache(
-                    immutable,
+                    candidates,
                     Instant.now(clock).plus(properties.getTourCacheTtl())));
         }
-        return immutable;
+    }
+
+    /** 같은 위치·범위의 진행 중 광역 조회를 공유해 개발계정 호출량을 절약합니다. */
+    private List<SpotCandidateRecord> awaitCandidates(
+            CompletableFuture<List<SpotCandidateRecord>> inFlight) {
+        try {
+            return inFlight.join();
+        } catch (CompletionException exception) {
+            if (exception.getCause() instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            if (exception.getCause() instanceof Error error) {
+                throw error;
+            }
+            throw exception;
+        }
     }
 
     private String cacheKey(

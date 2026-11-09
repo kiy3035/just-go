@@ -7,7 +7,13 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 import java.math.BigDecimal;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import com.example.justgo.backend.spot.ScenicTheme;
 import com.example.justgo.backend.spot.SpotCandidateRecord;
@@ -95,6 +101,75 @@ class TourApiScenicPlaceSourceTest {
         assertThat(cityResultFromSameCachedResponse).singleElement()
                 .extracting(candidate -> candidate.name())
                 .isEqualTo("도시박물관 테스트");
+        server.verify();
+    }
+
+    @Test
+    void sharesOneTourApiLoadAcrossConcurrentThemeRequests() throws Exception {
+        RestClient.Builder builder = RestClient.builder().baseUrl(BASE_URL);
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        PublicDataProperties properties = new PublicDataProperties();
+        properties.setParkApiKey("TEST_KEY_ONLY");
+        properties.setTourApiKey("TEST_KEY_ONLY");
+        properties.setTourSearchMaxCenters(1);
+        TourApiScenicPlaceSource source = new TourApiScenicPlaceSource(
+                builder.build(), properties);
+        CountDownLatch upstreamStarted = new CountDownLatch(1);
+        CountDownLatch releaseUpstream = new CountDownLatch(1);
+        server.expect(requestTo(org.hamcrest.Matchers.containsString("/locationBasedList2?")))
+                .andRespond(request -> {
+                    upstreamStarted.countDown();
+                    try {
+                        if (!releaseUpstream.await(5, TimeUnit.SECONDS)) {
+                            throw new IllegalStateException("TEST_UPSTREAM_RELEASE_TIMEOUT");
+                        }
+                    } catch (InterruptedException exception) {
+                        Thread.currentThread().interrupt();
+                        throw new IllegalStateException("TEST_UPSTREAM_INTERRUPTED", exception);
+                    }
+                    return withSuccess("""
+                            {
+                              "response": {
+                                "header": {"resultCode": "0000"},
+                                "body": {"items": {"item": [{
+                                  "contentid": "CONCURRENT-CITY-1",
+                                  "contenttypeid": "14",
+                                  "title": "동시 조회 도시 후보 테스트",
+                                  "lclsSystm2": "VE07",
+                                  "lclsSystm3": "VE070100",
+                                  "mapx": "126.980000",
+                                  "mapy": "37.568000"
+                                }]}}
+                              }
+                            }
+                            """, MediaType.APPLICATION_JSON).createResponse(request);
+                });
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<List<SpotCandidateRecord>> city = executor.submit(() ->
+                    source.findNearby(
+                            ScenicTheme.CITY,
+                            new BigDecimal("37.566500"),
+                            new BigDecimal("126.978000"),
+                            20_000,
+                            20));
+            assertThat(upstreamStarted.await(5, TimeUnit.SECONDS)).isTrue();
+            Future<List<SpotCandidateRecord>> sea = executor.submit(() ->
+                    source.findNearby(
+                            ScenicTheme.SEA,
+                            new BigDecimal("37.566500"),
+                            new BigDecimal("126.978000"),
+                            20_000,
+                            20));
+            releaseUpstream.countDown();
+
+            assertThat(city.get(5, TimeUnit.SECONDS)).hasSize(1);
+            assertThat(sea.get(5, TimeUnit.SECONDS)).isEmpty();
+        } finally {
+            releaseUpstream.countDown();
+            executor.shutdownNow();
+        }
         server.verify();
     }
 
