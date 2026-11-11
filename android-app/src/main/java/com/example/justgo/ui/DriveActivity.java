@@ -23,8 +23,6 @@ import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
 import com.example.justgo.BuildConfig;
 import com.example.justgo.R;
 import com.example.justgo.data.DriveSelection;
@@ -33,6 +31,7 @@ import com.example.justgo.data.RouteRecommendationClient;
 import com.example.justgo.data.RouteRecommendationClient.Recommendation;
 import com.example.justgo.databinding.ActivityDriveBinding;
 import com.example.justgo.databinding.DialogRouteResultBinding;
+import com.example.justgo.databinding.RouteCourseRowBinding;
 import com.example.justgo.pleos.NavigationGateway;
 import com.example.justgo.pleos.PleosNavigationGateway;
 import com.example.justgo.pleos.DrivingRestrictionsMonitor;
@@ -46,7 +45,6 @@ import java.util.concurrent.Executors;
 
 public final class DriveActivity extends Activity {
     private static final String SEARCH_PROMPT = "이 조건으로 코스 찾기 →";
-    private static final int CANDIDATE_LIMIT = 50;
     private static final int LOCATION_PERMISSION_REQUEST = 1;
     private final ExecutorService routeExecutor = Executors.newSingleThreadExecutor();
     private final RouteRecommendationClient routeClient =
@@ -56,7 +54,6 @@ public final class DriveActivity extends Activity {
     private NavigationGateway navigationGateway;
     private DrivingRestrictionsMonitor restrictionsMonitor;
     private RouteRecommendationClient.Route selectedRoute;
-    private RouteRecommendationClient.Candidate selectedCandidate;
     private boolean navigationConnectionFailed;
     private boolean drivingRestricted;
     private boolean searchInProgress;
@@ -256,7 +253,7 @@ public final class DriveActivity extends Activity {
         binding.findRoute.setText("현재 위치를 확인하고 있어요…");
         Location location = freshPrefetchedLocation();
         if (location != null) {
-            requestCandidates(location.getLatitude(), location.getLongitude(),
+            requestCourses(location.getLatitude(), location.getLongitude(),
                     minutes, roundTrip, theme);
             return;
         }
@@ -264,7 +261,7 @@ public final class DriveActivity extends Activity {
             @Override public void onLocation(Location location) {
                 if (binding == null) return;
                 prefetchedLocation = location;
-                requestCandidates(location.getLatitude(), location.getLongitude(),
+                requestCourses(location.getLatitude(), location.getLongitude(),
                         minutes, roundTrip, theme);
             }
 
@@ -274,42 +271,20 @@ public final class DriveActivity extends Activity {
         });
     }
 
-    private void requestCandidates(double latitude, double longitude, int minutes,
-                                   boolean roundTrip, String theme) {
+    private void requestCourses(double latitude, double longitude, int minutes,
+                                boolean roundTrip, String theme) {
         String tripType = roundTrip ? "ROUND_TRIP" : "ONE_WAY";
-        String conditions = (roundTrip ? "왕복" : "편도") + " · " + minutes + "분 · " + themeLabel(theme);
-        CandidateSearchContext context = new CandidateSearchContext(
-                latitude, longitude, minutes, tripType, theme, conditions);
-        showSearchProgress("갈 만한 장소를 찾고 있어요…   ", conditions);
+        String tripSummary = (roundTrip ? "왕복" : "편도") + " " + minutes + "분";
+        String conditions = tripSummary + " · " + themeLabel(theme);
+        showSearchProgress("조건에 맞는 코스를 찾고 있어요…   ", conditions);
         routeExecutor.execute(() -> {
             try {
-                RouteRecommendationClient.CandidateList candidates = routeClient.findCandidates(
-                        latitude, longitude, minutes, tripType, theme, CANDIDATE_LIMIT);
+                Recommendation result = routeClient.recommend(latitude, longitude, minutes, tripType, theme);
                 runOnUiThread(() -> {
-                    if (binding != null) showCandidates(context, candidates);
+                    if (binding != null) showCourseChoices(conditions, tripSummary, result);
                 });
             } catch (IOException error) {
-                showRequestError("장소 조회 실패", conditions, error);
-            }
-        });
-    }
-
-    private void requestRecommendations(CandidateSearchContext context,
-                                        RouteRecommendationClient.Candidate candidate) {
-        dismissResult();
-        searchInProgress = true;
-        showSearchProgress("선택한 장소의 코스를 계산하고 있어요…   ", context.conditions());
-        String resultConditions = context.conditions() + "\n목적지 · " + candidate.name();
-        routeExecutor.execute(() -> {
-            try {
-                Recommendation result = routeClient.recommend(
-                        context.latitude(), context.longitude(), context.minutes(),
-                        context.tripType(), context.theme(), candidate.token());
-                runOnUiThread(() -> {
-                    if (binding != null) showRecommendation(resultConditions, result);
-                });
-            } catch (IOException error) {
-                showRequestError("추천 요청 실패", resultConditions, error);
+                showRequestError("추천 요청 실패", conditions, error);
             }
         });
     }
@@ -370,125 +345,142 @@ public final class DriveActivity extends Activity {
         super.onDestroy();
     }
 
-    private void showCandidates(CandidateSearchContext context,
-                                RouteRecommendationClient.CandidateList result) {
-        if (result.candidates().isEmpty()) {
-            if (result.sourceUnavailable()) {
-                renderResult(
-                        "장소 데이터를 불러오지 못했어요",
-                        "외부 장소 서비스 연결이 지연되고 있습니다. 잠시 후 다시 검색해 주세요.");
-            } else {
-                renderResult(
-                        "주변 장소를 찾지 못했어요",
-                        "시간이나 풍경을 바꿔 다시 검색해 주세요.");
-            }
-            return;
-        }
-        if (!prepareResult("어디로 달릴까요?", context.conditions())) return;
-        resultBinding.routeChoices.setOnCheckedChangeListener((group, checkedId) -> {
-            View checked = group.findViewById(checkedId);
-            selectedCandidate = checked == null
-                    ? null
-                    : (RouteRecommendationClient.Candidate) checked.getTag();
-            resultBinding.confirm.setEnabled(selectedCandidate != null && !drivingRestricted);
-        });
-        for (RouteRecommendationClient.Candidate candidate : result.candidates()) {
-            addCandidateChoice(candidate);
-        }
-        resultBinding.cancel.setVisibility(View.VISIBLE);
-        resultBinding.cancel.setText("취소");
-        resultBinding.confirm.setText("이 장소로 코스 찾기");
-        resultBinding.confirm.setEnabled(false);
-        resultBinding.confirm.setOnClickListener(v -> {
-            RouteRecommendationClient.Candidate chosen = selectedCandidate;
-            if (chosen != null) requestRecommendations(context, chosen);
-        });
-        if (result.partial()) {
-            showResultDetails("일부 장소 데이터 연결이 지연되어 현재 확인된 후보만 보여드려요.");
-        } else {
-            showResultDetails("장소를 선택하면 실제 도로 시간과 거리를 계산합니다.");
-        }
-        showResultDialog();
-    }
-
-    private void addCandidateChoice(RouteRecommendationClient.Candidate candidate) {
-        String label = String.format(Locale.KOREA, "%s  ·  %s  ·  %.1f km",
-                candidate.name(), themeLabel(candidate.theme()),
-                candidate.distanceMeters() / 1000.0);
-        RadioButton choice = createResultChoice(label, candidate, true);
-        resultBinding.routeChoices.addView(choice);
-        resultBinding.routeChoices.setVisibility(View.VISIBLE);
-    }
-
-    private void showRecommendation(String conditions, Recommendation result) {
+    private void showCourseChoices(String conditions, String tripSummary, Recommendation result) {
         boolean alternative = result.routes().isEmpty() && !result.alternativeRoutes().isEmpty();
         var routes = alternative ? result.alternativeRoutes() : result.routes();
+        boolean live = result.mode() == RouteRecommendationClient.Mode.LIVE;
+        if (live) {
+            routes = new ArrayList<>(routes);
+            routes.removeIf(route -> route.stops().isEmpty());
+        }
         if (routes.isEmpty()) {
             if (result.mode() == RouteRecommendationClient.Mode.UNAVAILABLE) {
                 renderResult("지금은 코스를 찾기 어려워요", "잠시 후 다시 시도해 주세요.");
             } else {
-                renderResult("조건에 맞는 코스가 없어요", "시간이나 풍경을 바꿔보세요.");
+                renderResult("조건에 맞는 코스가 없어요",
+                        "희망 시간 ±10분 안에 코스를 찾지 못했어요. 시간이나 풍경을 바꿔보세요.");
             }
             return;
         }
-        String heading = switch (result.mode()) {
-            case MOCK -> "MOCK · 개발용 추천 예시";
-            case LIVE -> alternative ? "다른 풍경의 추천 코스" : "추천 코스";
-            case UNAVAILABLE -> "추천 서비스 연결 실패";
-        };
-        if (!prepareResult(heading, conditions)) return;
-        if (result.notice() != null && !result.notice().isBlank()) {
-            resultBinding.selectionSummary.setText(conditions + "\n" + result.notice());
+        if (!live) {
+            showCourseDetails("MOCK · 개발용 추천 예시", tripSummary, result, routes.get(0), false);
+            return;
         }
 
-        boolean live = result.mode() == RouteRecommendationClient.Mode.LIVE;
-        resultOffersNavigation = live;
+        String heading = alternative ? "다른 풍경의 추천 코스" : "추천 코스";
+        if (!prepareResult(heading, conditions)) return;
+        resultBinding.closeCourseList.setVisibility(View.VISIBLE);
+        resultBinding.closeCourseList.setOnClickListener(v -> dismissResult());
         for (RouteRecommendationClient.Route route : routes) {
-            String name = alternative ? themeLabel(route.theme()) + " · " + route.title() : route.title();
-            String repeated = route.repeatedSegmentPercent() == null
-                    ? ""
-                    : "  ·  왕복 중복 " + route.repeatedSegmentPercent() + "%";
-            String reason = route.reason() == null || route.reason().isBlank()
-                    ? ""
-                    : "\n" + route.reason();
-            addResultChoice(String.format(Locale.KOREA, "%s  ·  %d분  ·  %.1f km%s%s",
-                    name, route.minutes(), route.meters() / 1000.0, repeated, reason),
-                    route, live && !route.stops().isEmpty());
+            addCourseRow(route);
         }
+        resultBinding.routeChoices.setVisibility(View.VISIBLE);
+        resultBinding.cancel.setVisibility(View.VISIBLE);
+        resultBinding.confirm.setText("코스 확인");
+        resultBinding.confirm.setBackgroundResource(R.drawable.route_detail_primary);
+        resultBinding.confirm.setEnabled(false);
+        resultBinding.confirm.setOnClickListener(v -> {
+            View checked = (View) resultBinding.routeChoices.getTag();
+            if (checked != null) {
+                showCourseDetails("추천 코스", tripSummary, result,
+                        (RouteRecommendationClient.Route) checked.getTag(), true);
+            }
+        });
+        showResultDetails("코스를 고르면 상세 정보를 확인할 수 있어요.");
+        showResultDialog();
+    }
+
+    private String courseMetrics(RouteRecommendationClient.Route route) {
+        return String.format(Locale.KOREA, "%d분  ·  %.1f km",
+                route.minutes(), route.meters() / 1000.0);
+    }
+
+    private void showCourseDetails(String heading, String tripSummary, Recommendation result,
+                                   RouteRecommendationClient.Route route, boolean live) {
+        if (!prepareResult(heading, tripSummary)) return;
+        resultBinding.selectionSummary.setVisibility(View.GONE);
+        resultBinding.resultTitle.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                R.drawable.ic_route_popup, 0, 0, 0);
+        resultBinding.resultTitle.setCompoundDrawablePadding(
+                Math.round(16 * getResources().getDisplayMetrics().density));
+
+        var detail = resultBinding.courseDetail;
+        detail.getRoot().setVisibility(View.VISIBLE);
+        detail.tripChip.setText(tripSummary);
+        detail.themeChip.setText(themeLabel(route.theme()));
+        var sceneryTheme = switch (route.theme()) {
+            case "CITY" -> RiversideSceneView.Theme.CITY;
+            case "MOUNTAIN" -> RiversideSceneView.Theme.MOUNTAIN;
+            case "SEA" -> RiversideSceneView.Theme.SEA;
+            case "RIVER", "LAKE", "WATER" -> RiversideSceneView.Theme.WATER;
+            case "PARK" -> RiversideSceneView.Theme.PARK;
+            default -> RiversideSceneView.Theme.ANYWHERE;
+        };
+        int themeIcon = switch (sceneryTheme) {
+            case CITY -> R.drawable.ic_city;
+            case MOUNTAIN -> R.drawable.ic_mountain;
+            case SEA -> R.drawable.ic_sea;
+            case WATER -> R.drawable.ic_water;
+            case PARK -> R.drawable.ic_park;
+            case ANYWHERE -> R.drawable.ic_anywhere;
+        };
+        detail.themeChip.setCompoundDrawablesRelativeWithIntrinsicBounds(themeIcon, 0, 0, 0);
+        detail.headerScenery.setPreviewMode();
+        detail.headerScenery.setTheme(sceneryTheme);
+        detail.thumbnail.setPreviewMode();
+        detail.thumbnail.setTheme(sceneryTheme);
+
+        detail.destination.setVisibility(View.GONE);
+        for (RouteRecommendationClient.Stop stop : route.stops()) {
+            if (stop.type() == RouteRecommendationClient.StopType.DESTINATION && !stop.name().isBlank()) {
+                detail.destination.setText("목적지  " + stop.name());
+                detail.destination.setVisibility(View.VISIBLE);
+                break;
+            }
+        }
+        detail.courseNotice.setText(result.notice());
+        detail.courseNotice.setVisibility(
+                result.notice() == null || result.notice().isBlank() ? View.GONE : View.VISIBLE);
+        detail.courseTitle.setText(route.title());
+        String repeated = route.repeatedSegmentPercent() == null
+                ? ""
+                : "  ·  왕복 중복 " + route.repeatedSegmentPercent() + "%";
+        detail.courseMetrics.setText(courseMetrics(route) + repeated);
+        detail.courseReason.setText(route.reason());
+        detail.courseReason.setVisibility(
+                route.reason() == null || route.reason().isBlank() ? View.GONE : View.VISIBLE);
+
+        resultOffersNavigation = live;
         if (live) {
-            resultBinding.routeChoices.setOnCheckedChangeListener((group, checkedId) -> {
-                View checked = group.findViewById(checkedId);
-                selectedRoute = checked == null ? null : (RouteRecommendationClient.Route) checked.getTag();
-                refreshNavigationControl();
-            });
+            selectedRoute = route;
             resultBinding.cancel.setVisibility(View.VISIBLE);
             resultBinding.confirm.setText("시작");
+            resultBinding.confirm.setBackgroundResource(R.drawable.route_detail_primary);
             resultBinding.confirm.setOnClickListener(v -> startNavigation());
             refreshNavigationControl();
         }
         showResultDialog();
     }
 
-    private void addResultChoice(String label, RouteRecommendationClient.Route route, boolean enabled) {
-        RadioButton choice = createResultChoice(label, route, enabled);
-        resultBinding.routeChoices.addView(choice);
-        resultBinding.routeChoices.setVisibility(View.VISIBLE);
-    }
-
-    private RadioButton createResultChoice(String label, Object tag, boolean enabled) {
-        RadioButton choice = new RadioButton(this, null, 0, R.style.RouteChoice);
-        choice.setId(View.generateViewId());
-        choice.setTag(tag);
-        choice.setText(label);
-        // Pleos에서 스타일로 생성한 선택 항목의 터치와 포커스를 활성화한다.
-        choice.setClickable(true);
-        choice.setFocusable(true);
-        choice.setMaxLines(2);
-        choice.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        choice.setEnabled(enabled);
-        choice.setLayoutParams(new RadioGroup.LayoutParams(
-                RadioGroup.LayoutParams.MATCH_PARENT, RadioGroup.LayoutParams.WRAP_CONTENT));
-        return choice;
+    private void addCourseRow(RouteRecommendationClient.Route route) {
+        var list = resultBinding.routeChoices;
+        var row = RouteCourseRowBinding.inflate(getLayoutInflater(), list, false);
+        String theme = themeLabel(route.theme());
+        String metrics = courseMetrics(route);
+        row.courseName.setText(route.title());
+        row.courseTheme.setText(theme);
+        row.courseStats.setText(metrics);
+        View choice = row.getRoot();
+        choice.setContentDescription(route.title() + " · " + theme + " · " + metrics);
+        choice.setTag(route);
+        choice.setOnClickListener(v -> {
+            View previous = (View) list.getTag();
+            if (previous != null) previous.setSelected(false);
+            choice.setSelected(true);
+            list.setTag(choice);
+            resultBinding.confirm.setEnabled(!drivingRestricted);
+        });
+        list.addView(choice);
     }
 
     private void startNavigation() {
@@ -522,9 +514,7 @@ public final class DriveActivity extends Activity {
         } else if (!connected) {
             showResultDetails("차량 내비 연결을 확인하고 있어요.");
         } else {
-            showResultDetails(selectedRoute == null
-                    ? "내비로 보낼 코스를 선택해 주세요."
-                    : "시작을 누르면 차량 내비로 보냅니다.");
+            showResultDetails("시작을 누르면 차량 내비로 보냅니다.");
         }
     }
 
@@ -636,7 +626,6 @@ public final class DriveActivity extends Activity {
                 resultDialog = null;
                 resultBinding = null;
                 selectedRoute = null;
-                selectedCandidate = null;
                 resultOffersNavigation = false;
             }
         });
@@ -647,10 +636,12 @@ public final class DriveActivity extends Activity {
     private void showResultDialog() {
         float density = getResources().getDisplayMetrics().density;
         int availableWidth = binding.getRoot().getWidth();
-        int preferredWidth = Math.round(availableWidth * 0.62f);
+        boolean courseList = resultBinding.routeChoices.getVisibility() == View.VISIBLE;
+        int preferredWidth = Math.round(availableWidth * (courseList ? 0.86f : 0.62f));
         int readableWidth = Math.max(preferredWidth, Math.round(420 * density));
         int panelWidth = Math.min(readableWidth,
-                Math.min(Math.round(1120 * density), Math.round(availableWidth * 0.86f)));
+                Math.min(Math.round((courseList ? 1420 : 1120) * density),
+                        Math.round(availableWidth * 0.86f)));
         ViewGroup.LayoutParams panelLayout = resultBinding.resultPanel.getLayoutParams();
         panelLayout.width = panelWidth;
         resultBinding.resultPanel.setLayoutParams(panelLayout);
@@ -668,7 +659,6 @@ public final class DriveActivity extends Activity {
         resultDialog = null;
         resultBinding = null;
         selectedRoute = null;
-        selectedCandidate = null;
         resultOffersNavigation = false;
         dialog.dismiss();
     }
@@ -681,11 +671,4 @@ public final class DriveActivity extends Activity {
         super.onSaveInstanceState(out);
     }
 
-    private record CandidateSearchContext(
-            double latitude,
-            double longitude,
-            int minutes,
-            String tripType,
-            String theme,
-            String conditions) { }
 }

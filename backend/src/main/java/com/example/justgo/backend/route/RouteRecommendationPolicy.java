@@ -1,5 +1,7 @@
 package com.example.justgo.backend.route;
 
+import static com.example.justgo.backend.integration.routing.DrivingRouteProvider.MAX_ROUTE_OPTIONS_PER_REQUEST;
+
 import java.util.Comparator;
 import java.util.List;
 
@@ -7,26 +9,28 @@ import com.example.justgo.backend.integration.routing.DrivingRouteCandidate;
 
 /**
  * 실제 자동차 경로 후보를 희망 주행 시간과 가까운 순서로 정렬합니다.
- * 계산이 끝난 LIVE 후보는 시간 차이가 크더라도 숨기지 않고 사용자가 비교하게 합니다.
+ * 희망 시간에서 10분 이내인 LIVE 후보만 반환합니다.
  */
 final class RouteRecommendationPolicy {
 
-    private static final int MAX_RECOMMENDATIONS = 3;
+    private static final int DURATION_TOLERANCE_MINUTES = 10;
 
     /**
-     * 모든 실제 계산 후보를 시간 차이, 왕복 중복률, 거리, 경로 식별자 순으로 정렬합니다.
+     * 허용 범위 안의 후보를 시간 차이, 왕복 중복률, 거리, 경로 식별자 순으로 정렬합니다.
      */
     public List<DrivingRouteCandidate> rankByDurationProximity(
             int desiredMinutes,
             List<DrivingRouteCandidate> candidates) {
         return candidates.stream()
+                .filter(candidate -> durationDifference(desiredMinutes, candidate.estimatedMinutes())
+                        <= DURATION_TOLERANCE_MINUTES)
                 .sorted(Comparator
                         .comparingLong((DrivingRouteCandidate candidate) ->
                                 durationDifference(desiredMinutes, candidate.estimatedMinutes()))
                         .thenComparingInt(this::repeatedSegmentSortValue)
                         .thenComparingLong(DrivingRouteCandidate::distanceMeters)
                         .thenComparing(DrivingRouteCandidate::routeId))
-                .limit(MAX_RECOMMENDATIONS)
+                .limit(MAX_ROUTE_OPTIONS_PER_REQUEST)
                 .toList();
     }
 

@@ -82,7 +82,7 @@ public final class RouteRecommendationClient {
         activeConnection.set(connection);
         try {
             connection.setRequestMethod("POST");
-            configure(connection, 45_000);
+            configure(connection, 75_000);
             connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
             connection.setDoOutput(true);
             JSONObject request = new JSONObject()

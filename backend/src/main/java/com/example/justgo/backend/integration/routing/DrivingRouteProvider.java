@@ -5,6 +5,8 @@ package com.example.justgo.backend.integration.routing;
  */
 public interface DrivingRouteProvider {
 
+    int MAX_ROUTE_OPTIONS_PER_REQUEST = 10;
+
     /**
      * 주어진 조건으로 자동차 경로 후보를 계산합니다.
      *

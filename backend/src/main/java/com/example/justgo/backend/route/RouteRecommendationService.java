@@ -1,5 +1,7 @@
 package com.example.justgo.backend.route;
 
+import static com.example.justgo.backend.integration.routing.DrivingRouteProvider.MAX_ROUTE_OPTIONS_PER_REQUEST;
+
 import java.util.List;
 
 import com.example.justgo.backend.integration.routing.DrivingRouteCandidate;
@@ -54,7 +56,7 @@ public class RouteRecommendationService {
     }
 
     /**
-     * 입력 시간 단위를 검증하고 모든 LIVE 계산 결과를 희망 시간과 가까운 순으로 반환합니다.
+     * 입력 시간 단위를 검증하고 희망 시간 범위 안의 LIVE 결과를 가까운 순으로 반환합니다.
      *
      * @param request 검증된 외부 요청
      * @return 데이터 출처 모드와 추천 결과가 명시된 응답
@@ -78,10 +80,11 @@ public class RouteRecommendationService {
         var alternatives = result.mode() == DrivingRouteMode.LIVE
                 && recommendedRoutes.isEmpty() && candidates.size() <= 1
                 && request.candidateToken() == null && request.theme() != ScenicTheme.ANYWHERE
-                ? calculateAlternatives(request, maxCandidateDistanceMeters, candidates.isEmpty() ? 2 : 1)
+                ? calculateAlternatives(request, maxCandidateDistanceMeters,
+                        MAX_ROUTE_OPTIONS_PER_REQUEST - candidates.size() - 1)
                 : List.<DrivingRouteCandidate>of();
         String notice = alternatives.isEmpty()
-                ? broadenedLiveResultNotice(result, recommendedRoutes)
+                ? result.notice()
                 : "선택한 풍경의 코스가 없어 가까운 다른 풍경의 실제 경로를 찾았습니다.";
 
         return new RouteRecommendationResponse(
@@ -145,17 +148,6 @@ public class RouteRecommendationService {
             throw new InvalidCandidateTokenException();
         }
         return List.of(selected);
-    }
-
-    /** LIVE 결과는 시간 차이가 크더라도 비교할 수 있도록 숨기지 않았음을 알립니다. */
-    private String broadenedLiveResultNotice(
-            DrivingRouteResult result,
-            List<DrivingRouteCandidate> recommendedRoutes) {
-        if (result.mode() != DrivingRouteMode.LIVE || recommendedRoutes.isEmpty()) {
-            return result.notice();
-        }
-        return result.notice()
-                + " 희망 시간과 차이가 있는 경로도 가까운 순으로 함께 표시합니다.";
     }
 
     /**
