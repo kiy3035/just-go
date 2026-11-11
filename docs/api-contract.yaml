@@ -261,6 +261,8 @@ components:
           format: uuid
         name:
           type: string
+          minLength: 1
+          maxLength: 100
         theme:
           $ref: '#/components/schemas/ScenicTheme'
         latitude:
@@ -281,6 +283,8 @@ components:
           enum: [VERIFIED_DB, PUBLIC_PARK, TOUR_API, TMAP_POI]
         sourceCategory:
           type: string
+          minLength: 1
+          maxLength: 200
           description: >-
             원천이 제공한 공식 분류값입니다. 화면 테마는 이 값을 명시적 매핑한 결과이며
             장소명 키워드로 재분류하지 않습니다.

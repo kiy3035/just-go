@@ -27,6 +27,8 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
     private static final Logger LOGGER = LoggerFactory.getLogger(CompositeSpotCandidateQuery.class);
     private static final int SOURCE_FETCH_MULTIPLIER = 3;
     private static final long OVERRIDE_MATCH_DISTANCE_METERS = 1_000;
+    private static final int MAX_CANDIDATE_NAME_LENGTH = 100;
+    private static final int MAX_SOURCE_CATEGORY_LENGTH = 200;
     private static final List<ScenicTheme> ACTUAL_THEME_ORDER = List.of(
             ScenicTheme.CITY,
             ScenicTheme.MOUNTAIN,
@@ -107,7 +109,7 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
         LinkedHashMap<String, SpotCandidateRecord> unique = new LinkedHashMap<>();
         combined.stream()
                 .filter(candidate -> candidate != null && theme.includes(candidate.theme()))
-                .filter(this::hasValidCoordinate)
+                .filter(this::hasValidCandidateData)
                 .filter(candidate -> isAllowedByOverride(candidate, overrides))
                 .filter(candidate -> ScenicPlaceDistance.meters(
                         originLatitude,
@@ -175,11 +177,17 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
                 || supportedThemes.stream().anyMatch(requestedTheme::includes);
     }
 
-    private boolean hasValidCoordinate(SpotCandidateRecord candidate) {
+    private boolean hasValidCandidateData(SpotCandidateRecord candidate) {
         return candidate.id() != null
                 && candidate.name() != null
                 && !candidate.name().isBlank()
+                && candidate.name().length() <= MAX_CANDIDATE_NAME_LENGTH
                 && candidate.theme() != null
+                && candidate.source() != null
+                && !candidate.source().isBlank()
+                && candidate.sourceCategory() != null
+                && !candidate.sourceCategory().isBlank()
+                && candidate.sourceCategory().length() <= MAX_SOURCE_CATEGORY_LENGTH
                 && candidate.latitude() != null
                 && candidate.longitude() != null
                 && candidate.latitude().compareTo(BigDecimal.valueOf(-90)) >= 0

@@ -198,6 +198,32 @@ public class RouteRecommendationClientTest {
         } catch (RouteRecommendationClient.InvalidResponse expected) {
             assertNotNull(expected);
         }
+
+        server.enqueue(jsonResponse("""
+                {
+                  "theme": "PARK",
+                  "count": 1,
+                  "tokenExpiresInMinutes": 30,
+                  "partial": false,
+                  "unavailableSources": [],
+                  "candidates": [{
+                    "candidateToken": "11111111-1111-1111-1111-111111111111",
+                    "name": "%s",
+                    "theme": "PARK",
+                    "latitude": 37.5,
+                    "longitude": 127.0,
+                    "straightLineDistanceMeters": 1,
+                    "source": "PUBLIC_PARK",
+                    "sourceCategory": "도시공원"
+                  }]
+                }
+                """.formatted("N".repeat(101))));
+        try {
+            client.findCandidates(37.5, 127.0, 60, "ONE_WAY", "PARK", 50);
+            fail("표시 길이 계약을 벗어난 후보 응답은 거부해야 합니다.");
+        } catch (RouteRecommendationClient.InvalidResponse expected) {
+            assertNotNull(expected);
+        }
     }
 
     @Test

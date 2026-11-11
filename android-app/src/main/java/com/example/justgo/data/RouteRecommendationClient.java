@@ -25,6 +25,8 @@ public final class RouteRecommendationClient {
     static final String CANDIDATE_PATH = "/api/v1/places/candidates";
     static final String RECOMMENDATION_PATH = "/api/v1/routes/recommendations";
     private static final int MAX_RESPONSE_CHARACTERS = 65_536;
+    private static final int MAX_CANDIDATE_NAME_LENGTH = 100;
+    private static final int MAX_SOURCE_CATEGORY_LENGTH = 200;
     private static final Set<String> THEMES = Set.of(
             "CITY", "MOUNTAIN", "RIVER", "LAKE", "SEA", "PARK", "ANYWHERE", "WATER");
     private static final Set<String> CANDIDATE_THEMES = Set.of(
@@ -187,8 +189,10 @@ public final class RouteRecommendationClient {
             double latitude = item.getDouble("latitude");
             double longitude = item.getDouble("longitude");
             long distanceMeters = item.getLong("straightLineDistanceMeters");
-            if (!isUuid(token) || name.isBlank() || !CANDIDATE_THEMES.contains(theme)
+            if (!isUuid(token) || name.isBlank() || name.length() > MAX_CANDIDATE_NAME_LENGTH
+                    || !CANDIDATE_THEMES.contains(theme)
                     || !CANDIDATE_SOURCES.contains(source) || sourceCategory.isBlank()
+                    || sourceCategory.length() > MAX_SOURCE_CATEGORY_LENGTH
                     || !Double.isFinite(latitude) || latitude < -90 || latitude > 90
                     || !Double.isFinite(longitude) || longitude < -180 || longitude > 180
                     || distanceMeters < 0) {

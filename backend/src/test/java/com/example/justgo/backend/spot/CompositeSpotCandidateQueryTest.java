@@ -274,6 +274,60 @@ class CompositeSpotCandidateQueryTest {
                 .containsExactly("HEALTHY_SOURCE");
     }
 
+    @Test
+    void excludesExternalCandidateWithOversizedDisplayText() {
+        SpotService verifiedSpotService = mock(SpotService.class);
+        when(verifiedSpotService.loadNearbyVerifiedCandidates(
+                any(), any(), any(), anyLong(), anyInt())).thenReturn(List.of());
+        when(verifiedSpotService.loadCandidateOverrides()).thenReturn(List.of());
+
+        ScenicPlaceSource source = new ScenicPlaceSource() {
+            @Override
+            public String sourceName() {
+                return "TEST_SOURCE";
+            }
+
+            @Override
+            public Set<ScenicTheme> supportedThemes() {
+                return Set.of(ScenicTheme.CITY);
+            }
+
+            @Override
+            public List<SpotCandidateRecord> findNearby(
+                    ScenicTheme theme,
+                    BigDecimal originLatitude,
+                    BigDecimal originLongitude,
+                    long maxDistanceMeters,
+                    int limit) {
+                return List.of(
+                        new SpotCandidateRecord(
+                                -1L, "N".repeat(101), ScenicTheme.CITY,
+                                new BigDecimal("37.5100"), new BigDecimal("127.0000"),
+                                "TEST_SOURCE", 0, "CITY"),
+                        new SpotCandidateRecord(
+                                -2L, "VALID_NAME_TEST_ONLY", ScenicTheme.CITY,
+                                new BigDecimal("37.5200"), new BigDecimal("127.0000"),
+                                "TEST_SOURCE", 0, "C".repeat(201)),
+                        new SpotCandidateRecord(
+                                -3L, "VALID_CANDIDATE_TEST_ONLY", ScenicTheme.CITY,
+                                new BigDecimal("37.5300"), new BigDecimal("127.0000"),
+                                "TEST_SOURCE", 0, "CITY"));
+            }
+        };
+        CompositeSpotCandidateQuery query = new CompositeSpotCandidateQuery(
+                verifiedSpotService,
+                List.of(source));
+
+        assertThat(query.loadNearbyVerifiedCandidates(
+                ScenicTheme.CITY,
+                new BigDecimal("37.5000"),
+                new BigDecimal("127.0000"),
+                100_000,
+                10))
+                .extracting(SpotCandidateRecord::name)
+                .containsExactly("VALID_CANDIDATE_TEST_ONLY");
+    }
+
     private SpotCandidateRecord candidate(
             long id,
             String name,
