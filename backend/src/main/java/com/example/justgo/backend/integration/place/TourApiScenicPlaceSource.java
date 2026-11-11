@@ -423,6 +423,18 @@ public class TourApiScenicPlaceSource implements ScenicPlaceSource {
             }
             return 4;
         }
+        if (theme == ScenicTheme.SEA) {
+            if (level2.equals("NA02")) {
+                return 0;
+            }
+            if (level3.equals("VE010800")) {
+                return 1;
+            }
+            return 2;
+        }
+        if (theme == ScenicTheme.RIVER || theme == ScenicTheme.LAKE) {
+            return level2.startsWith("NA") ? 0 : 2;
+        }
         if (theme != ScenicTheme.CITY) {
             return 0;
         }

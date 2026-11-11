@@ -377,4 +377,85 @@ class TourApiScenicPlaceSourceTest {
                 .containsExactly(0, 3);
         server.verify();
     }
+
+    @Test
+    void ranksNaturalSeaAndWaterPlacesBeforeFishingLeisure() {
+        RestClient.Builder builder = RestClient.builder().baseUrl(BASE_URL);
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        PublicDataProperties properties = new PublicDataProperties();
+        properties.setParkApiKey("TEST_KEY_ONLY");
+        properties.setTourApiKey("TEST_KEY_ONLY");
+        TourApiScenicPlaceSource source = new TourApiScenicPlaceSource(
+                builder.build(), properties);
+
+        server.expect(requestTo(org.hamcrest.Matchers.containsString("/locationBasedList2?")))
+                .andRespond(withSuccess("""
+                        {
+                          "response": {
+                            "header": {"resultCode": "0000"},
+                            "body": {"items": {"item": [
+                              {
+                                "contentid": "SEA-FISHING-1",
+                                "contenttypeid": "28",
+                                "title": "가까운 바다낚시 테스트",
+                                "lclsSystm2": "LS02",
+                                "lclsSystm3": "LS020600",
+                                "mapx": "126.978100",
+                                "mapy": "37.566600"
+                              },
+                              {
+                                "contentid": "ISLAND-1",
+                                "contenttypeid": "12",
+                                "title": "자연 섬 테스트",
+                                "lclsSystm2": "NA02",
+                                "lclsSystm3": "NA020500",
+                                "mapx": "126.990000",
+                                "mapy": "37.580000"
+                              },
+                              {
+                                "contentid": "FRESHWATER-FISHING-1",
+                                "contenttypeid": "28",
+                                "title": "가까운 민물낚시 테스트",
+                                "lclsSystm2": "LS02",
+                                "lclsSystm3": "LS020500",
+                                "mapx": "126.978200",
+                                "mapy": "37.566700"
+                              },
+                              {
+                                "contentid": "LAKE-1",
+                                "contenttypeid": "12",
+                                "title": "자연 호수 테스트",
+                                "lclsSystm2": "NA02",
+                                "lclsSystm3": "NA020200",
+                                "mapx": "126.991000",
+                                "mapy": "37.581000"
+                              }
+                            ]}}
+                          }
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        var sea = source.findNearby(
+                ScenicTheme.SEA,
+                new BigDecimal("37.566500"),
+                new BigDecimal("126.978000"),
+                20_000,
+                20);
+        var water = source.findNearby(
+                ScenicTheme.WATER,
+                new BigDecimal("37.566500"),
+                new BigDecimal("126.978000"),
+                20_000,
+                20);
+
+        assertThat(sea).extracting(SpotCandidateRecord::name)
+                .containsExactly("자연 섬 테스트", "가까운 바다낚시 테스트");
+        assertThat(water).extracting(SpotCandidateRecord::name)
+                .containsExactly("자연 호수 테스트", "가까운 민물낚시 테스트");
+        assertThat(sea).extracting(SpotCandidateRecord::selectionPriority)
+                .containsExactly(0, 2);
+        assertThat(water).extracting(SpotCandidateRecord::selectionPriority)
+                .containsExactly(0, 2);
+        server.verify();
+    }
 }
