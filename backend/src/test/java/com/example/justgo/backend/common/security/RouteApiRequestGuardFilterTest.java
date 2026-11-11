@@ -105,6 +105,61 @@ class RouteApiRequestGuardFilterTest {
         assertThat(chainCalls).hasValue(0);
     }
 
+    /** 길이 헤더가 없는 chunked 본문도 실제 바이트 수로 동일하게 제한합니다. */
+    @Test
+    void rejectsOversizedRequestBodyWithoutContentLength() throws Exception {
+        RouteApiSecurityProperties properties = defaultProperties();
+        properties.setMaxRequestBodyBytes(512);
+        var filter = newFilter(properties);
+        var request = new MockHttpServletRequest(
+                "POST",
+                "/api/v1/routes/recommendations") {
+            @Override
+            public long getContentLengthLong() {
+                return -1;
+            }
+        };
+        request.setRemoteAddr("192.0.2.31");
+        request.setContentType("application/json");
+        request.setContent(new byte[513]);
+        var response = new MockHttpServletResponse();
+        AtomicInteger chainCalls = new AtomicInteger();
+
+        filter.doFilter(request, response, countingChain(chainCalls));
+
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.PAYLOAD_TOO_LARGE.value());
+        assertThat(response.getContentAsString()).contains("REQUEST_TOO_LARGE");
+        assertThat(chainCalls).hasValue(0);
+    }
+
+    /** 제한 안의 본문은 길이 헤더가 없어도 다음 계층에서 원문 그대로 다시 읽을 수 있습니다. */
+    @Test
+    void replaysAcceptedBodyWithoutContentLength() throws Exception {
+        RouteApiSecurityProperties properties = defaultProperties();
+        properties.setMaxRequestBodyBytes(512);
+        var filter = newFilter(properties);
+        byte[] body = "{\"desiredMinutes\":60}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        var request = new MockHttpServletRequest(
+                "POST",
+                "/api/v1/routes/recommendations") {
+            @Override
+            public long getContentLengthLong() {
+                return -1;
+            }
+        };
+        request.setRemoteAddr("192.0.2.32");
+        request.setContentType("application/json");
+        request.setContent(body);
+        var response = new MockHttpServletResponse();
+        AtomicReference<byte[]> replayedBody = new AtomicReference<>();
+
+        filter.doFilter(request, response, (guardedRequest, ignored) ->
+                replayedBody.set(guardedRequest.getInputStream().readAllBytes()));
+
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
+        assertThat(replayedBody.get()).isEqualTo(body);
+    }
+
     /** 처리 중인 추천 수가 상한에 도달하면 추가 외부 호출을 시작하지 않습니다. */
     @Test
     void rejectsConcurrentRequestAboveConfiguredLimit() throws Exception {

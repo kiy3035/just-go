@@ -1,6 +1,10 @@
 package com.example.justgo.backend.common.security;
 
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -12,8 +16,11 @@ import java.util.concurrent.Semaphore;
 import com.example.justgo.backend.common.ApiErrorResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
+import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -82,12 +89,18 @@ public class RouteApiRequestGuardFilter extends OncePerRequestFilter {
         }
         if (HttpMethod.POST.matches(request.getMethod())
                 && request.getContentLengthLong() > properties.getMaxRequestBodyBytes()) {
-            writeError(
-                    response,
-                    HttpStatus.PAYLOAD_TOO_LARGE,
-                    "REQUEST_TOO_LARGE",
-                    "추천 요청 본문이 허용 크기를 초과했습니다.");
+            writeRequestTooLarge(response);
             return;
+        }
+        HttpServletRequest guardedRequest = request;
+        if (HttpMethod.POST.matches(request.getMethod())) {
+            byte[] requestBody = readLimitedBody(
+                    request, properties.getMaxRequestBodyBytes());
+            if (requestBody == null) {
+                writeRequestTooLarge(response);
+                return;
+            }
+            guardedRequest = new CachedBodyRequest(request, requestBody);
         }
         if (!tryAcquireClientWindow(resolveClientKey(request))) {
             response.setHeader(HttpHeaders.RETRY_AFTER, "60");
@@ -109,10 +122,34 @@ public class RouteApiRequestGuardFilter extends OncePerRequestFilter {
         }
 
         try {
-            filterChain.doFilter(request, response);
+            filterChain.doFilter(guardedRequest, response);
         } finally {
             concurrentRequests.release();
         }
+    }
+
+    /** Content-Length 유무와 관계없이 실제 본문을 설정 상한까지만 메모리에 보관합니다. */
+    private byte[] readLimitedBody(HttpServletRequest request, int maximumBytes) throws IOException {
+        try (var input = request.getInputStream();
+                var output = new ByteArrayOutputStream(Math.min(maximumBytes, 1_024))) {
+            byte[] buffer = new byte[1_024];
+            int count;
+            while ((count = input.read(buffer)) != -1) {
+                if (output.size() > maximumBytes - count) {
+                    return null;
+                }
+                output.write(buffer, 0, count);
+            }
+            return output.toByteArray();
+        }
+    }
+
+    private void writeRequestTooLarge(HttpServletResponse response) throws IOException {
+        writeError(
+                response,
+                HttpStatus.PAYLOAD_TOO_LARGE,
+                "REQUEST_TOO_LARGE",
+                "추천 요청 본문이 허용 크기를 초과했습니다.");
     }
 
     /** 설정된 토큰을 일정 시간 비교해 단순 문자열 비교의 조기 종료를 피합니다. */
@@ -197,6 +234,84 @@ public class RouteApiRequestGuardFilter extends OncePerRequestFilter {
 
         private ClientWindow(long windowNumber) {
             this.windowNumber = windowNumber;
+        }
+    }
+
+    /** 한 번 검증한 작은 JSON 본문을 Spring MVC가 다시 읽을 수 있게 합니다. */
+    private static final class CachedBodyRequest extends HttpServletRequestWrapper {
+
+        private final byte[] body;
+
+        private CachedBodyRequest(HttpServletRequest request, byte[] body) {
+            super(request);
+            this.body = body.clone();
+        }
+
+        @Override
+        public ServletInputStream getInputStream() {
+            return new CachedBodyInputStream(body);
+        }
+
+        @Override
+        public BufferedReader getReader() {
+            String encoding = getCharacterEncoding();
+            var charset = encoding == null
+                    ? StandardCharsets.UTF_8
+                    : java.nio.charset.Charset.forName(encoding);
+            return new BufferedReader(new InputStreamReader(getInputStream(), charset));
+        }
+
+        @Override
+        public int getContentLength() {
+            return body.length;
+        }
+
+        @Override
+        public long getContentLengthLong() {
+            return body.length;
+        }
+    }
+
+    private static final class CachedBodyInputStream extends ServletInputStream {
+
+        private final ByteArrayInputStream input;
+
+        private CachedBodyInputStream(byte[] body) {
+            this.input = new ByteArrayInputStream(body);
+        }
+
+        @Override
+        public int read() {
+            return input.read();
+        }
+
+        @Override
+        public int read(byte[] bytes, int offset, int length) {
+            return input.read(bytes, offset, length);
+        }
+
+        @Override
+        public boolean isFinished() {
+            return input.available() == 0;
+        }
+
+        @Override
+        public boolean isReady() {
+            return true;
+        }
+
+        @Override
+        public void setReadListener(ReadListener listener) {
+            try {
+                if (!isFinished()) {
+                    listener.onDataAvailable();
+                }
+                if (isFinished()) {
+                    listener.onAllDataRead();
+                }
+            } catch (IOException exception) {
+                listener.onError(exception);
+            }
         }
     }
 }
