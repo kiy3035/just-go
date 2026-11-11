@@ -18,12 +18,13 @@ import org.springframework.stereotype.Component;
 
 /**
  * 검수된 경관 후보를 TMAP 자동차 경로로 계산하는 첫 PoC 제공자입니다.
- * 한 추천 요청에서 단일·조합 경로를 합쳐 최대 10개를 평가합니다.
+ * 무료 호출량 보호를 위해 한 추천 요청에서 단일·조합 경로를 합쳐 최대 3개만 평가합니다.
  */
 @Component
 @Profile("tmap & !mock")
 public class TmapDrivingRouteProvider implements DrivingRouteProvider {
 
+    private static final int MAX_EVALUATED_ROUTE_OPTIONS = 3;
     private static final int MAX_SCENIC_STOPS_PER_ROUTE = 2;
 
     private final TmapRouteClient tmapRouteClient;
@@ -59,7 +60,7 @@ public class TmapDrivingRouteProvider implements DrivingRouteProvider {
     }
 
     /**
-     * 단일 후보와 상위 두 후보 조합을 최대 열 건까지 계산합니다.
+     * 단일 후보 두 건과 두 후보 조합을 순서대로 계산해 짧은·긴 경로를 함께 탐색합니다.
      * 앞선 경로가 성공한 뒤 일일 한도가 소진되면 성공 결과를 보존합니다.
      * 인증·네트워크·응답 오류는 부분 성공으로 숨기지 않고 호출자에게 그대로 전달합니다.
      */
@@ -85,22 +86,23 @@ public class TmapDrivingRouteProvider implements DrivingRouteProvider {
     }
 
     /**
-     * 상위 두 후보를 각각 평가하고 조합을 세 번째로 평가한 뒤 나머지 단일 후보를 확인합니다.
+     * 품질 우선순위가 높은 두 후보를 각각 평가한 뒤 두 곳을 잇는 조합을 세 번째로 평가합니다.
      */
     private List<List<DrivingRouteWaypointCandidate>> buildRouteOptions(
             DrivingRouteRequest request) {
         List<DrivingRouteWaypointCandidate> candidates = request.waypointCandidates().stream()
-                .limit(MAX_ROUTE_OPTIONS_PER_REQUEST - 1)
+                .limit(MAX_SCENIC_STOPS_PER_ROUTE)
                 .toList();
         List<List<DrivingRouteWaypointCandidate>> options = new ArrayList<>();
         for (DrivingRouteWaypointCandidate candidate : candidates) {
             options.add(List.of(candidate));
         }
-        if (candidates.size() >= MAX_SCENIC_STOPS_PER_ROUTE) {
-            options.add(MAX_SCENIC_STOPS_PER_ROUTE,
-                    List.copyOf(candidates.subList(0, MAX_SCENIC_STOPS_PER_ROUTE)));
+        if (candidates.size() == MAX_SCENIC_STOPS_PER_ROUTE) {
+            options.add(List.copyOf(candidates));
         }
-        return options;
+        return options.stream()
+                .limit(MAX_EVALUATED_ROUTE_OPTIONS)
+                .toList();
     }
 
     /**

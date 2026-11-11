@@ -2,48 +2,41 @@ package com.example.justgo.backend.route;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.IntStream;
 
 import com.example.justgo.backend.integration.routing.DrivingRouteCandidate;
 import com.example.justgo.backend.spot.ScenicTheme;
 import org.junit.jupiter.api.Test;
 
-/** 실제 계산 경로의 시간 범위와 추천 순서를 검증합니다. */
+/** 실제 계산 경로를 숨기지 않는 안정적인 추천 순서를 검증합니다. */
 class RouteRecommendationPolicyTest {
 
     private final RouteRecommendationPolicy policy = new RouteRecommendationPolicy();
 
+    /** 희망 시간에서 멀리 벗어난 경로도 시간 차이가 가까운 순으로 모두 유지합니다. */
     @Test
-    void includesBothTenMinuteBoundariesAndExcludesRoutesBeyondThem() {
+    void keepsCalculatedCandidatesOutsideFormerDurationTolerance() {
         var ranked = policy.rankByDurationProximity(60, List.of(
-                candidate("TOO_SHORT", 49, 500),
-                candidate("TOO_LONG", 71, 500),
-                candidate("UPPER_BOUNDARY", 70, 2_000),
-                candidate("LOWER_BOUNDARY", 50, 1_000)));
+                candidate("LONG", 123, 2_000),
+                candidate("NEAR", 90, 1_000)));
 
         assertThat(ranked)
                 .extracting(DrivingRouteCandidate::routeId)
-                .containsExactly("LOWER_BOUNDARY", "UPPER_BOUNDARY");
+                .containsExactly("NEAR", "LONG");
     }
 
-    /** 목표 시간 차이와 거리로 정렬하고 최대 열 건만 반환합니다. */
+    /** 목표 시간 차이와 거리로 정렬한 뒤 최대 세 건만 반환하는지 확인합니다. */
     @Test
-    void sortsByDurationDifferenceAndDistanceThenLimitsToTen() {
-        var candidates = new ArrayList<>(List.of(
+    void sortsByDurationDifferenceAndDistanceThenLimitsToThree() {
+        var ranked = policy.rankByDurationProximity(60, List.of(
                 candidate("FARTHER_DISTANCE", 63, 9_000),
                 candidate("EXACT", 60, 8_000),
                 candidate("THIRD", 65, 1_000),
                 candidate("NEARER_DISTANCE", 63, 4_000)));
-        IntStream.rangeClosed(1, 8).mapToObj(index -> candidate("OTHER_" + index, 70, index))
-                .forEach(candidates::add);
-        var ranked = policy.rankByDurationProximity(60, candidates);
 
         assertThat(ranked)
                 .extracting(DrivingRouteCandidate::routeId)
-                .containsExactly("EXACT", "NEARER_DISTANCE", "FARTHER_DISTANCE", "THIRD",
-                        "OTHER_1", "OTHER_2", "OTHER_3", "OTHER_4", "OTHER_5", "OTHER_6");
+                .containsExactly("EXACT", "NEARER_DISTANCE", "FARTHER_DISTANCE");
     }
 
     /** 시간 차이가 같으면 중복 주행 비율이 낮은 왕복 후보를 거리보다 먼저 선택합니다. */

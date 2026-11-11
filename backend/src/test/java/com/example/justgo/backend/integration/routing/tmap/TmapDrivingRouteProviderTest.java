@@ -11,7 +11,6 @@ import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.stream.LongStream;
 
 import com.example.justgo.backend.integration.routing.DrivingRouteMode;
 import com.example.justgo.backend.integration.routing.DrivingRouteRequest;
@@ -76,25 +75,27 @@ class TmapDrivingRouteProviderTest {
                 });
     }
 
-    /** 상위 두 후보 조합을 포함해 추천당 호출을 열 건으로 제한합니다. */
+    /** 단일 후보 두 건과 두 후보 조합을 최대 세 번의 호출 안에서 평가하는지 확인합니다. */
     @Test
     void evaluatesTwoSingleRoutesAndOneCombinedRoute() {
         when(client.findRoute(any())).thenReturn(new TmapRouteSummary(1_000L, 600L, null));
 
-        var result = provider.calculate(request(TripType.ONE_WAY,
-                LongStream.rangeClosed(1, 12).mapToObj(this::candidate).toList()));
+        var result = provider.calculate(request(TripType.ONE_WAY, List.of(
+                candidate(1L),
+                candidate(2L),
+                candidate(3L),
+                candidate(4L))));
 
+        assertThat(result.routes()).hasSize(3);
         assertThat(result.routes()).extracting(route -> route.routeId())
-                .containsExactly("TMAP-SPOT-1", "TMAP-SPOT-2", "TMAP-SPOTS-1-2",
-                        "TMAP-SPOT-3", "TMAP-SPOT-4", "TMAP-SPOT-5", "TMAP-SPOT-6",
-                        "TMAP-SPOT-7", "TMAP-SPOT-8", "TMAP-SPOT-9");
+                .containsExactly("TMAP-SPOT-1", "TMAP-SPOT-2", "TMAP-SPOTS-1-2");
         assertThat(result.routes().get(2).stops()).extracting(stop -> stop.type())
                 .containsExactly(
                         DrivingRouteStopType.WAYPOINT,
                         DrivingRouteStopType.DESTINATION);
 
         ArgumentCaptor<TmapRouteSearch> captor = ArgumentCaptor.forClass(TmapRouteSearch.class);
-        verify(client, times(10)).findRoute(captor.capture());
+        verify(client, times(3)).findRoute(captor.capture());
         TmapRouteSearch combinedSearch = captor.getAllValues().get(2);
         assertThat(combinedSearch.waypoints()).singleElement()
                 .satisfies(waypoint -> assertThat(waypoint.id()).isEqualTo("1"));

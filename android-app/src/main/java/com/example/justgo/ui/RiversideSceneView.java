@@ -9,7 +9,6 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RadialGradient;
 import android.graphics.RectF;
-import android.graphics.Rect;
 import android.graphics.Shader;
 import android.util.AttributeSet;
 import android.view.View;
@@ -34,14 +33,12 @@ public final class RiversideSceneView extends View {
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path path = new Path();
     private final RectF rect = new RectF();
-    private final Rect previewSource = new Rect();
     private final ValueAnimator animator;
     private final LinearGradient carBody = new LinearGradient(0, -43, 0, 28, 0xFFFFFFFF, 0xFF91A8BA, Shader.TileMode.CLAMP);
     private Bitmap background;
     private Theme theme = Theme.ANYWHERE;
     private float phase;
     private boolean motionAllowed = true;
-    private boolean previewMode;
 
     public RiversideSceneView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -68,11 +65,6 @@ public final class RiversideSceneView extends View {
         motionAllowed = allowed;
         syncAnimation();
         invalidate();
-    }
-
-    public void setPreviewMode() {
-        previewMode = true;
-        setMotionAllowed(false);
     }
 
     private void box(Canvas c, float x, float y, float w, float h, int color) {
@@ -240,18 +232,7 @@ public final class RiversideSceneView extends View {
     @Override protected void onDraw(Canvas c) {
         super.onDraw(c);
         if (background == null) buildBackground();
-        rect.set(0, 0, getWidth(), getHeight());
-        if (previewMode) {
-            float aspect = getWidth() / (float) Math.max(1, getHeight());
-            int height = Math.max(1, Math.min(500, Math.round(SCENE_WIDTH / aspect)));
-            int width = Math.max(1, Math.min(SCENE_WIDTH, Math.round(height * aspect)));
-            int left = (SCENE_WIDTH - width) / 2;
-            int top = 615 - height / 2;
-            previewSource.set(left, top, left + width, top + height);
-            c.drawBitmap(background, previewSource, rect, paint);
-            return;
-        }
-        c.drawBitmap(background, null, rect, paint);
+        rect.set(0, 0, getWidth(), getHeight()); c.drawBitmap(background, null, rect, paint);
         c.save(); c.scale(getWidth() / (float) SCENE_WIDTH, getHeight() / (float) SCENE_HEIGHT);
         c.save();
         c.translate((float) Math.sin(phase * Math.PI * 2) * 18, 0);
