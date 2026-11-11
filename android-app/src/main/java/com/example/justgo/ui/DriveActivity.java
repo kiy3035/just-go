@@ -28,6 +28,7 @@ import android.widget.RadioGroup;
 import com.example.justgo.BuildConfig;
 import com.example.justgo.R;
 import com.example.justgo.data.DriveSelection;
+import com.example.justgo.data.LocationFreshness;
 import com.example.justgo.data.RouteRecommendationClient;
 import com.example.justgo.data.RouteRecommendationClient.Recommendation;
 import com.example.justgo.databinding.ActivityDriveBinding;
@@ -47,7 +48,6 @@ public final class DriveActivity extends Activity {
     private static final String SEARCH_PROMPT = "이 조건으로 코스 찾기 →";
     private static final int CANDIDATE_LIMIT = 50;
     private static final int LOCATION_PERMISSION_REQUEST = 1;
-    private static final long PREFETCHED_LOCATION_MAX_AGE_NANOS = 30_000_000_000L;
     private final ExecutorService routeExecutor = Executors.newSingleThreadExecutor();
     private final RouteRecommendationClient routeClient =
             new RouteRecommendationClient(BuildConfig.ROUTE_API_BASE_URL);
@@ -127,9 +127,11 @@ public final class DriveActivity extends Activity {
 
     private Location freshPrefetchedLocation() {
         if (prefetchedLocation == null) return null;
-        long age = SystemClock.elapsedRealtimeNanos()
-                - prefetchedLocation.getElapsedRealtimeNanos();
-        if (age < 0 || age > PREFETCHED_LOCATION_MAX_AGE_NANOS) {
+        if (!LocationFreshness.isUsable(
+                SystemClock.elapsedRealtimeNanos(),
+                prefetchedLocation.getElapsedRealtimeNanos(),
+                prefetchedLocation.getLatitude(),
+                prefetchedLocation.getLongitude())) {
             prefetchedLocation = null;
         }
         return prefetchedLocation;

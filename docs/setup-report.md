@@ -729,3 +729,10 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - 추천 응답은 경로 ID·제목·테마, 0 이상의 시간·거리, 1 이상의 중복 없는 지점 순번, 비어 있지 않은 지점명과 WGS84 좌표를 앱 모델로 만들기 전에 검증합니다. 계약을 벗어난 값은 화면이나 NaviHelper로 넘기지 않고 기존 `InvalidResponse` 오류 흐름으로 처리합니다.
 - 잘못된 후보 토큰과 음수 경로 시간·중복 지점 순서를 반환하는 MockWebServer 회귀 테스트를 추가했습니다.
 - `android-app\\gradlew.bat testDebugUnitTest lintDebug assembleDebug --no-daemon`: 단위 테스트 11개, lint, 디버그 APK 빌드가 모두 성공했습니다. Android Studio와 Emulator는 실행하지 않았습니다.
+
+## 68. 2026-11-11 Android 최초 위치 수신 보강
+
+- 기존 위치 제공자는 GPS·네트워크의 새 위치 이벤트만 기다려, 에뮬레이터나 차량에서 이미 위치가 설정돼 있어도 새 이벤트가 없으면 20초 후 실패할 수 있었습니다.
+- 위치 업데이트 등록 후 각 활성 제공자의 최근 위치를 함께 확인하고, 단조 시계 기준 30초 이내이면서 WGS84 범위가 유효한 가장 최신 좌표가 있으면 즉시 사용하도록 변경했습니다. 최근 위치가 없거나 오래됐으면 기존처럼 새 위치를 최대 20초 기다립니다.
+- 화면의 사전 수신 위치도 같은 신선도·좌표 정책을 공유해 미래 시각, 오래된 좌표, NaN과 범위 밖 좌표를 사용하지 않습니다. 좌표와 위치 이력은 저장하거나 로그로 남기지 않습니다.
+- 경계 시각과 잘못된 좌표를 검증하는 순수 단위 테스트를 추가했습니다. `android-app\\gradlew.bat testDebugUnitTest lintDebug assembleDebug --no-daemon`가 성공했으며 Android Studio와 Emulator는 실행하지 않았습니다.

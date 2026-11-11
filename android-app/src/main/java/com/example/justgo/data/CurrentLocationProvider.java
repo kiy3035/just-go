@@ -35,8 +35,7 @@ public final class CurrentLocationProvider {
         }
         listener = new LocationListener() {
             @Override public void onLocationChanged(Location location) {
-                long age = SystemClock.elapsedRealtimeNanos() - location.getElapsedRealtimeNanos();
-                if (listener != this || age < 0 || age > 30_000_000_000L) return;
+                if (listener != this || !isUsable(location)) return;
                 cancel();
                 callback.onLocation(location);
             }
@@ -46,6 +45,7 @@ public final class CurrentLocationProvider {
         };
         try {
             boolean requested = false;
+            Location freshestKnown = null;
             for (String provider : new String[]{LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER}) {
                 if (LocationManager.GPS_PROVIDER.equals(provider)
                         && context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -53,11 +53,22 @@ public final class CurrentLocationProvider {
                 if (manager.isProviderEnabled(provider)) {
                     manager.requestLocationUpdates(provider, 0L, 0f, listener, Looper.getMainLooper());
                     requested = true;
+                    Location known = manager.getLastKnownLocation(provider);
+                    if (isUsable(known) && (freshestKnown == null
+                            || known.getElapsedRealtimeNanos()
+                            > freshestKnown.getElapsedRealtimeNanos())) {
+                        freshestKnown = known;
+                    }
                 }
             }
             if (!requested) {
                 cancel();
                 callback.onError("사용 가능한 위치 서비스가 없습니다. 기기 위치 설정을 확인해 주세요.");
+                return;
+            }
+            if (freshestKnown != null) {
+                cancel();
+                callback.onLocation(freshestKnown);
                 return;
             }
             handler.postDelayed(() -> {
@@ -67,6 +78,14 @@ public final class CurrentLocationProvider {
             cancel();
             callback.onError("위치 권한과 기기 위치 설정을 확인해 주세요.");
         }
+    }
+
+    private boolean isUsable(Location location) {
+        return location != null && LocationFreshness.isUsable(
+                SystemClock.elapsedRealtimeNanos(),
+                location.getElapsedRealtimeNanos(),
+                location.getLatitude(),
+                location.getLongitude());
     }
 
     public boolean cancel() {
