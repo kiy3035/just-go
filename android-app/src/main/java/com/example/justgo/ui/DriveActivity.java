@@ -373,7 +373,15 @@ public final class DriveActivity extends Activity {
     private void showCandidates(CandidateSearchContext context,
                                 RouteRecommendationClient.CandidateList result) {
         if (result.candidates().isEmpty()) {
-            renderResult("주변 장소를 찾지 못했어요", "시간이나 풍경을 바꿔 다시 검색해 주세요.");
+            if (result.sourceUnavailable()) {
+                renderResult(
+                        "장소 데이터를 불러오지 못했어요",
+                        "외부 장소 서비스 연결이 지연되고 있습니다. 잠시 후 다시 검색해 주세요.");
+            } else {
+                renderResult(
+                        "주변 장소를 찾지 못했어요",
+                        "시간이나 풍경을 바꿔 다시 검색해 주세요.");
+            }
             return;
         }
         if (!prepareResult("어디로 달릴까요?", context.conditions())) return;

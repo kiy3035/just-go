@@ -308,7 +308,11 @@ public final class RouteRecommendationClient {
                             String source, String sourceCategory) { }
     public record CandidateList(String theme, int tokenExpiresInMinutes, boolean partial,
                                 List<String> unavailableSources,
-                                List<Candidate> candidates) { }
+                                List<Candidate> candidates) {
+        public boolean sourceUnavailable() {
+            return partial && candidates.isEmpty();
+        }
+    }
     public record Stop(int sequence, StopType type, String name,
                        double latitude, double longitude) { }
     public record Route(String routeId, String title, int minutes, long meters,

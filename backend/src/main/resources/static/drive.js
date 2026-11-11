@@ -194,7 +194,13 @@ function themeLabel(theme) {
 
 function renderCandidates(search, response) {
     if (!Array.isArray(response.candidates) || response.candidates.length === 0) {
-        openResult('주변 장소를 찾지 못했어요', search.summary, '시간이나 풍경을 바꿔 다시 검색해 주세요.');
+        if (response.partial) {
+            openResult('장소 데이터를 불러오지 못했어요', search.summary,
+                '외부 장소 서비스 연결이 지연되고 있습니다. 잠시 후 다시 검색해 주세요.');
+        } else {
+            openResult('주변 장소를 찾지 못했어요', search.summary,
+                '시간이나 풍경을 바꿔 다시 검색해 주세요.');
+        }
         return;
     }
     openResult('어디로 달릴까요?', search.summary,

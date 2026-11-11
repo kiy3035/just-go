@@ -286,6 +286,38 @@ public class RouteRecommendationClientTest {
         }
     }
 
+    @Test
+    public void distinguishesUnavailableCandidateSourcesFromNormalEmptyResult() throws Exception {
+        server.enqueue(jsonResponse("""
+                {
+                  "theme": "SEA",
+                  "count": 0,
+                  "tokenExpiresInMinutes": 30,
+                  "partial": true,
+                  "unavailableSources": ["TOUR_API"],
+                  "candidates": []
+                }
+                """));
+        server.enqueue(jsonResponse("""
+                {
+                  "theme": "SEA",
+                  "count": 0,
+                  "tokenExpiresInMinutes": 30,
+                  "partial": false,
+                  "unavailableSources": [],
+                  "candidates": []
+                }
+                """));
+
+        RouteRecommendationClient.CandidateList unavailable = client.findCandidates(
+                37.5, 127.0, 60, "ONE_WAY", "SEA", 50);
+        RouteRecommendationClient.CandidateList empty = client.findCandidates(
+                37.5, 127.0, 60, "ONE_WAY", "SEA", 50);
+
+        assertTrue(unavailable.sourceUnavailable());
+        assertFalse(empty.sourceUnavailable());
+    }
+
     private MockResponse jsonResponse(String body) {
         return new MockResponse()
                 .setResponseCode(200)

@@ -42,6 +42,7 @@ class WebPrototypeTest {
                     .contains("AbortController")
                     .contains("CANDIDATE_TIMEOUT_MS", "ROUTE_TIMEOUT_MS")
                     .contains("repeatedSegmentPercent", "route.reason", "response.notice")
+                    .contains("response.partial", "장소 데이터를 불러오지 못했어요")
                     .contains("이 장소로 코스 찾기")
                     .doesNotContain("PREVIEW_DURATION_MS");
         }
