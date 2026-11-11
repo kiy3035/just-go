@@ -156,9 +156,11 @@
 
     <select id="findCandidateOverrides"
             resultType="com.example.justgo.backend.spot.SpotCandidateOverrideRecord">
-        SELECT name, theme, enabled
+        SELECT name, theme, enabled, latitude, longitude
         FROM spot
         WHERE <include refid="verifiedCandidateReview"/>
+          AND latitude IS NOT NULL
+          AND longitude IS NOT NULL
         ORDER BY id
     </select>
 

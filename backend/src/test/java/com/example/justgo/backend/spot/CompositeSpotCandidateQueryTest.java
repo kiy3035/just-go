@@ -58,9 +58,11 @@ class CompositeSpotCandidateQueryTest {
                         new BigDecimal("127.0000"))));
         when(verifiedSpotService.loadCandidateOverrides()).thenReturn(List.of(
                 new SpotCandidateOverrideRecord(
-                        "CURATED_DUPLICATE_TEST_ONLY", ScenicTheme.CITY, true),
+                        "CURATED_DUPLICATE_TEST_ONLY", ScenicTheme.CITY, true,
+                        new BigDecimal("37.5050"), new BigDecimal("127.0000")),
                 new SpotCandidateOverrideRecord(
-                        "EXCLUDED_TEST_ONLY", ScenicTheme.CITY, false)));
+                        "EXCLUDED_TEST_ONLY", ScenicTheme.CITY, false,
+                        new BigDecimal("37.5070"), new BigDecimal("127.0000"))));
 
         List<SpotCandidateRecord> externalCandidates = new ArrayList<>();
         externalCandidates.add(candidate(
@@ -136,7 +138,8 @@ class CompositeSpotCandidateQueryTest {
                 any(), any(), any(), anyLong(), anyInt())).thenReturn(List.of());
         when(verifiedSpotService.loadCandidateOverrides()).thenReturn(List.of(
                 new SpotCandidateOverrideRecord(
-                        "SOURCE_CATEGORY_CORRECTION_TEST_ONLY", ScenicTheme.PARK, true)));
+                        "SOURCE_CATEGORY_CORRECTION_TEST_ONLY", ScenicTheme.PARK, true,
+                        new BigDecimal("37.5100"), new BigDecimal("127.0000"))));
 
         ScenicPlaceSource source = new ScenicPlaceSource() {
             @Override
@@ -175,6 +178,54 @@ class CompositeSpotCandidateQueryTest {
                 new BigDecimal("127.0000"),
                 100_000,
                 10)).isEmpty();
+    }
+
+    @Test
+    void manualExclusionOnlyAffectsSameNamedPlaceNearReviewedCoordinate() {
+        SpotService verifiedSpotService = mock(SpotService.class);
+        when(verifiedSpotService.loadNearbyVerifiedCandidates(
+                any(), any(), any(), anyLong(), anyInt())).thenReturn(List.of());
+        when(verifiedSpotService.loadCandidateOverrides()).thenReturn(List.of(
+                new SpotCandidateOverrideRecord(
+                        "SAME_NAME_PARK_TEST_ONLY", ScenicTheme.PARK, false,
+                        new BigDecimal("37.5100"), new BigDecimal("127.0000"))));
+
+        ScenicPlaceSource source = new ScenicPlaceSource() {
+            @Override
+            public String sourceName() {
+                return "TEST_SOURCE";
+            }
+
+            @Override
+            public Set<ScenicTheme> supportedThemes() {
+                return Set.of(ScenicTheme.PARK);
+            }
+
+            @Override
+            public List<SpotCandidateRecord> findNearby(
+                    ScenicTheme theme,
+                    BigDecimal originLatitude,
+                    BigDecimal originLongitude,
+                    long maxDistanceMeters,
+                    int limit) {
+                return List.of(
+                        candidate(-1L, "SAME_NAME_PARK_TEST_ONLY", ScenicTheme.PARK, "37.5101", 0),
+                        candidate(-2L, "SAME_NAME_PARK_TEST_ONLY", ScenicTheme.PARK, "38.5000", 0));
+            }
+        };
+        CompositeSpotCandidateQuery query = new CompositeSpotCandidateQuery(
+                verifiedSpotService,
+                List.of(source));
+
+        assertThat(query.loadNearbyVerifiedCandidates(
+                ScenicTheme.PARK,
+                new BigDecimal("37.5000"),
+                new BigDecimal("127.0000"),
+                200_000,
+                10))
+                .singleElement()
+                .extracting(SpotCandidateRecord::id)
+                .isEqualTo(-2L);
     }
 
     @Test

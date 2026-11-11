@@ -26,6 +26,7 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CompositeSpotCandidateQuery.class);
     private static final int SOURCE_FETCH_MULTIPLIER = 3;
+    private static final long OVERRIDE_MATCH_DISTANCE_METERS = 1_000;
     private static final List<ScenicTheme> ACTUAL_THEME_ORDER = List.of(
             ScenicTheme.CITY,
             ScenicTheme.MOUNTAIN,
@@ -71,14 +72,13 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
             BigDecimal originLongitude,
             long maxDistanceMeters,
             int limit) {
-        Map<String, SpotCandidateOverrideRecord> overrides = verifiedSpotService
+        Map<String, List<SpotCandidateOverrideRecord>> overrides = verifiedSpotService
                 .loadCandidateOverrides()
                 .stream()
-                .collect(java.util.stream.Collectors.toMap(
+                .collect(java.util.stream.Collectors.groupingBy(
                         override -> normalizedName(override.name()),
-                        override -> override,
-                        (first, ignored) -> first,
-                        LinkedHashMap::new));
+                        LinkedHashMap::new,
+                        java.util.stream.Collectors.toList()));
         List<SpotCandidateRecord> combined = new ArrayList<>(
                 verifiedSpotService.loadNearbyVerifiedCandidates(
                         theme, originLatitude, originLongitude, maxDistanceMeters, limit));
@@ -136,8 +136,24 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
     /** 비활성 검수 행은 같은 이름의 외부 후보를 제외하고, 활성 행은 DB 보정본만 남깁니다. */
     private boolean isAllowedByOverride(
             SpotCandidateRecord candidate,
-            Map<String, SpotCandidateOverrideRecord> overrides) {
-        SpotCandidateOverrideRecord override = overrides.get(normalizedName(candidate.name()));
+            Map<String, List<SpotCandidateOverrideRecord>> overrides) {
+        List<SpotCandidateOverrideRecord> sameName = overrides.get(
+                normalizedName(candidate.name()));
+        if (sameName == null) {
+            return true;
+        }
+        SpotCandidateOverrideRecord override = sameName.stream()
+                .filter(entry -> ScenicPlaceDistance.meters(
+                        entry.latitude(),
+                        entry.longitude(),
+                        candidate.latitude(),
+                        candidate.longitude()) <= OVERRIDE_MATCH_DISTANCE_METERS)
+                .min(Comparator.comparingLong(entry -> ScenicPlaceDistance.meters(
+                        entry.latitude(),
+                        entry.longitude(),
+                        candidate.latitude(),
+                        candidate.longitude())))
+                .orElse(null);
         if (override == null) {
             return true;
         }

@@ -39,6 +39,7 @@
 - Flyway V4는 세 품질 점수와 검수 근거를 추가하며 3점 미만 후보가 VERIFIED로 저장되지 않게 합니다.
 - Flyway V6는 `ck_spot_verified_provenance`, `ck_spot_verified_quality`를 PostgreSQL 전체 검증 상태로 전환합니다.
 - 실제 후보는 `candidate-import` 프로필과 Git 제외 로컬 JSON을 사용해 등록합니다. 가져오기 전에 전체 파일을 검증하고 한 트랜잭션으로 저장하며 후보명·출처·참조가 같은 행은 중복 제외합니다.
+- 외부 후보 보정·제외 규칙은 정규화한 이름만으로 전국에 적용하지 않습니다. 검수 DB의 좌표와 1km 이내인 같은 이름 후보에만 적용해 다른 지역의 동명이 장소를 보존합니다.
 - 로컬 등록 파일의 작성·실행 절차는 `scenic-candidate-import.md`를 따릅니다.
 
 ## 4. 제거된 서울·수도권 초기 PoC 묶음
