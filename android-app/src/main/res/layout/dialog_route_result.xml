@@ -52,6 +52,20 @@
                 android:textColor="#365580"
                 android:textSize="30sp" />
 
+            <RadioGroup
+                android:id="@+id/cuisineChoices"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <RadioButton android:id="@+id/korean" style="@style/TimeChoice" android:text="한식" />
+                <RadioButton android:id="@+id/chinese" style="@style/TimeChoice" android:text="중식" />
+                <RadioButton android:id="@+id/japanese" style="@style/TimeChoice" android:text="일식" />
+                <RadioButton android:id="@+id/western" style="@style/TimeChoice" android:text="양식" />
+            </RadioGroup>
+
             <LinearLayout
                 android:id="@+id/routeChoices"
                 android:layout_width="match_parent"

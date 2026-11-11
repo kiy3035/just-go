@@ -242,7 +242,7 @@ class RouteRecommendationServiceTest {
                                 liveCandidate("OUTSIDE", 80, 1_000),
                                 liveCandidate("THIRD", 55, 2_000),
                                 liveCandidate("FIRST", 60, 3_000),
-                                liveCandidate("SECOND", 63, 4_000)),
+                                liveCandidate("SECOND", 58, 4_000)),
                         "LIVE 테스트 결과"),
                 emptySpotCandidateQuery);
 
@@ -265,7 +265,7 @@ class RouteRecommendationServiceTest {
                         DrivingRouteMode.LIVE,
                         false,
                         List.of(
-                                liveCandidate("TOO_SHORT", 30, 1_000),
+                                liveCandidate("ZERO", 0, 1_000),
                                 liveCandidate("TOO_LONG", 99, 2_000)),
                         "LIVE 테스트 결과"),
                 emptySpotCandidateQuery);

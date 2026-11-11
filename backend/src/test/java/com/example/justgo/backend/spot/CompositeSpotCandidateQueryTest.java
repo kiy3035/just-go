@@ -18,6 +18,28 @@ import org.junit.jupiter.api.Test;
 class CompositeSpotCandidateQueryTest {
 
     @Test
+    void retainsDiningCandidatesAfterCombiningSources() {
+        SpotService verifiedSpotService = mock(SpotService.class);
+        when(verifiedSpotService.loadNearbyVerifiedCandidates(
+                any(), any(), any(), anyLong(), anyInt())).thenReturn(List.of());
+        when(verifiedSpotService.loadCandidateOverrides()).thenReturn(List.of());
+        ScenicPlaceSource source = mock(ScenicPlaceSource.class);
+        when(source.supportedThemes()).thenReturn(Set.of(ScenicTheme.CAFE, ScenicTheme.KOREAN));
+        when(source.findNearby(any(), any(), any(), anyLong(), anyInt())).thenReturn(List.of(
+                new SpotCandidateRecord(-1L, "TEST_CAFE", ScenicTheme.CAFE,
+                        BigDecimal.ZERO, BigDecimal.ZERO, "TMAP_POI"),
+                new SpotCandidateRecord(-2L, "TEST_RESTAURANT", ScenicTheme.KOREAN,
+                        BigDecimal.ZERO, BigDecimal.ZERO, "TMAP_POI")));
+        var query = new CompositeSpotCandidateQuery(verifiedSpotService, List.of(source));
+
+        for (ScenicTheme theme : List.of(ScenicTheme.CAFE, ScenicTheme.KOREAN)) {
+            assertThat(query.loadNearbyVerifiedCandidates(
+                    theme, BigDecimal.ZERO, BigDecimal.ZERO, 1_000, 10))
+                    .extracting(SpotCandidateRecord::theme).containsExactly(theme);
+        }
+    }
+
+    @Test
     void concreteThemeAlternatesExternalSources() {
         SpotService verifiedSpotService = mock(SpotService.class);
         when(verifiedSpotService.loadNearbyVerifiedCandidates(

@@ -16,27 +16,28 @@ class RouteRecommendationPolicyTest {
     private final RouteRecommendationPolicy policy = new RouteRecommendationPolicy();
 
     @Test
-    void includesBothTenMinuteBoundariesAndExcludesRoutesBeyondThem() {
-        var ranked = policy.rankByDurationProximity(60, List.of(
-                candidate("TOO_SHORT", 49, 500),
-                candidate("TOO_LONG", 71, 500),
-                candidate("UPPER_BOUNDARY", 70, 2_000),
-                candidate("LOWER_BOUNDARY", 50, 1_000)));
+    void treatsEveryRequestedDurationAsAnInclusiveUpperBound() {
+        for (int desired : List.of(30, 60, 120, 75)) {
+            var ranked = policy.rankByDurationProximity(desired, List.of(
+                    candidate("TOO_LONG", desired + 1, 500),
+                    candidate("ZERO", 0, 500),
+                    candidate("EXACT", desired, 2_000),
+                    candidate("SHORT", 1, 1_000)));
 
-        assertThat(ranked)
-                .extracting(DrivingRouteCandidate::routeId)
-                .containsExactly("LOWER_BOUNDARY", "UPPER_BOUNDARY");
+            assertThat(ranked).extracting(DrivingRouteCandidate::routeId)
+                    .containsExactly("EXACT", "SHORT");
+        }
     }
 
     /** 목표 시간 차이와 거리로 정렬하고 최대 열 건만 반환합니다. */
     @Test
     void sortsByDurationDifferenceAndDistanceThenLimitsToTen() {
         var candidates = new ArrayList<>(List.of(
-                candidate("FARTHER_DISTANCE", 63, 9_000),
+                candidate("FARTHER_DISTANCE", 57, 9_000),
                 candidate("EXACT", 60, 8_000),
-                candidate("THIRD", 65, 1_000),
-                candidate("NEARER_DISTANCE", 63, 4_000)));
-        IntStream.rangeClosed(1, 8).mapToObj(index -> candidate("OTHER_" + index, 70, index))
+                candidate("THIRD", 55, 1_000),
+                candidate("NEARER_DISTANCE", 57, 4_000)));
+        IntStream.rangeClosed(1, 8).mapToObj(index -> candidate("OTHER_" + index, 50, index))
                 .forEach(candidates::add);
         var ranked = policy.rankByDurationProximity(60, candidates);
 

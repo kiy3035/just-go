@@ -11,10 +11,22 @@ public enum ScenicTheme {
     SEA,
     PARK,
     ANYWHERE,
-    WATER;
+    WATER,
+    CAFE,
+    KOREAN,
+    CHINESE,
+    JAPANESE,
+    WESTERN;
+
+    public boolean isDining() {
+        return switch (this) {
+            case CAFE, KOREAN, CHINESE, JAPANESE, WESTERN -> true;
+            default -> false;
+        };
+    }
 
     public boolean includes(ScenicTheme theme) {
-        return this == ANYWHERE || this == theme
+        return (this == ANYWHERE && !theme.isDining()) || this == theme
                 || (this == WATER && (theme == RIVER || theme == LAKE));
     }
 }

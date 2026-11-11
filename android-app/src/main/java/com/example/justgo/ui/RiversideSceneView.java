@@ -9,7 +9,6 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RadialGradient;
 import android.graphics.RectF;
-import android.graphics.Rect;
 import android.graphics.Shader;
 import android.util.AttributeSet;
 import android.view.View;
@@ -19,7 +18,8 @@ import android.view.animation.LinearInterpolator;
 public final class RiversideSceneView extends View {
     public enum Theme {
         ANYWHERE("어디든"), CITY("도시"), MOUNTAIN("산"),
-        SEA("바다"), WATER("강/호수"), PARK("공원");
+        SEA("바다"), WATER("강/호수"), PARK("공원"),
+        RESTAURANT("음식점"), CAFE("카페");
 
         private final String label;
 
@@ -34,14 +34,12 @@ public final class RiversideSceneView extends View {
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path path = new Path();
     private final RectF rect = new RectF();
-    private final Rect previewSource = new Rect();
     private final ValueAnimator animator;
     private final LinearGradient carBody = new LinearGradient(0, -43, 0, 28, 0xFFFFFFFF, 0xFF91A8BA, Shader.TileMode.CLAMP);
     private Bitmap background;
     private Theme theme = Theme.ANYWHERE;
     private float phase;
     private boolean motionAllowed = true;
-    private boolean previewMode;
 
     public RiversideSceneView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -68,11 +66,6 @@ public final class RiversideSceneView extends View {
         motionAllowed = allowed;
         syncAnimation();
         invalidate();
-    }
-
-    public void setPreviewMode() {
-        previewMode = true;
-        setMotionAllowed(false);
     }
 
     private void box(Canvas c, float x, float y, float w, float h, int color) {
@@ -241,16 +234,6 @@ public final class RiversideSceneView extends View {
         super.onDraw(c);
         if (background == null) buildBackground();
         rect.set(0, 0, getWidth(), getHeight());
-        if (previewMode) {
-            float aspect = getWidth() / (float) Math.max(1, getHeight());
-            int height = Math.max(1, Math.min(500, Math.round(SCENE_WIDTH / aspect)));
-            int width = Math.max(1, Math.min(SCENE_WIDTH, Math.round(height * aspect)));
-            int left = (SCENE_WIDTH - width) / 2;
-            int top = 615 - height / 2;
-            previewSource.set(left, top, left + width, top + height);
-            c.drawBitmap(background, previewSource, rect, paint);
-            return;
-        }
         c.drawBitmap(background, null, rect, paint);
         c.save(); c.scale(getWidth() / (float) SCENE_WIDTH, getHeight() / (float) SCENE_HEIGHT);
         c.save();

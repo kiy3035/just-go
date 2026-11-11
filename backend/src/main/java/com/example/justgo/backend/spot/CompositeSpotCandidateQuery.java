@@ -128,6 +128,10 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
                         .thenComparing(SpotCandidateRecord::id))
                 .forEach(candidate -> unique.putIfAbsent(deduplicationKey(candidate), candidate));
         List<SpotCandidateRecord> ordered = List.copyOf(unique.values());
+        if (theme.isDining()) {
+            return new SpotCandidateSearchResult(
+                    ordered.stream().limit(limit).toList(), List.copyOf(unavailableSources));
+        }
         List<SpotCandidateRecord> sourceDiversified = diversifySourcesWithinThemes(ordered);
         List<SpotCandidateRecord> candidates = theme == ScenicTheme.ANYWHERE || theme == ScenicTheme.WATER
                 ? diversifyThemes(sourceDiversified, theme, limit)
