@@ -21,7 +21,7 @@ public record RouteRecommendationRequest(
         @NotNull TripType tripType,
         @NotNull ScenicTheme theme,
         @Pattern(
-                regexp = "^[0-9a-f-]{36}$",
+                regexp = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
                 message = "후보 토큰 형식을 확인해 주세요.")
         String candidateToken) {
 

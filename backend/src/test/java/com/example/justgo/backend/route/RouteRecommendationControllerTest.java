@@ -167,4 +167,24 @@ class RouteRecommendationControllerTest {
                 .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
                 .andExpect(jsonPath("$.fieldErrors.tripType").exists());
     }
+
+    /** 길이만 36자인 임의 문자열은 UUID 후보 토큰으로 받지 않습니다. */
+    @Test
+    void rejectsMalformedCandidateTokenBeforeRecommendation() throws Exception {
+        mockMvc.perform(post("/api/v1/routes/recommendations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "latitude": 0,
+                                  "longitude": 0,
+                                  "desiredMinutes": 60,
+                                  "tripType": "ONE_WAY",
+                                  "theme": "CITY",
+                                  "candidateToken": "------------------------------------"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.fieldErrors.candidateToken").exists());
+    }
 }
