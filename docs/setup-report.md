@@ -776,3 +776,9 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - `infra/compose.yaml`, 두 환경변수 예시와 Git 제외 로컬 `backend/.env`의 기본 프로필을 `local,public-data,tmap`으로 통일했습니다. 실제 키·비밀번호 값은 읽거나 변경하지 않았습니다.
 - Android 디버그 앱은 `10.0.2.2:18080`을 사용하지만 Spring 설정에 `SERVER_PORT` 연결이 없어 추가 인자 없는 `bootRun`은 8080으로 뜨는 문제를 확인했습니다. `server.port: ${SERVER_PORT:8080}`을 추가하고 호스트 실행 예시는 18080을 사용하도록 맞췄습니다. Compose 내부는 기존처럼 명시적 8080, 호스트 공개는 18080 loopback을 유지합니다.
 - 추가 인자 없는 `backend\\gradlew.bat bootRun`에서 `local`, `tmap`, `public-data` 세 프로필, PostgreSQL 연결, Flyway V8, 18080 포트 기동을 확인한 뒤 서버를 종료했습니다. `backend\\gradlew.bat test --no-daemon` 전체 123개 테스트와 `docker compose --env-file .env.example --profile app config --quiet`가 성공했습니다.
+
+## 75. 2026-11-11 웹 동일 출처 콘텐츠 보안 정책
+
+- 기존 보안 헤더는 프레임 삽입·MIME 추론·브라우저 장치 권한을 제한했지만, 정적 웹에서 실행·연결할 수 있는 콘텐츠 출처를 제한하는 CSP는 없었습니다.
+- `default-src 'self'`를 기본으로 스크립트·스타일·API 연결·폼을 동일 출처에만 허용하고, 객체 삽입·base URI 변경·프레임 포함을 차단했습니다. 현재 외부 파일 형태의 `drive.js`·`drive.css`, 동일 출처 REST 호출과 인라인 SVG 표현 속성은 유지됩니다.
+- 응답 헤더 테스트에서 동일 출처 스크립트·연결과 프레임 차단 지시문을 검증합니다. 외부 CDN이나 분석 스크립트는 추가하지 않았습니다. `backend\\gradlew.bat test --no-daemon` 전체 123개 테스트가 통과했습니다.

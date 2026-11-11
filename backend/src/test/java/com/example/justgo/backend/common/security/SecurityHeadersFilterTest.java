@@ -27,6 +27,11 @@ class SecurityHeadersFilterTest {
         assertThat(response.getHeader("X-Frame-Options")).isEqualTo("DENY");
         assertThat(response.getHeader("Referrer-Policy")).isEqualTo("no-referrer");
         assertThat(response.getHeader("Cache-Control")).isEqualTo("no-store");
+        assertThat(response.getHeader("Content-Security-Policy"))
+                .contains("default-src 'self'")
+                .contains("script-src 'self'")
+                .contains("connect-src 'self'")
+                .contains("frame-ancestors 'none'");
         assertThat(response.getHeader("Permissions-Policy"))
                 .isEqualTo("camera=(), microphone=(), geolocation=(self)");
     }
