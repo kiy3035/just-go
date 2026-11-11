@@ -26,7 +26,7 @@ services:
       dockerfile: Dockerfile
     image: just-go-backend:local
     environment:
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local,public-data,tmap}
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-justgo}
       DB_USERNAME: ${POSTGRES_USER:-justgo}
       DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in infra/.env}

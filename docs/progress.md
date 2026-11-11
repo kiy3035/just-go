@@ -18,7 +18,7 @@
 | 초기 사전 점검 | 완료 | Java 21, Git, Docker, 가상화, 메모리·저장공간, GPU 확인 | Radeon 780M 전용 VRAM 0.5GB는 공식 Pleos GPU 최소 기준 미달 |
 | 저장소 구조 | 완료 | `backend`, `infra`, `docs`, Android 자리 구성 | `main` 및 기존 `origin` 사용 |
 | 백엔드 골격 | 완료 | Spring Boot 3.5.16, Gradle 8.14.6, MyBatis XML, Flyway, Actuator | 전체 자동 테스트 통과 |
-| 로컬 DB·인프라 | 완료 | PostgreSQL 17.11과 선택적 백엔드 `app` 프로필, 볼륨, healthcheck, loopback 바인딩 | Java 21 이미지 빌드, 비루트 실행, Flyway V1~V6, `/`·health HTTP 200 검증 완료 |
+| 로컬 DB·인프라 | 완료 | PostgreSQL 17.11과 선택적 백엔드 `app` 프로필, 볼륨, healthcheck, loopback 바인딩, 로컬 시연 기본 `local,public-data,tmap` 및 앱과 같은 18080 포트 | Java 21 이미지 빌드, 비루트 실행, Flyway V1~V8, `/`·health HTTP 200 검증 완료 |
 | 추천 REST 골격 | 완료 | 왕복·편도, 직접 시간, 테마 요청과 교체 가능한 Provider, `MOCK`/`LIVE`/`UNAVAILABLE` 구분 | mock·tmap 동시 실행 차단, 직접 시간 범위는 임시 기준 |
 | 경관 장소 후보 | 완료 | 초기 관광지 PoC 13건을 제거하고 DB를 명시적 분류 보정·제외·fallback 용도로 전환, 동명이 장소 오적용을 막도록 이름+1km 좌표 범위로 보정 규칙 제한 | 새 DB 후보는 출처 공식 분류를 바꾸는 근거와 품질 검수 필요 |
 | 넓은 동적 장소 후보 | 완료 | 공원 표준 API·TourAPI·TMAP POI를 우선해 최대 50건, 원천 공식 분류·테마/원천 순환·TourAPI 최대 13중심 광역 조회와 동시 동일 조회 단일화·30분 선택 토큰·짧은 수명 캐시·원천별 부분 실패 상태 제공 | 여섯 화면 테마 실데이터 응답 확인, 산악·자연 바다·자연 강/호수 분류를 레저보다 우선. 실제 주행 접근성·광역 중심 수는 추가 조정 필요 |

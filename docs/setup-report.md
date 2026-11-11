@@ -769,3 +769,10 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - 최대한 많은 선택지를 제공한다는 방향에 맞춰 레저 후보를 제외하거나 이름으로 재분류하지 않았습니다. `SEA`는 공식 자연 해양 분류를 최우선, 등대를 다음, 바다 레저를 그 뒤로 두고 `RIVER`·`LAKE`는 자연 수계 분류를 레저보다 먼저 정렬했습니다.
 - 가까운 낚시 후보와 더 먼 자연 섬·호수를 함께 둔 모의 TourAPI 테스트에서 자연 후보가 먼저 나오고 레저 후보도 뒤에 유지되는 것을 검증했습니다.
 - `backend\\gradlew.bat test --no-daemon`: 전체 123개 테스트 통과. 후보 API만 조회했으며 TMAP 자동차 경로 API는 호출하지 않았습니다. 키·좌표·원시 외부 응답은 문서에 기록하지 않았습니다.
+
+## 74. 2026-11-11 로컬 시연 기본 프로필·포트 통일
+
+- Compose와 환경변수 예시는 여전히 `local` 프로필만 기본값으로 사용해, 공공데이터·TMAP 키가 있어도 컨테이너 백엔드에서 실제 후보와 경로 구현이 비활성화되는 상태였습니다.
+- `infra/compose.yaml`, 두 환경변수 예시와 Git 제외 로컬 `backend/.env`의 기본 프로필을 `local,public-data,tmap`으로 통일했습니다. 실제 키·비밀번호 값은 읽거나 변경하지 않았습니다.
+- Android 디버그 앱은 `10.0.2.2:18080`을 사용하지만 Spring 설정에 `SERVER_PORT` 연결이 없어 추가 인자 없는 `bootRun`은 8080으로 뜨는 문제를 확인했습니다. `server.port: ${SERVER_PORT:8080}`을 추가하고 호스트 실행 예시는 18080을 사용하도록 맞췄습니다. Compose 내부는 기존처럼 명시적 8080, 호스트 공개는 18080 loopback을 유지합니다.
+- 추가 인자 없는 `backend\\gradlew.bat bootRun`에서 `local`, `tmap`, `public-data` 세 프로필, PostgreSQL 연결, Flyway V8, 18080 포트 기동을 확인한 뒤 서버를 종료했습니다. `backend\\gradlew.bat test --no-daemon` 전체 123개 테스트와 `docker compose --env-file .env.example --profile app config --quiet`가 성공했습니다.
