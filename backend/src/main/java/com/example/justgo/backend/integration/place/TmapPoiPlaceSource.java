@@ -59,8 +59,7 @@ public class TmapPoiPlaceSource implements ScenicPlaceSource {
 
     @Override
     public Set<ScenicTheme> supportedThemes() {
-        return Set.of(ScenicTheme.CITY, ScenicTheme.PARK, ScenicTheme.CAFE,
-                ScenicTheme.KOREAN, ScenicTheme.CHINESE, ScenicTheme.JAPANESE, ScenicTheme.WESTERN);
+        return Set.of(ScenicTheme.CITY, ScenicTheme.PARK);
     }
 
     @Override
@@ -86,18 +85,6 @@ public class TmapPoiPlaceSource implements ScenicPlaceSource {
                     originLatitude,
                     originLongitude,
                     maxDistanceMeters));
-        }
-        String diningCategories = switch (theme) {
-            case CAFE -> "카페";
-            case KOREAN -> "한식";
-            case CHINESE -> "중식";
-            case JAPANESE -> "일식";
-            case WESTERN -> "패밀리레스토랑;피자";
-            default -> null;
-        };
-        if (diningCategories != null) {
-            candidates.addAll(cachedCandidates(theme, diningCategories,
-                    originLatitude, originLongitude, maxDistanceMeters));
         }
         return candidates.stream()
                 .filter(candidate -> theme.includes(candidate.theme()))

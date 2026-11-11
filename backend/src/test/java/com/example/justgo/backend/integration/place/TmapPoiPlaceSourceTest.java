@@ -30,30 +30,6 @@ import org.springframework.web.client.RestClient;
 class TmapPoiPlaceSourceTest {
 
     @Test
-    void looksUpCafeAndRestaurantWithTheirOwnTmapCategories() {
-        RestClient.Builder builder = RestClient.builder().baseUrl("https://tmap.test.invalid");
-        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        TmapPoiPlaceSource source = new TmapPoiPlaceSource(builder.build(), new TmapClientProperties(),
-                Clock.fixed(Instant.parse("2026-11-08T00:00:00Z"), ZoneOffset.UTC));
-        for (String category : List.of("카페", "한식", "중식", "일식", "패밀리레스토랑;피자")) {
-            server.expect(request -> assertThat(request.getURI().getQuery())
-                            .contains("categories=" + category))
-                    .andRespond(withSuccess("""
-                            {"searchPoiInfo":{"pois":{"poi":[
-                              {"id":"TEST-1","name":"TEST_ONLY","frontLat":"0.01","frontLon":"0.01"}
-                            ]}}}
-                            """, MediaType.APPLICATION_JSON));
-        }
-
-        for (ScenicTheme theme : List.of(ScenicTheme.CAFE, ScenicTheme.KOREAN, ScenicTheme.CHINESE,
-                ScenicTheme.JAPANESE, ScenicTheme.WESTERN)) {
-            assertThat(source.findNearby(theme, BigDecimal.ZERO, BigDecimal.ZERO, 5_000, 1))
-                    .extracting(SpotCandidateRecord::theme).containsExactly(theme);
-        }
-        server.verify();
-    }
-
-    @Test
     void mapsOfficialCityCategoriesAndPrefersEntranceCoordinates() {
         RestClient.Builder builder = RestClient.builder()
                 .baseUrl("https://tmap.test.invalid");

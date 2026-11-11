@@ -79,7 +79,6 @@ public class RouteRecommendationService {
                 : result.routes();
         var alternatives = result.mode() == DrivingRouteMode.LIVE
                 && recommendedRoutes.isEmpty() && candidates.size() <= 1
-                && !request.theme().isDining()
                 && request.candidateToken() == null && request.theme() != ScenicTheme.ANYWHERE
                 ? calculateAlternatives(request, maxCandidateDistanceMeters,
                         MAX_ROUTE_OPTIONS_PER_REQUEST - candidates.size() - 1)

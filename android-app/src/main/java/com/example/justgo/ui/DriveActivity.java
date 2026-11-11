@@ -84,8 +84,7 @@ public final class DriveActivity extends Activity {
         if (saved != null) {
             binding.tripMode.check(saved.getInt("trip", R.id.roundTrip));
             binding.duration.check(saved.getInt("duration", R.id.time60));
-            int savedTheme = saved.getInt("theme", R.id.restaurant);
-            if (binding.theme.findViewById(savedTheme) != null) binding.theme.check(savedTheme);
+            binding.theme.check(saved.getInt("theme", R.id.anywhere));
             binding.customMinutes.setText(saved.getString("minutes", "90"));
         }
         syncCustomInput();
@@ -181,11 +180,12 @@ public final class DriveActivity extends Activity {
         });
     }
     private RiversideSceneView.Theme selectedTheme() {
-        if (binding.cafe.isChecked()) return RiversideSceneView.Theme.CAFE;
+        if (binding.city.isChecked()) return RiversideSceneView.Theme.CITY;
+        if (binding.mountain.isChecked()) return RiversideSceneView.Theme.MOUNTAIN;
         if (binding.sea.isChecked()) return RiversideSceneView.Theme.SEA;
         if (binding.water.isChecked()) return RiversideSceneView.Theme.WATER;
         if (binding.park.isChecked()) return RiversideSceneView.Theme.PARK;
-        return RiversideSceneView.Theme.RESTAURANT;
+        return RiversideSceneView.Theme.ANYWHERE;
     }
 
     private void syncScenery() {
@@ -273,20 +273,15 @@ public final class DriveActivity extends Activity {
 
     private void requestCourses(double latitude, double longitude, int minutes,
                                 boolean roundTrip, String theme) {
-        var search = new CourseSearch(latitude, longitude, minutes, roundTrip);
-        requestCourseResults(search, "RESTAURANT".equals(theme) ? "KOREAN" : theme);
-    }
-
-    private void requestCourseResults(CourseSearch search, String theme) {
-        searchInProgress = true;
-        String conditions = search.tripSummary() + " · " + courseThemeLabel(theme);
+        String tripType = roundTrip ? "ROUND_TRIP" : "ONE_WAY";
+        String tripSummary = (roundTrip ? "왕복" : "편도") + " " + minutes + "분";
+        String conditions = tripSummary + " · " + themeLabel(theme);
         showSearchProgress("조건에 맞는 코스를 찾고 있어요…   ", conditions);
         routeExecutor.execute(() -> {
             try {
-                Recommendation result = routeClient.recommend(search.latitude(), search.longitude(),
-                        search.minutes(), search.roundTrip() ? "ROUND_TRIP" : "ONE_WAY", theme);
+                Recommendation result = routeClient.recommend(latitude, longitude, minutes, tripType, theme);
                 runOnUiThread(() -> {
-                    if (binding != null) showCourseChoices(search, theme, conditions, result);
+                    if (binding != null) showCourseChoices(conditions, tripSummary, result);
                 });
             } catch (IOException error) {
                 showRequestError("추천 요청 실패", conditions, error);
@@ -350,8 +345,7 @@ public final class DriveActivity extends Activity {
         super.onDestroy();
     }
 
-    private void showCourseChoices(CourseSearch search, String theme, String conditions,
-                                   Recommendation result) {
+    private void showCourseChoices(String conditions, String tripSummary, Recommendation result) {
         boolean alternative = result.routes().isEmpty() && !result.alternativeRoutes().isEmpty();
         var routes = alternative ? result.alternativeRoutes() : result.routes();
         boolean live = result.mode() == RouteRecommendationClient.Mode.LIVE;
@@ -359,33 +353,24 @@ public final class DriveActivity extends Activity {
             routes = new ArrayList<>(routes);
             routes.removeIf(route -> route.stops().isEmpty());
         }
-        boolean restaurant = cuisineButton(theme) != View.NO_ID;
-        if (routes.isEmpty() && !restaurant) {
+        if (routes.isEmpty()) {
             if (result.mode() == RouteRecommendationClient.Mode.UNAVAILABLE) {
                 renderResult("지금은 코스를 찾기 어려워요", "잠시 후 다시 시도해 주세요.");
             } else {
                 renderResult("조건에 맞는 코스가 없어요",
-                        "희망 시간 안에 코스를 찾지 못했어요. 시간이나 풍경을 바꿔보세요.");
+                        "희망 시간 ±10분 안에 코스를 찾지 못했어요. 시간이나 풍경을 바꿔보세요.");
             }
             return;
         }
-        if (!live && !routes.isEmpty()) {
-            showCourseDetails("MOCK · 개발용 추천 예시", search, result, routes.get(0), false);
+        if (!live) {
+            showCourseDetails("MOCK · 개발용 추천 예시", tripSummary, result, routes.get(0), false);
             return;
         }
 
         String heading = alternative ? "다른 풍경의 추천 코스" : "추천 코스";
         if (!prepareResult(heading, conditions)) return;
-        if (restaurant) showCuisineChoices(search, theme);
         resultBinding.closeCourseList.setVisibility(View.VISIBLE);
         resultBinding.closeCourseList.setOnClickListener(v -> dismissResult());
-        if (routes.isEmpty()) {
-            showResultDetails(result.mode() == RouteRecommendationClient.Mode.UNAVAILABLE
-                    ? "잠시 후 다시 시도해 주세요."
-                    : "희망 시간 안에 코스를 찾지 못했어요. 시간이나 풍경을 바꿔보세요.");
-            showResultDialog();
-            return;
-        }
         for (RouteRecommendationClient.Route route : routes) {
             addCourseRow(route);
         }
@@ -397,7 +382,7 @@ public final class DriveActivity extends Activity {
         resultBinding.confirm.setOnClickListener(v -> {
             View checked = (View) resultBinding.routeChoices.getTag();
             if (checked != null) {
-                showCourseDetails("추천 코스", search, result,
+                showCourseDetails("추천 코스", tripSummary, result,
                         (RouteRecommendationClient.Route) checked.getTag(), true);
             }
         });
@@ -405,46 +390,13 @@ public final class DriveActivity extends Activity {
         showResultDialog();
     }
 
-    private void showCuisineChoices(CourseSearch search, String theme) {
-        resultBinding.cuisineChoices.setVisibility(View.VISIBLE);
-        resultBinding.cuisineChoices.check(cuisineButton(theme));
-        resultBinding.cuisineChoices.setOnCheckedChangeListener((group, id) -> {
-            String cuisine;
-            if (id == R.id.korean) cuisine = "KOREAN";
-            else if (id == R.id.chinese) cuisine = "CHINESE";
-            else if (id == R.id.japanese) cuisine = "JAPANESE";
-            else if (id == R.id.western) cuisine = "WESTERN";
-            else return;
-            if (drivingRestricted || searchInProgress) return;
-            dismissResult();
-            requestCourseResults(search, cuisine);
-        });
-    }
-
-    private static int cuisineButton(String theme) {
-        return switch (theme) {
-            case "KOREAN" -> R.id.korean;
-            case "CHINESE" -> R.id.chinese;
-            case "JAPANESE" -> R.id.japanese;
-            case "WESTERN" -> R.id.western;
-            default -> View.NO_ID;
-        };
-    }
-
-    private record CourseSearch(double latitude, double longitude, int minutes, boolean roundTrip) {
-        private String tripSummary() {
-            return (roundTrip ? "왕복" : "편도") + " " + minutes + "분";
-        }
-    }
-
     private String courseMetrics(RouteRecommendationClient.Route route) {
         return String.format(Locale.KOREA, "%d분  ·  %.1f km",
                 route.minutes(), route.meters() / 1000.0);
     }
 
-    private void showCourseDetails(String heading, CourseSearch search, Recommendation result,
+    private void showCourseDetails(String heading, String tripSummary, Recommendation result,
                                    RouteRecommendationClient.Route route, boolean live) {
-        String tripSummary = search.tripSummary();
         if (!prepareResult(heading, tripSummary)) return;
         resultBinding.selectionSummary.setVisibility(View.GONE);
         resultBinding.resultTitle.setCompoundDrawablesRelativeWithIntrinsicBounds(
@@ -455,27 +407,33 @@ public final class DriveActivity extends Activity {
         var detail = resultBinding.courseDetail;
         detail.getRoot().setVisibility(View.VISIBLE);
         detail.tripChip.setText(tripSummary);
-        detail.themeChip.setText(courseThemeLabel(route.theme()));
-        int themeArt = switch (route.theme()) {
-            case "KOREAN", "CHINESE", "JAPANESE", "WESTERN" -> R.drawable.art_restaurant;
-            case "CAFE" -> R.drawable.art_cafe;
-            case "CITY" -> R.drawable.art_city;
-            case "MOUNTAIN" -> R.drawable.art_mountain;
-            case "SEA" -> R.drawable.art_sea;
-            case "RIVER", "LAKE", "WATER" -> R.drawable.art_water;
-            case "PARK" -> R.drawable.art_park;
-            default -> R.drawable.art_anywhere;
+        detail.themeChip.setText(themeLabel(route.theme()));
+        var sceneryTheme = switch (route.theme()) {
+            case "CITY" -> RiversideSceneView.Theme.CITY;
+            case "MOUNTAIN" -> RiversideSceneView.Theme.MOUNTAIN;
+            case "SEA" -> RiversideSceneView.Theme.SEA;
+            case "RIVER", "LAKE", "WATER" -> RiversideSceneView.Theme.WATER;
+            case "PARK" -> RiversideSceneView.Theme.PARK;
+            default -> RiversideSceneView.Theme.ANYWHERE;
         };
-        detail.thumbnail.setImageResource(themeArt);
+        int themeIcon = switch (sceneryTheme) {
+            case CITY -> R.drawable.ic_city;
+            case MOUNTAIN -> R.drawable.ic_mountain;
+            case SEA -> R.drawable.ic_sea;
+            case WATER -> R.drawable.ic_water;
+            case PARK -> R.drawable.ic_park;
+            case ANYWHERE -> R.drawable.ic_anywhere;
+        };
+        detail.themeChip.setCompoundDrawablesRelativeWithIntrinsicBounds(themeIcon, 0, 0, 0);
+        detail.headerScenery.setPreviewMode();
+        detail.headerScenery.setTheme(sceneryTheme);
+        detail.thumbnail.setPreviewMode();
+        detail.thumbnail.setTheme(sceneryTheme);
 
         detail.destination.setVisibility(View.GONE);
-        boolean diningStop = search.roundTrip()
-                && ("CAFE".equals(route.theme()) || cuisineButton(route.theme()) != View.NO_ID);
-        var displayStopType = diningStop ? RouteRecommendationClient.StopType.WAYPOINT
-                : RouteRecommendationClient.StopType.DESTINATION;
         for (RouteRecommendationClient.Stop stop : route.stops()) {
-            if (stop.type() == displayStopType && !stop.name().isBlank()) {
-                detail.destination.setText((diningStop ? "경유지  " : "목적지  ") + stop.name());
+            if (stop.type() == RouteRecommendationClient.StopType.DESTINATION && !stop.name().isBlank()) {
+                detail.destination.setText("목적지  " + stop.name());
                 detail.destination.setVisibility(View.VISIBLE);
                 break;
             }
@@ -601,17 +559,8 @@ public final class DriveActivity extends Activity {
             case "RIVER" -> "강";
             case "LAKE" -> "호수";
             case "SEA" -> "바다";
-            case "CAFE" -> "카페";
-            case "KOREAN" -> "한식";
-            case "CHINESE" -> "중식";
-            case "JAPANESE" -> "일식";
-            case "WESTERN" -> "양식";
             default -> theme;
         };
-    }
-
-    private static String courseThemeLabel(String theme) {
-        return cuisineButton(theme) == View.NO_ID ? themeLabel(theme) : "음식점 · " + themeLabel(theme);
     }
 
     private String describeError(IOException error) {
@@ -688,7 +637,6 @@ public final class DriveActivity extends Activity {
         float density = getResources().getDisplayMetrics().density;
         int availableWidth = binding.getRoot().getWidth();
         boolean courseList = resultBinding.routeChoices.getVisibility() == View.VISIBLE;
-        courseList |= resultBinding.cuisineChoices.getVisibility() == View.VISIBLE;
         int preferredWidth = Math.round(availableWidth * (courseList ? 0.86f : 0.62f));
         int readableWidth = Math.max(preferredWidth, Math.round(420 * density));
         int panelWidth = Math.min(readableWidth,

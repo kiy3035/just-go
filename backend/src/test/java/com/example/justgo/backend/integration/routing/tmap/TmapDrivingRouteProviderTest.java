@@ -123,23 +123,6 @@ class TmapDrivingRouteProviderTest {
         assertThat(result.routes().get(2).repeatedSegmentPercent()).isEqualTo(12);
     }
 
-    @Test
-    void evaluatesTenIndividualCafeRoutesWithoutCombiningCafes() {
-        when(client.findRoute(any())).thenReturn(new TmapRouteSummary(4_200L, 3_600L, null));
-        var diningRequest = new DrivingRouteRequest(BigDecimal.ZERO, BigDecimal.ZERO, 60,
-                TripType.ONE_WAY, ScenicTheme.CAFE,
-                LongStream.rangeClosed(1, 12).mapToObj(this::candidate).toList());
-
-        var result = provider.calculate(diningRequest);
-
-        assertThat(result.routes()).hasSize(10).allSatisfy(route -> {
-            assertThat(route.theme()).isEqualTo(ScenicTheme.CAFE);
-            assertThat(route.stops()).singleElement().satisfies(stop ->
-                    assertThat(stop.type()).isEqualTo(DrivingRouteStopType.DESTINATION));
-        });
-        verify(client, times(10)).findRoute(any());
-    }
-
     /** 검수 후보가 없으면 외부 호출 없이 빈 결과를 반환하는지 확인합니다. */
     @Test
     void returnsEmptyLiveResultWithoutCallingTmapWhenCandidatesAreEmpty() {

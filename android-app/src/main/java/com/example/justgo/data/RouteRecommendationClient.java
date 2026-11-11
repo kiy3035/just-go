@@ -28,11 +28,9 @@ public final class RouteRecommendationClient {
     private static final int MAX_CANDIDATE_NAME_LENGTH = 100;
     private static final int MAX_SOURCE_CATEGORY_LENGTH = 200;
     private static final Set<String> THEMES = Set.of(
-            "CITY", "MOUNTAIN", "RIVER", "LAKE", "SEA", "PARK", "ANYWHERE", "WATER",
-            "CAFE", "KOREAN", "CHINESE", "JAPANESE", "WESTERN");
+            "CITY", "MOUNTAIN", "RIVER", "LAKE", "SEA", "PARK", "ANYWHERE", "WATER");
     private static final Set<String> CANDIDATE_THEMES = Set.of(
-            "CITY", "MOUNTAIN", "RIVER", "LAKE", "SEA", "PARK",
-            "CAFE", "KOREAN", "CHINESE", "JAPANESE", "WESTERN");
+            "CITY", "MOUNTAIN", "RIVER", "LAKE", "SEA", "PARK");
     private static final Set<String> CANDIDATE_SOURCES = Set.of(
             "VERIFIED_DB", "PUBLIC_PARK", "TOUR_API", "TMAP_POI");
     private static final Set<String> EXTERNAL_SOURCES = Set.of(

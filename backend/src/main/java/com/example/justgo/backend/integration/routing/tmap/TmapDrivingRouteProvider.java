@@ -89,15 +89,14 @@ public class TmapDrivingRouteProvider implements DrivingRouteProvider {
      */
     private List<List<DrivingRouteWaypointCandidate>> buildRouteOptions(
             DrivingRouteRequest request) {
-        boolean combine = !request.theme().isDining();
         List<DrivingRouteWaypointCandidate> candidates = request.waypointCandidates().stream()
-                .limit(combine ? MAX_ROUTE_OPTIONS_PER_REQUEST - 1 : MAX_ROUTE_OPTIONS_PER_REQUEST)
+                .limit(MAX_ROUTE_OPTIONS_PER_REQUEST - 1)
                 .toList();
         List<List<DrivingRouteWaypointCandidate>> options = new ArrayList<>();
         for (DrivingRouteWaypointCandidate candidate : candidates) {
             options.add(List.of(candidate));
         }
-        if (combine && candidates.size() >= MAX_SCENIC_STOPS_PER_ROUTE) {
+        if (candidates.size() >= MAX_SCENIC_STOPS_PER_ROUTE) {
             options.add(MAX_SCENIC_STOPS_PER_ROUTE,
                     List.copyOf(candidates.subList(0, MAX_SCENIC_STOPS_PER_ROUTE)));
         }
@@ -116,7 +115,7 @@ public class TmapDrivingRouteProvider implements DrivingRouteProvider {
 
         return new DrivingRouteCandidate(
                 routeId(scenicStops),
-                request.theme().isDining() ? scenicStops.getFirst().name() : routeTitle(scenicStops),
+                routeTitle(scenicStops),
                 toWholeMinutes(summary.durationSeconds()),
                 summary.distanceMeters(),
                 request.theme(),
@@ -124,14 +123,9 @@ public class TmapDrivingRouteProvider implements DrivingRouteProvider {
                         ? summary.repeatedSegmentPercent()
                         : null,
                 buildStops(request, scenicStops),
-                routeReason(request, scenicStops.size()));
-    }
-
-    private String routeReason(DrivingRouteRequest request, int stopCount) {
-        if (request.theme().isDining()) return "TMAP 자동차 경로 시간·거리 결과입니다.";
-        return stopCount == 1
-                ? "검수된 경관 후보의 TMAP 자동차 경로 시간·거리 결과입니다."
-                : "검수된 두 경관 후보를 잇는 TMAP 자동차 경로 시간·거리 결과입니다.";
+                scenicStops.size() == 1
+                        ? "검수된 경관 후보의 TMAP 자동차 경로 시간·거리 결과입니다."
+                        : "검수된 두 경관 후보를 잇는 TMAP 자동차 경로 시간·거리 결과입니다.");
     }
 
     /**

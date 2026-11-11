@@ -9,7 +9,37 @@
 
         <LinearLayout
             android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:importantForAccessibility="noHideDescendants"
+            android:orientation="horizontal">
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1">
+
+                <com.example.justgo.ui.RiversideSceneView
+                    android:id="@+id/headerScenery"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:alpha="0.66" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/route_scenery_fade" />
+            </FrameLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:minHeight="152dp"
             android:orientation="vertical"
             android:paddingTop="22dp"
             android:paddingBottom="16dp">
@@ -57,15 +87,13 @@
         android:orientation="horizontal"
         android:padding="18dp">
 
-        <ImageView
+        <com.example.justgo.ui.RiversideSceneView
             android:id="@+id/thumbnail"
             android:layout_width="104dp"
             android:layout_height="104dp"
             android:layout_marginEnd="20dp"
             android:background="@drawable/route_detail_chip"
-            android:importantForAccessibility="no"
-            android:padding="12dp"
-            android:scaleType="fitCenter" />
+            android:clipToOutline="true" />
 
         <LinearLayout
             android:layout_width="0dp"
