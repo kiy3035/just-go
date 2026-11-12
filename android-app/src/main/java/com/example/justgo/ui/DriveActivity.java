@@ -5,11 +5,14 @@ import android.app.Dialog;
 import android.Manifest;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.res.ColorStateList;
 import android.content.pm.PackageManager;
 import com.example.justgo.data.CurrentLocationProvider;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.StateListDrawable;
 import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
@@ -292,7 +295,7 @@ public final class DriveActivity extends Activity {
                 Recommendation result = routeClient.recommend(context.latitude(), context.longitude(),
                         context.minutes(), context.tripType(), context.theme());
                 runOnUiThread(() -> {
-                    if (binding != null) showRecommendation(context, result);
+                    if (binding != null) showRecommendation(context, result, null);
                 });
             } catch (IOException error) {
                 showRequestError(context, describeError(error));
@@ -361,7 +364,8 @@ public final class DriveActivity extends Activity {
     }
 
     /** 추천 코스 목록 팝업. 서버가 계산하고 정렬한 경로를 카드로 보여준다. */
-    private void showRecommendation(SearchContext context, Recommendation result) {
+    private void showRecommendation(SearchContext context, Recommendation result,
+                                    RouteRecommendationClient.Route previousSelection) {
         boolean alternative = result.routes().isEmpty() && !result.alternativeRoutes().isEmpty();
         var routes = alternative ? result.alternativeRoutes() : result.routes();
         if (routes.isEmpty()) {
@@ -374,41 +378,107 @@ public final class DriveActivity extends Activity {
         }
         boolean live = result.mode() == RouteRecommendationClient.Mode.LIVE;
         String heading = live ? (alternative ? "다른 풍경의 추천 코스" : "추천 코스") : "MOCK · 개발용 추천 예시";
-        String summary = context.conditions() + " · " + routes.size() + "개";
+        String direction = "ROUND_TRIP".equals(context.tripType()) ? "왕복" : "편도";
+        String summary = themeLabel(context.theme()) + " · " + direction + " " + context.minutes() + "분";
+        if (!prepareResult(heading, summary)) return;
+
+        RoutePalette palette = routePalette(context.theme());
+        resultBinding.selectionSummary.setBackground(roundedColor(palette.tint(), 14));
+        resultBinding.selectionSummary.setTextColor(palette.accent());
+        resultBinding.selectionSummary.setTypeface(Typeface.DEFAULT_BOLD);
+        resultBinding.selectionSummary.setPadding(dp(14), dp(10), dp(14), dp(10));
+        resultBinding.closeRecommendation.setVisibility(View.VISIBLE);
+        resultBinding.closeRecommendation.setOnClickListener(v -> dismissResult());
         if (live) {
             boolean hasEvents = routes.stream().anyMatch(route -> route.event() != null);
-            summary += hasEvents ? "\n관람 가능한 행사 우선 · TMAP 예상 주행시간"
-                    : "\nTMAP 예상 주행시간 · 목표 시간과 가까운 순";
+            String order = hasEvents ? "관람 가능한 행사 우선" : "목표 시간과 가까운 순";
+            resultBinding.recommendationOrder.setText(order + " · 총 " + routes.size() + "개");
+            resultBinding.recommendationOrder.setVisibility(View.VISIBLE);
+            showResultDetails(getString(R.string.route_popup_tmap_note));
+            resultBinding.navigationStatus.setBackground(roundedColor(0xFFEDF1F6, 12));
+            resultBinding.navigationStatus.setPadding(dp(12), dp(8), dp(12), dp(8));
         }
-        if (!prepareResult(heading, summary)) return;
+
+        List<ItemRouteResultBinding> cards = new ArrayList<>();
+        if (live) {
+            selectedRoute = previousSelection != null && routes.contains(previousSelection)
+                    && !previousSelection.stops().isEmpty() ? previousSelection
+                    : routes.stream().filter(route -> !route.stops().isEmpty()).findFirst().orElse(null);
+        }
         for (RouteRecommendationClient.Route route : routes) {
             var card = addRouteCard(context, route);
-            // 목록에서 선택한 코스를 상세 화면에 그대로 넘겨 두 번째 선택을 요구하지 않는다.
+            cards.add(card);
+            // 코스를 선택하면 체크 표시만 바꾸고 하단 버튼에서 해당 코스의 상세를 연다.
             if (live && !route.stops().isEmpty()) {
                 card.getRoot().setFocusable(true);
-                card.getRoot().setOnClickListener(v -> showCourseDetail(context, result, route));
+                card.getRoot().setOnClickListener(v -> {
+                    selectedRoute = route;
+                    updateRecommendationSelection(routes, cards, palette);
+                });
             }
+        }
+        if (live) {
+            updateRecommendationSelection(routes, cards, palette);
+            resultBinding.confirm.setText(R.string.route_popup_detail);
+            resultBinding.confirm.setBackgroundTintList(new ColorStateList(
+                    new int[][]{new int[]{-android.R.attr.state_enabled}, new int[]{}},
+                    new int[]{0xFF627794, palette.accent()}));
+            resultBinding.confirm.setOnClickListener(v -> {
+                if (!drivingRestricted && selectedRoute != null) {
+                    showCourseDetail(context, result, selectedRoute);
+                }
+            });
         }
         showResultDialog();
     }
 
+    private void updateRecommendationSelection(List<RouteRecommendationClient.Route> routes,
+                                               List<ItemRouteResultBinding> cards, RoutePalette palette) {
+        for (int index = 0; index < cards.size(); index++) {
+            var card = cards.get(index);
+            boolean selected = routes.get(index) == selectedRoute;
+            var background = new StateListDrawable();
+            background.addState(new int[]{android.R.attr.state_focused},
+                    routeCardBackground(selected, palette, dp(2)));
+            background.addState(new int[]{}, routeCardBackground(selected, palette, dp(1)));
+            card.getRoot().setBackground(background);
+            card.getRoot().setSelected(selected);
+            card.courseSelection.setVisibility(card.getRoot().isClickable() ? View.VISIBLE : View.GONE);
+            card.courseSelection.setText(selected ? "✓" : "›");
+            card.courseSelection.setTextColor(selected ? Color.WHITE : palette.accent());
+            card.courseSelection.setBackground(selected ? roundedColor(palette.accent(), 14) : null);
+        }
+        resultBinding.confirm.setEnabled(selectedRoute != null && !drivingRestricted);
+    }
+
     private ItemRouteResultBinding addRouteCard(SearchContext context, RouteRecommendationClient.Route route) {
         var card = ItemRouteResultBinding.inflate(getLayoutInflater(), resultBinding.routeChoices, false);
-        card.themeGraphic.setImageResource(themeGraphic(route.theme()));
         card.courseName.setText(route.event() == null ? route.title() : route.event().name());
         String category = route.event() != null ? "행사" : "CITY".equals(route.theme())
-                ? "일반 도시 명소" : themeLabel(route.theme());
+                ? ("ANYWHERE".equals(context.theme()) ? "도시" : "도시 명소") : themeLabel(route.theme());
+        RoutePalette categoryPalette = routePalette(route.theme());
         card.courseCategory.setText(category);
+        card.courseCategory.setTextColor(categoryPalette.accent());
+        card.courseCategory.setBackground(roundedColor(categoryPalette.tint(), 10));
         // 서버 정렬에 쓰는 초 단위 차이를 사용해, 분 단위 표시가 같아도 차이를 숨기지 않는다.
         long delta = route.durationSeconds() - context.minutes() * 60L;
         long differenceSeconds = Math.abs(delta);
         String difference = delta == 0 ? "목표 시간과 같아요" : "목표보다 "
                 + (differenceSeconds < 60 ? "1분 미만" : Math.round(differenceSeconds / 60.0) + "분")
                 + (delta > 0 ? " 길어요" : " 짧아요");
-        card.courseMetrics.setText(String.format(Locale.KOREA, "%d분 · %.1f km · %s",
-                route.minutes(), route.meters() / 1000.0, difference));
+        card.courseMetrics.setText(String.format(Locale.KOREA, "%d분 · %.1f km",
+                route.minutes(), route.meters() / 1000.0));
+        RoutePalette palette = routePalette(context.theme());
+        card.courseTimeDifference.setText(difference);
+        card.courseTimeDifference.setTextColor(palette.accent());
+        card.courseTimeDifference.setBackground(roundedColor(palette.tint(), 10));
         if (route.event() != null) {
-            card.courseReason.setText("예상 도착 " + formatEventTime(route.event().arrivesAt()));
+            var event = route.event();
+            var timeOnly = java.time.format.DateTimeFormatter.ofPattern("HH:mm", Locale.KOREA);
+            boolean sameDate = event.opensAt().toLocalDate().equals(event.arrivesAt().toLocalDate());
+            String start = sameDate ? event.opensAt().format(timeOnly) : formatEventTime(event.opensAt());
+            String arrival = sameDate ? event.arrivesAt().format(timeOnly) : formatEventTime(event.arrivesAt());
+            card.courseReason.setText(start + " 시작 · " + arrival + " 도착 예상");
             card.courseReason.setVisibility(View.VISIBLE);
         } else if (route.reason() != null && !route.reason().isBlank()) {
             card.courseReason.setText(route.reason());
@@ -454,7 +524,7 @@ public final class DriveActivity extends Activity {
         selectedRoute = route;
         resultOffersNavigation = true;
         resultBinding.cancel.setVisibility(View.VISIBLE);
-        resultBinding.cancel.setOnClickListener(v -> showRecommendation(context, result));
+        resultBinding.cancel.setOnClickListener(v -> showRecommendation(context, result, route));
         resultBinding.confirm.setText("시작");
         resultBinding.confirm.setOnClickListener(v -> startNavigation());
         refreshNavigationControl();
@@ -492,16 +562,35 @@ public final class DriveActivity extends Activity {
         return time.format(java.time.format.DateTimeFormatter.ofPattern("MM.dd HH:mm", Locale.KOREA));
     }
 
-    private static int themeGraphic(String theme) {
+    private GradientDrawable routeCardBackground(boolean selected, RoutePalette palette, int strokeWidth) {
+        var background = roundedColor(selected ? palette.tint() : Color.WHITE, 14);
+        background.setStroke(strokeWidth, selected || strokeWidth > dp(1) ? palette.accent() : 0xFFD4DDEA);
+        return background;
+    }
+
+    private GradientDrawable roundedColor(int color, int radius) {
+        var background = new GradientDrawable();
+        background.setColor(color);
+        background.setCornerRadius(dp(radius));
+        return background;
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
+    private static RoutePalette routePalette(String theme) {
         return switch (theme) {
-            case "CITY" -> R.drawable.ic_city;
-            case "MOUNTAIN" -> R.drawable.ic_mountain;
-            case "SEA" -> R.drawable.ic_sea;
-            case "WATER", "RIVER", "LAKE" -> R.drawable.ic_water;
-            case "PARK" -> R.drawable.ic_park;
-            default -> R.drawable.ic_anywhere;
+            case "CITY" -> new RoutePalette(0xFF3F4598, 0xFFECECF9);
+            case "MOUNTAIN" -> new RoutePalette(0xFF49602E, 0xFFF0F3E5);
+            case "SEA" -> new RoutePalette(0xFF155AAE, 0xFFE8F1FF);
+            case "WATER", "RIVER", "LAKE" -> new RoutePalette(0xFF006E77, 0xFFE3F4F5);
+            case "PARK" -> new RoutePalette(0xFF2D6E37, 0xFFEAF5E8);
+            default -> new RoutePalette(0xFF0757C5, 0xFFE8F2FF);
         };
     }
+
+    private record RoutePalette(int accent, int tint) {}
 
     private void startNavigation() {
         if (drivingRestricted || navigationRequestDialog != null || selectedRoute == null
