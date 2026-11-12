@@ -27,6 +27,30 @@ class TmapDrivingRouteProviderTest {
     private final TmapRouteClient client = mock(TmapRouteClient.class);
     private final TmapDrivingRouteProvider provider = new TmapDrivingRouteProvider(client);
 
+    /** 순위 목록의 왕복은 두 방향을 따로 측정하고 내비에 넘길 두 지점과 구간을 맞춘다. */
+    @Test
+    void rankedRoundTripAddsIndependentOutboundAndReturnLegs() {
+        when(client.findRoute(any())).thenReturn(
+                new TmapRouteSummary(9_000L, 1_601L, null),
+                new TmapRouteSummary(11_000L, 1_999L, null));
+
+        var route = provider.calculateRanked(request(TripType.ROUND_TRIP, List.of(candidate(7L))))
+                .routes().getFirst();
+
+        ArgumentCaptor<TmapRouteSearch> captor = ArgumentCaptor.forClass(TmapRouteSearch.class);
+        verify(client, times(2)).findRoute(captor.capture());
+        var outbound = captor.getAllValues().getFirst();
+        var inbound = captor.getAllValues().getLast();
+        assertThat(inbound.start()).isEqualTo(outbound.end());
+        assertThat(inbound.end()).isEqualTo(outbound.start());
+        assertThat(route.legSeconds()).containsExactly(1_601L, 1_999L);
+        assertThat(route.durationSeconds()).isEqualTo(3_600L);
+        assertThat(route.estimatedMinutes()).isEqualTo(60);
+        assertThat(route.distanceMeters()).isEqualTo(20_000L);
+        assertThat(route.stops()).extracting(stop -> stop.type())
+                .containsExactly(DrivingRouteStopType.WAYPOINT, DrivingRouteStopType.DESTINATION);
+    }
+
     /** 왕복은 경관 후보를 경유하고 출발 좌표로 복귀하는지 확인합니다. */
     @Test
     void buildsRoundTripThroughScenicCandidate() {

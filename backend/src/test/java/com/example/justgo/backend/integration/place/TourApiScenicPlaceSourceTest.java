@@ -29,6 +29,29 @@ class TourApiScenicPlaceSourceTest {
 
     private static final String BASE_URL = "https://tour.test.invalid/KorService2";
 
+    /** 조회 횟수는 유지하면서 광역 추천에서 더 먼 검색 중심을 실제로 사용한다. */
+    @Test
+    void rankedSearchExtendsTourApiCentersWithoutAddingRequests() {
+        RestClient.Builder builder = RestClient.builder().baseUrl(BASE_URL);
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        PublicDataProperties properties = new PublicDataProperties();
+        properties.setTourApiKey("TEST_KEY_ONLY");
+        List<BigDecimal> centerLatitudes = new java.util.ArrayList<>();
+        server.expect(ExpectedCount.times(13), request -> {
+            var parameters = org.springframework.web.util.UriComponentsBuilder.fromUri(request.getURI())
+                    .build().getQueryParams();
+            centerLatitudes.add(new BigDecimal(parameters.getFirst("mapY")));
+        }).andRespond(withSuccess("""
+                {"response":{"header":{"resultCode":"0000"},"body":{"items":[]}}}
+                """, MediaType.APPLICATION_JSON));
+        var source = new TourApiScenicPlaceSource(builder.build(), properties);
+
+        source.findForRecommendation(ScenicTheme.MOUNTAIN, BigDecimal.ZERO, BigDecimal.ZERO, 300_000);
+
+        assertThat(centerLatitudes).anyMatch(latitude -> latitude.abs().compareTo(BigDecimal.ONE) > 0);
+        server.verify();
+    }
+
     @Test
     void mapsOnlyRequestedThemeFromNearbyTourismItems() {
         RestClient.Builder builder = RestClient.builder().baseUrl(BASE_URL);

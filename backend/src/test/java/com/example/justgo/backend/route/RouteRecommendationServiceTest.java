@@ -231,9 +231,9 @@ class RouteRecommendationServiceTest {
         assertThat(response.routes().getFirst().estimatedMinutes()).isEqualTo(75);
     }
 
-    /** LIVE 후보에만 시간 오차 필터와 가까운 시간 우선 정렬을 적용합니다. */
+    /** LIVE 후보는 시간 오차 순으로 정렬하며 기존 세 건 제한을 넘어 반환한다. */
     @Test
-    void filtersAndRanksLiveRoutesByDesiredDuration() {
+    void ranksLiveRoutesByDesiredDuration() {
         RouteRecommendationService liveService = new RouteRecommendationService(request ->
                 new DrivingRouteResult(
                         DrivingRouteMode.LIVE,
@@ -255,7 +255,40 @@ class RouteRecommendationServiceTest {
 
         assertThat(response.routes())
                 .extracting(RouteRecommendationItem::routeId)
-                .containsExactly("FIRST", "SECOND", "THIRD");
+                .containsExactly("FIRST", "SECOND", "THIRD", "OUTSIDE");
+    }
+
+    @Test
+    void expandsSearchAndDoesNotRecalculatePreviouslyAttemptedDestinations() {
+        List<Long> searchedRadii = new ArrayList<>();
+        List<Long> calculatedIds = new ArrayList<>();
+        SpotCandidateQuery query = new SpotCandidateQuery() {
+            @Override public List<SpotCandidateRecord> loadVerifiedCandidates(ScenicTheme theme, int limit) {
+                return List.of();
+            }
+
+            @Override public List<SpotCandidateRecord> loadNearbyVerifiedCandidates(ScenicTheme theme,
+                    BigDecimal latitude, BigDecimal longitude, long radius, int limit) {
+                searchedRadii.add(radius);
+                return java.util.stream.LongStream.rangeClosed(1, searchedRadii.size() == 1 ? 2 : 5)
+                        .mapToObj(id -> testSpot(id, ScenicTheme.MOUNTAIN)).toList();
+            }
+        };
+        var service = new RouteRecommendationService(request -> {
+            var routes = request.waypointCandidates().stream().map(candidate -> {
+                long id = candidate.spotId();
+                calculatedIds.add(id);
+                return liveCandidate(Long.toString(id), id == 5 ? 60 : 30 + (int) id, 1_000);
+            }).toList();
+            return new DrivingRouteResult(DrivingRouteMode.LIVE, false, routes, "테스트 결과");
+        }, query);
+
+        var result = service.recommend(new RouteRecommendationRequest(
+                BigDecimal.ZERO, BigDecimal.ZERO, 60, TripType.ONE_WAY, ScenicTheme.MOUNTAIN));
+        assertThat(searchedRadii).containsExactly(150_000L, 187_500L, 225_000L);
+        assertThat(calculatedIds).containsExactly(1L, 2L, 3L, 4L, 5L);
+        assertThat(result.routes()).hasSize(5).first().extracting(RouteRecommendationItem::routeId)
+                .isEqualTo("5");
     }
 
     /** 시간 차이가 큰 LIVE 후보도 숨기지 않고 실제 계산 결과를 가까운 순으로 반환합니다. */

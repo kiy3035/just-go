@@ -51,6 +51,12 @@ public interface SpotCandidateQuery {
                 List.of());
     }
 
+    /** 자동 추천은 가까운 장소가 많아도 넓은 거리 구간의 후보를 확보한다. */
+    default SpotCandidateSearchResult searchRecommendationCandidates(
+            ScenicTheme theme, BigDecimal latitude, BigDecimal longitude, long radiusMeters, int limit) {
+        return searchNearbyCandidates(theme, latitude, longitude, radiusMeters, limit);
+    }
+
     /**
      * 검수 완료 후보가 하나 이상 준비된 풍경 테마를 조회합니다.
      * 간단한 테스트 대역은 이 기능을 구현하지 않아도 되도록 기본값을 빈 목록으로 둡니다.

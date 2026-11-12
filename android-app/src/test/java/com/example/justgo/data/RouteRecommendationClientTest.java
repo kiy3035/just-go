@@ -88,6 +88,32 @@ public class RouteRecommendationClientTest {
         server.shutdown();
     }
 
+    /** 목록과 상세에 쓰는 시간과 행사 데이터를 보존하며 별도 장소 선택 토큰 없이 요청한다. */
+    @Test
+    public void readsRankedRouteLegAndEventWithoutCandidateToken() throws Exception {
+        server.enqueue(jsonResponse("""
+                {"mode":"LIVE","mock":false,"routes":[{
+                  "routeId":"city-event-test","title":"TEST_VENUE","theme":"CITY",
+                  "estimatedMinutes":60,"durationSeconds":3590,"distanceMeters":25000,
+                  "stops":[{"sequence":1,"type":"DESTINATION","name":"TEST_VENUE","latitude":1,"longitude":2}],
+                  "legSeconds":[3590],
+                  "event":{"name":"TEST_EVENT","venue":"TEST_VENUE",
+                    "opensAt":"2030-01-01T18:00:00+09:00","closesAt":"2030-01-01T19:00:00+09:00",
+                    "arrivesAt":"2030-01-01T18:30:00+09:00"}
+                }]}
+                """));
+
+        var result = client.recommend(1, 2, 60, "ONE_WAY", "CITY");
+        var route = result.routes().get(0);
+        assertEquals(3590L, route.durationSeconds());
+        assertEquals(java.util.List.of(3590L), route.legSeconds());
+        assertEquals("TEST_EVENT", route.event().name());
+        assertEquals(30, route.event().arrivesAt().getMinute());
+        RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
+        assertNotNull(request);
+        assertFalse(new JSONObject(request.getBody().readUtf8()).has("candidateToken"));
+    }
+
     @Test
     public void candidateTokenConnectsCandidateAndRecommendationEndpoints() throws Exception {
         enqueueSuccessfulCandidateAndRoute();

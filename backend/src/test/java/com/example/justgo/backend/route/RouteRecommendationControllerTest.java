@@ -16,6 +16,7 @@ import com.example.justgo.backend.common.TraceIdFilter;
 import com.example.justgo.backend.integration.routing.MockDrivingRouteProvider;
 import com.example.justgo.backend.spot.ScenicTheme;
 import com.example.justgo.backend.spot.SpotCandidateQuery;
+import com.example.justgo.backend.spot.SpotCandidateSearchResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,13 +52,13 @@ class RouteRecommendationControllerTest {
      */
     @BeforeEach
     void setUpSpotCandidates() {
-        when(spotCandidateQuery.loadNearbyVerifiedCandidates(
+        when(spotCandidateQuery.searchRecommendationCandidates(
                 any(ScenicTheme.class),
                 any(java.math.BigDecimal.class),
                 any(java.math.BigDecimal.class),
                 anyLong(),
                 anyInt()))
-                .thenReturn(List.of());
+                .thenReturn(new SpotCandidateSearchResult(List.of(), List.of()));
     }
 
     /**

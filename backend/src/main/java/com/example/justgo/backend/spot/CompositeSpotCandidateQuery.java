@@ -74,6 +74,18 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
             BigDecimal originLongitude,
             long maxDistanceMeters,
             int limit) {
+        return searchNearbyCandidates(theme, originLatitude, originLongitude, maxDistanceMeters, limit, false);
+    }
+
+    @Override
+    public SpotCandidateSearchResult searchRecommendationCandidates(
+            ScenicTheme theme, BigDecimal latitude, BigDecimal longitude, long radiusMeters, int limit) {
+        return searchNearbyCandidates(theme, latitude, longitude, radiusMeters, limit, true);
+    }
+
+    private SpotCandidateSearchResult searchNearbyCandidates(
+            ScenicTheme theme, BigDecimal originLatitude, BigDecimal originLongitude,
+            long maxDistanceMeters, int limit, boolean spreadByDistance) {
         Map<String, List<SpotCandidateOverrideRecord>> overrides = verifiedSpotService
                 .loadCandidateOverrides()
                 .stream()
@@ -85,18 +97,17 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
                 verifiedSpotService.loadNearbyVerifiedCandidates(
                         theme, originLatitude, originLongitude, maxDistanceMeters, limit));
         Set<String> unavailableSources = new LinkedHashSet<>();
+        // 가까운 순으로 원천 결과를 먼저 자르면 큰 반경을 재검색해도 먼 목적지가 목록에 들어오지 않는다.
+        // 자동 추천은 원천의 기존 페이지 제한 안에서 모두 받아 거리 구간을 나눈 뒤 응답 크기를 제한한다.
         int sourceLimit = Math.min(50, Math.max(limit, limit * SOURCE_FETCH_MULTIPLIER));
         for (ScenicPlaceSource source : externalSources) {
             if (!supports(source.supportedThemes(), theme)) {
                 continue;
             }
             try {
-                combined.addAll(source.findNearby(
-                        theme,
-                        originLatitude,
-                        originLongitude,
-                        maxDistanceMeters,
-                        sourceLimit));
+                combined.addAll(spreadByDistance
+                        ? source.findForRecommendation(theme, originLatitude, originLongitude, maxDistanceMeters)
+                        : source.findNearby(theme, originLatitude, originLongitude, maxDistanceMeters, sourceLimit));
             } catch (RuntimeException exception) {
                 unavailableSources.add(source.sourceName());
                 LOGGER.warn(
@@ -117,7 +128,8 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
                         candidate.latitude(),
                         candidate.longitude()) <= maxDistanceMeters)
                 .sorted(Comparator
-                        .comparingInt(this::sourcePriority)
+                        .comparingInt((SpotCandidateRecord candidate) -> spreadByDistance
+                                ? 1 - sourcePriority(candidate) : sourcePriority(candidate))
                         .thenComparingInt(SpotCandidateRecord::selectionPriority)
                         .thenComparingLong(candidate -> ScenicPlaceDistance.meters(
                                 originLatitude,
@@ -129,10 +141,44 @@ public class CompositeSpotCandidateQuery implements SpotCandidateQuery {
                 .forEach(candidate -> unique.putIfAbsent(deduplicationKey(candidate), candidate));
         List<SpotCandidateRecord> ordered = List.copyOf(unique.values());
         List<SpotCandidateRecord> sourceDiversified = diversifySourcesWithinThemes(ordered);
-        List<SpotCandidateRecord> candidates = theme == ScenicTheme.ANYWHERE || theme == ScenicTheme.WATER
+        List<SpotCandidateRecord> candidates = spreadByDistance
+                ? diversifyDistances(sourceDiversified, theme, originLatitude, originLongitude, maxDistanceMeters, limit)
+                : limitByTheme(sourceDiversified, theme, limit);
+        return new SpotCandidateSearchResult(candidates, List.copyOf(unavailableSources));
+    }
+
+    /** 거리 구간마다 테마·원천을 섞고, 각 구간에서 한 곳씩 돌아가며 후보를 담는다. */
+    private List<SpotCandidateRecord> diversifyDistances(List<SpotCandidateRecord> candidates,
+            ScenicTheme theme, BigDecimal latitude, BigDecimal longitude, long radius, int limit) {
+        int bandCount = 5;
+        List<List<SpotCandidateRecord>> bands = new ArrayList<>();
+        for (int index = 0; index < bandCount; index++) bands.add(new ArrayList<>());
+        for (SpotCandidateRecord candidate : candidates) {
+            long meters = ScenicPlaceDistance.meters(latitude, longitude, candidate.latitude(), candidate.longitude());
+            int band = (int) Math.min(bandCount - 1L, meters * bandCount / Math.max(1L, radius));
+            bands.get(band).add(candidate);
+        }
+        List<Deque<SpotCandidateRecord>> queues = bands.stream()
+                .<Deque<SpotCandidateRecord>>map(band -> new ArrayDeque<>(limitByTheme(band, theme, limit)))
+                .toList();
+        List<SpotCandidateRecord> result = new ArrayList<>();
+        while (result.size() < limit) {
+            int before = result.size();
+            for (Deque<SpotCandidateRecord> queue : queues) {
+                var candidate = queue.pollFirst();
+                if (candidate != null) result.add(candidate);
+                if (result.size() == limit) break;
+            }
+            if (result.size() == before) break;
+        }
+        return List.copyOf(result);
+    }
+
+    private List<SpotCandidateRecord> limitByTheme(List<SpotCandidateRecord> sourceDiversified,
+            ScenicTheme theme, int limit) {
+        return theme == ScenicTheme.ANYWHERE || theme == ScenicTheme.WATER
                 ? diversifyThemes(sourceDiversified, theme, limit)
                 : sourceDiversified.stream().limit(limit).toList();
-        return new SpotCandidateSearchResult(candidates, List.copyOf(unavailableSources));
     }
 
     /** 비활성 검수 행은 같은 이름의 외부 후보를 제외하고, 활성 행은 DB 보정본만 남깁니다. */

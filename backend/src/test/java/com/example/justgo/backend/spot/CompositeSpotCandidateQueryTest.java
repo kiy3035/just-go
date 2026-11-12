@@ -17,6 +17,33 @@ import org.junit.jupiter.api.Test;
 /** 원천 후보 우선, 수동 보정 중복, ANYWHERE 테마 다양성을 검증합니다. */
 class CompositeSpotCandidateQueryTest {
 
+    /** 가까운 후보가 원천 목록을 채워도 목표 시간이 긴 검색에서 먼 후보가 평가 대상에 들어간다. */
+    @Test
+    void rankedSearchKeepsDistantCandidatesWhenNearbyPlacesFillTheSourceLimit() {
+        SpotService verified = mock(SpotService.class);
+        when(verified.loadCandidateOverrides()).thenReturn(List.of());
+        when(verified.loadNearbyVerifiedCandidates(any(), any(), any(), anyLong(), anyInt())).thenReturn(List.of());
+        ScenicPlaceSource source = mock(ScenicPlaceSource.class);
+        when(source.supportedThemes()).thenReturn(Set.of(ScenicTheme.MOUNTAIN));
+        when(source.findForRecommendation(any(), any(), any(), anyLong())).thenCallRealMethod();
+        List<SpotCandidateRecord> places = new ArrayList<>();
+        for (int index = 1; index <= 60; index++) {
+            places.add(new SpotCandidateRecord((long) -index, "NEAR_TEST_" + index,
+                    ScenicTheme.MOUNTAIN, BigDecimal.valueOf(index, 5), BigDecimal.ZERO, "TEST_SOURCE"));
+        }
+        places.add(new SpotCandidateRecord(-61L, "DISTANT_TEST", ScenicTheme.MOUNTAIN,
+                new BigDecimal("0.7"), BigDecimal.ZERO, "TEST_SOURCE"));
+        when(source.findNearby(any(), any(), any(), anyLong(), anyInt()))
+                .thenAnswer(call -> places.stream().limit(call.<Integer>getArgument(4)).toList());
+        var query = new CompositeSpotCandidateQuery(verified, List.of(source));
+
+        var result = query.searchRecommendationCandidates(
+                ScenicTheme.MOUNTAIN, BigDecimal.ZERO, BigDecimal.ZERO, 100_000, 5);
+
+        assertThat(result.candidates()).hasSize(5).extracting(SpotCandidateRecord::id)
+                .contains(-61L);
+    }
+
     @Test
     void concreteThemeAlternatesExternalSources() {
         SpotService verifiedSpotService = mock(SpotService.class);

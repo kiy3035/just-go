@@ -1,1 +1,6 @@
-<resources><string name="app_name">just go</string></resources>
+<resources>
+    <string name="app_name">just go</string>
+    <string name="event_data_source">행사 정보 출처 · 지방자치단체 제공 「전국공연행사정보표준데이터」 (공공데이터포털)</string>
+    <string name="event_data_source_url" translatable="false">https://www.data.go.kr/data/15013106/standard.do</string>
+    <string name="event_data_source_unavailable">출처 링크를 열 수 있는 브라우저가 없습니다.</string>
+</resources>

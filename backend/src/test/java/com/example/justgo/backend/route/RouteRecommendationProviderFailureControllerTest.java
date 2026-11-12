@@ -18,6 +18,7 @@ import com.example.justgo.backend.integration.routing.tmap.TmapClientErrorType;
 import com.example.justgo.backend.integration.routing.tmap.TmapRouteClientException;
 import com.example.justgo.backend.spot.ScenicTheme;
 import com.example.justgo.backend.spot.SpotCandidateQuery;
+import com.example.justgo.backend.spot.SpotCandidateSearchResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,14 +50,14 @@ class RouteRecommendationProviderFailureControllerTest {
     /** DB 후보 조회와 외부 제공자 인증 실패를 비밀값 없는 503 응답으로 준비합니다. */
     @BeforeEach
     void setUpProviderFailure() {
-        when(spotCandidateQuery.loadNearbyVerifiedCandidates(
+        when(spotCandidateQuery.searchRecommendationCandidates(
                 any(ScenicTheme.class),
                 any(java.math.BigDecimal.class),
                 any(java.math.BigDecimal.class),
                 anyLong(),
                 anyInt()))
-                .thenReturn(List.of());
-        when(drivingRouteProvider.calculate(any()))
+                .thenReturn(new SpotCandidateSearchResult(List.of(), List.of()));
+        when(drivingRouteProvider.calculateRanked(any()))
                 .thenThrow(new TmapRouteClientException(
                         TmapClientErrorType.AUTHENTICATION,
                         "TEST_SECRET_MUST_NOT_BE_EXPOSED"));

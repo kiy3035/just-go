@@ -11,28 +11,30 @@ import com.example.justgo.backend.integration.routing.DrivingRouteCandidate;
  */
 final class RouteRecommendationPolicy {
 
-    private static final int MAX_RECOMMENDATIONS = 3;
+    private static final int MAX_RECOMMENDATIONS = 10;
 
     /**
-     * 모든 실제 계산 후보를 시간 차이, 왕복 중복률, 거리, 경로 식별자 순으로 정렬합니다.
+     * 기본 순위는 목표와의 실제 초 단위 차이이며 동률일 때만 중복률과 거리를 비교한다.
      */
     public List<DrivingRouteCandidate> rankByDurationProximity(
             int desiredMinutes,
             List<DrivingRouteCandidate> candidates) {
+        return rankByDurationProximity(desiredMinutes, candidates, java.util.Set.of());
+    }
+
+    public List<DrivingRouteCandidate> rankByDurationProximity(int desiredMinutes,
+            List<DrivingRouteCandidate> candidates, java.util.Set<String> eventRouteIds) {
+        // 도시에서는 관람 가능한 행사 그룹을 먼저 배치하고 각 그룹 안에서 시간을 비교한다.
         return candidates.stream()
                 .sorted(Comparator
-                        .comparingLong((DrivingRouteCandidate candidate) ->
-                                durationDifference(desiredMinutes, candidate.estimatedMinutes()))
+                        .comparing((DrivingRouteCandidate candidate) -> !eventRouteIds.contains(candidate.routeId()))
+                        .thenComparingLong(candidate ->
+                                Math.abs(candidate.durationSeconds() - desiredMinutes * 60L))
                         .thenComparingInt(this::repeatedSegmentSortValue)
                         .thenComparingLong(DrivingRouteCandidate::distanceMeters)
                         .thenComparing(DrivingRouteCandidate::routeId))
                 .limit(MAX_RECOMMENDATIONS)
                 .toList();
-    }
-
-    /** 정수 오버플로 없이 분 단위 절대 차이를 계산합니다. */
-    private long durationDifference(int desiredMinutes, int estimatedMinutes) {
-        return Math.abs((long) estimatedMinutes - desiredMinutes);
     }
 
     /** 형상이 없는 후보는 확인된 낮은 중복률 후보 뒤에 두되 편도끼리의 기존 순서는 유지합니다. */

@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * 검수된 경관 후보를 TMAP 자동차 경로로 계산하는 첫 PoC 제공자입니다.
- * 무료 호출량 보호를 위해 한 추천 요청에서 단일·조합 경로를 합쳐 최대 3개만 평가합니다.
+ * 기존 장소 토큰 경로와 새 추천 목록용 목적지별 계산을 지원합니다.
  */
 @Component
 @Profile("tmap & !mock")
@@ -57,6 +57,50 @@ public class TmapDrivingRouteProvider implements DrivingRouteProvider {
                 routes.isEmpty() ? "자동차 경로를 찾지 못했습니다." : quotaReachedAfterSuccess
                         ? "일일 외부 경로 호출 한도에 도달해 먼저 계산된 경로만 반환합니다."
                         : "TMAP 자동차 경로 결과입니다. 교통 상황과 내비 재탐색에 따라 달라질 수 있습니다.");
+    }
+
+    /** 추천 목록용 조회에서는 조합 없이 목적지별 편도 또는 왕복 경로를 계산한다. */
+    @Override
+    public DrivingRouteResult calculateRanked(DrivingRouteRequest request) {
+        TmapCoordinate origin = new TmapCoordinate(request.latitude(), request.longitude());
+        List<DrivingRouteCandidate> routes = new ArrayList<>();
+        boolean quotaReached = false;
+        for (DrivingRouteWaypointCandidate candidate : request.waypointCandidates()) {
+            try {
+                routes.add(calculateDestination(request, origin, candidate));
+            } catch (TmapRouteClientException exception) {
+                if (exception.errorType() == TmapClientErrorType.NO_ROUTE) continue;
+                if (exception.errorType() != TmapClientErrorType.QUOTA_EXCEEDED) {
+                    throw exception;
+                }
+                quotaReached = true;
+                break;
+            }
+        }
+        return new DrivingRouteResult(DrivingRouteMode.LIVE, false, routes, quotaReached
+                ? "일일 외부 경로 호출 한도에 도달해 먼저 계산된 경로만 반환합니다."
+                : "TMAP 자동차 경로 결과입니다. 교통 상황과 내비 재탐색에 따라 달라질 수 있습니다.",
+                quotaReached);
+    }
+
+    private DrivingRouteCandidate calculateDestination(DrivingRouteRequest request,
+            TmapCoordinate origin, DrivingRouteWaypointCandidate candidate) {
+        TmapCoordinate destination = new TmapCoordinate(candidate.latitude(), candidate.longitude());
+        TmapRouteSummary outbound = tmapRouteClient.findRoute(new TmapRouteSearch(origin, destination, List.of()));
+        long seconds = outbound.durationSeconds();
+        long meters = outbound.distanceMeters();
+        List<Long> legs = List.of(seconds);
+        if (request.tripType() == TripType.ROUND_TRIP) {
+            // 돌아오는 길의 일방통행·교통 상황이 다를 수 있어 복귀 시간을 별도로 조회한다.
+            TmapRouteSummary inbound = tmapRouteClient.findRoute(new TmapRouteSearch(destination, origin, List.of()));
+            seconds += inbound.durationSeconds();
+            meters += inbound.distanceMeters();
+            legs = List.of(outbound.durationSeconds(), inbound.durationSeconds());
+        }
+        var stops = List.of(candidate);
+        return new DrivingRouteCandidate(routeId(stops), candidate.name(), toWholeMinutes(seconds), meters,
+                candidate.theme() == null ? request.theme() : candidate.theme(), null,
+                buildStops(request, stops), "", seconds, legs);
     }
 
     /**

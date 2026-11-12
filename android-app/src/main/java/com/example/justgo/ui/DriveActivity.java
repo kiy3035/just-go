@@ -3,11 +3,15 @@ package com.example.justgo.ui;
 import android.app.Activity;
 import android.app.Dialog;
 import android.Manifest;
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import com.example.justgo.data.CurrentLocationProvider;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.drawable.ColorDrawable;
 import android.location.Location;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.text.SpannableString;
@@ -23,8 +27,7 @@ import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
+import android.widget.Toast;
 import com.example.justgo.BuildConfig;
 import com.example.justgo.R;
 import com.example.justgo.data.DriveSelection;
@@ -33,6 +36,7 @@ import com.example.justgo.data.RouteRecommendationClient;
 import com.example.justgo.data.RouteRecommendationClient.Recommendation;
 import com.example.justgo.databinding.ActivityDriveBinding;
 import com.example.justgo.databinding.DialogRouteResultBinding;
+import com.example.justgo.databinding.ItemRouteResultBinding;
 import com.example.justgo.pleos.NavigationGateway;
 import com.example.justgo.pleos.PleosNavigationGateway;
 import com.example.justgo.pleos.DrivingRestrictionsMonitor;
@@ -46,7 +50,6 @@ import java.util.concurrent.Executors;
 
 public final class DriveActivity extends Activity {
     private static final String SEARCH_PROMPT = "이 조건으로 코스 찾기 →";
-    private static final int CANDIDATE_LIMIT = 50;
     private static final int LOCATION_PERMISSION_REQUEST = 1;
     private final ExecutorService routeExecutor = Executors.newSingleThreadExecutor();
     private final RouteRecommendationClient routeClient =
@@ -56,7 +59,6 @@ public final class DriveActivity extends Activity {
     private NavigationGateway navigationGateway;
     private DrivingRestrictionsMonitor restrictionsMonitor;
     private RouteRecommendationClient.Route selectedRoute;
-    private RouteRecommendationClient.Candidate selectedCandidate;
     private boolean navigationConnectionFailed;
     private boolean drivingRestricted;
     private boolean searchInProgress;
@@ -256,7 +258,7 @@ public final class DriveActivity extends Activity {
         binding.findRoute.setText("현재 위치를 확인하고 있어요…");
         Location location = freshPrefetchedLocation();
         if (location != null) {
-            requestCandidates(location.getLatitude(), location.getLongitude(),
+            requestRecommendations(location.getLatitude(), location.getLongitude(),
                     minutes, roundTrip, theme);
             return;
         }
@@ -264,7 +266,7 @@ public final class DriveActivity extends Activity {
             @Override public void onLocation(Location location) {
                 if (binding == null) return;
                 prefetchedLocation = location;
-                requestCandidates(location.getLatitude(), location.getLongitude(),
+                requestRecommendations(location.getLatitude(), location.getLongitude(),
                         minutes, roundTrip, theme);
             }
 
@@ -274,42 +276,26 @@ public final class DriveActivity extends Activity {
         });
     }
 
-    private void requestCandidates(double latitude, double longitude, int minutes,
+    private void requestRecommendations(double latitude, double longitude, int minutes,
                                    boolean roundTrip, String theme) {
         String tripType = roundTrip ? "ROUND_TRIP" : "ONE_WAY";
         String conditions = (roundTrip ? "왕복" : "편도") + " · " + minutes + "분 · " + themeLabel(theme);
-        CandidateSearchContext context = new CandidateSearchContext(
-                latitude, longitude, minutes, tripType, theme, conditions);
-        showSearchProgress("갈 만한 장소를 찾고 있어요…   ", conditions);
-        routeExecutor.execute(() -> {
-            try {
-                RouteRecommendationClient.CandidateList candidates = routeClient.findCandidates(
-                        latitude, longitude, minutes, tripType, theme, CANDIDATE_LIMIT);
-                runOnUiThread(() -> {
-                    if (binding != null) showCandidates(context, candidates);
-                });
-            } catch (IOException error) {
-                showRequestError("장소 조회 실패", conditions, error);
-            }
-        });
+        requestRecommendations(new SearchContext(latitude, longitude, minutes, tripType, theme, conditions));
     }
 
-    private void requestRecommendations(CandidateSearchContext context,
-                                        RouteRecommendationClient.Candidate candidate) {
+    private void requestRecommendations(SearchContext context) {
         dismissResult();
         searchInProgress = true;
-        showSearchProgress("선택한 장소의 코스를 계산하고 있어요…   ", context.conditions());
-        String resultConditions = context.conditions() + "\n목적지 · " + candidate.name();
+        showSearchProgress("코스를 계산하고 있어요…   ", context.conditions());
         routeExecutor.execute(() -> {
             try {
-                Recommendation result = routeClient.recommend(
-                        context.latitude(), context.longitude(), context.minutes(),
-                        context.tripType(), context.theme(), candidate.token());
+                Recommendation result = routeClient.recommend(context.latitude(), context.longitude(),
+                        context.minutes(), context.tripType(), context.theme());
                 runOnUiThread(() -> {
-                    if (binding != null) showRecommendation(resultConditions, result);
+                    if (binding != null) showRecommendation(context, result);
                 });
             } catch (IOException error) {
-                showRequestError("추천 요청 실패", resultConditions, error);
+                showRequestError(context, describeError(error));
             }
         });
     }
@@ -326,15 +312,19 @@ public final class DriveActivity extends Activity {
         binding.findRoute.setContentDescription(prefix + conditions);
     }
 
-    private void showRequestError(String title, String conditions, IOException error) {
-        String message = describeError(error);
+    /** 조회 실패 팝업. 기존 조건으로 바로 재시도할 수 있다. */
+    private void showRequestError(SearchContext context, String message) {
         runOnUiThread(() -> {
-            if (binding != null && prepareResult(title, conditions)) {
-                showResultDetails(message);
-                showResultDialog();
-            }
+            if (!prepareResult("추천 요청 실패", context.conditions())) return;
+            showResultDetails(message);
+            resultBinding.cancel.setVisibility(View.VISIBLE);
+            resultBinding.cancel.setText("닫기");
+            resultBinding.confirm.setText("다시 시도");
+            resultBinding.confirm.setOnClickListener(v -> requestRecommendations(context));
+            showResultDialog();
         });
     }
+
     private void resetSearchButton() {
         searchInProgress = false;
         binding.findRoute.setActivated(false);
@@ -370,125 +360,147 @@ public final class DriveActivity extends Activity {
         super.onDestroy();
     }
 
-    private void showCandidates(CandidateSearchContext context,
-                                RouteRecommendationClient.CandidateList result) {
-        if (result.candidates().isEmpty()) {
-            if (result.sourceUnavailable()) {
-                renderResult(
-                        "장소 데이터를 불러오지 못했어요",
-                        "외부 장소 서비스 연결이 지연되고 있습니다. 잠시 후 다시 검색해 주세요.");
-            } else {
-                renderResult(
-                        "주변 장소를 찾지 못했어요",
-                        "시간이나 풍경을 바꿔 다시 검색해 주세요.");
-            }
-            return;
-        }
-        if (!prepareResult("어디로 달릴까요?", context.conditions())) return;
-        resultBinding.routeChoices.setOnCheckedChangeListener((group, checkedId) -> {
-            View checked = group.findViewById(checkedId);
-            selectedCandidate = checked == null
-                    ? null
-                    : (RouteRecommendationClient.Candidate) checked.getTag();
-            resultBinding.confirm.setEnabled(selectedCandidate != null && !drivingRestricted);
-        });
-        for (RouteRecommendationClient.Candidate candidate : result.candidates()) {
-            addCandidateChoice(candidate);
-        }
-        resultBinding.cancel.setVisibility(View.VISIBLE);
-        resultBinding.cancel.setText("취소");
-        resultBinding.confirm.setText("이 장소로 코스 찾기");
-        resultBinding.confirm.setEnabled(false);
-        resultBinding.confirm.setOnClickListener(v -> {
-            RouteRecommendationClient.Candidate chosen = selectedCandidate;
-            if (chosen != null) requestRecommendations(context, chosen);
-        });
-        if (result.partial()) {
-            showResultDetails("일부 장소 데이터 연결이 지연되어 현재 확인된 후보만 보여드려요.");
-        } else {
-            showResultDetails("장소를 선택하면 실제 도로 시간과 거리를 계산합니다.");
-        }
-        showResultDialog();
-    }
-
-    private void addCandidateChoice(RouteRecommendationClient.Candidate candidate) {
-        String label = String.format(Locale.KOREA, "%s  ·  %s  ·  %.1f km",
-                candidate.name(), themeLabel(candidate.theme()),
-                candidate.distanceMeters() / 1000.0);
-        RadioButton choice = createResultChoice(label, candidate, true);
-        resultBinding.routeChoices.addView(choice);
-        resultBinding.routeChoices.setVisibility(View.VISIBLE);
-    }
-
-    private void showRecommendation(String conditions, Recommendation result) {
+    /** 추천 코스 목록 팝업. 서버가 계산하고 정렬한 경로를 카드로 보여준다. */
+    private void showRecommendation(SearchContext context, Recommendation result) {
         boolean alternative = result.routes().isEmpty() && !result.alternativeRoutes().isEmpty();
         var routes = alternative ? result.alternativeRoutes() : result.routes();
         if (routes.isEmpty()) {
             if (result.mode() == RouteRecommendationClient.Mode.UNAVAILABLE) {
-                renderResult("지금은 코스를 찾기 어려워요", "잠시 후 다시 시도해 주세요.");
+                showRequestError(context, "추천 서비스에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.");
             } else {
-                renderResult("조건에 맞는 코스가 없어요", "시간이나 풍경을 바꿔보세요.");
+                showEmptyResult(context);
             }
             return;
         }
-        String heading = switch (result.mode()) {
-            case MOCK -> "MOCK · 개발용 추천 예시";
-            case LIVE -> alternative ? "다른 풍경의 추천 코스" : "추천 코스";
-            case UNAVAILABLE -> "추천 서비스 연결 실패";
-        };
-        if (!prepareResult(heading, conditions)) return;
-        if (result.notice() != null && !result.notice().isBlank()) {
-            resultBinding.selectionSummary.setText(conditions + "\n" + result.notice());
-        }
-
         boolean live = result.mode() == RouteRecommendationClient.Mode.LIVE;
-        resultOffersNavigation = live;
-        for (RouteRecommendationClient.Route route : routes) {
-            String name = alternative ? themeLabel(route.theme()) + " · " + route.title() : route.title();
-            String repeated = route.repeatedSegmentPercent() == null
-                    ? ""
-                    : "  ·  왕복 중복 " + route.repeatedSegmentPercent() + "%";
-            String reason = route.reason() == null || route.reason().isBlank()
-                    ? ""
-                    : "\n" + route.reason();
-            addResultChoice(String.format(Locale.KOREA, "%s  ·  %d분  ·  %.1f km%s%s",
-                    name, route.minutes(), route.meters() / 1000.0, repeated, reason),
-                    route, live && !route.stops().isEmpty());
-        }
+        String heading = live ? (alternative ? "다른 풍경의 추천 코스" : "추천 코스") : "MOCK · 개발용 추천 예시";
+        String summary = context.conditions() + " · " + routes.size() + "개";
         if (live) {
-            resultBinding.routeChoices.setOnCheckedChangeListener((group, checkedId) -> {
-                View checked = group.findViewById(checkedId);
-                selectedRoute = checked == null ? null : (RouteRecommendationClient.Route) checked.getTag();
-                refreshNavigationControl();
-            });
-            resultBinding.cancel.setVisibility(View.VISIBLE);
-            resultBinding.confirm.setText("시작");
-            resultBinding.confirm.setOnClickListener(v -> startNavigation());
-            refreshNavigationControl();
+            boolean hasEvents = routes.stream().anyMatch(route -> route.event() != null);
+            summary += hasEvents ? "\n관람 가능한 행사 우선 · TMAP 예상 주행시간"
+                    : "\nTMAP 예상 주행시간 · 목표 시간과 가까운 순";
+        }
+        if (!prepareResult(heading, summary)) return;
+        for (RouteRecommendationClient.Route route : routes) {
+            var card = addRouteCard(context, route);
+            // 목록에서 선택한 코스를 상세 화면에 그대로 넘겨 두 번째 선택을 요구하지 않는다.
+            if (live && !route.stops().isEmpty()) {
+                card.getRoot().setFocusable(true);
+                card.getRoot().setOnClickListener(v -> showCourseDetail(context, result, route));
+            }
         }
         showResultDialog();
     }
 
-    private void addResultChoice(String label, RouteRecommendationClient.Route route, boolean enabled) {
-        RadioButton choice = createResultChoice(label, route, enabled);
-        resultBinding.routeChoices.addView(choice);
+    private ItemRouteResultBinding addRouteCard(SearchContext context, RouteRecommendationClient.Route route) {
+        var card = ItemRouteResultBinding.inflate(getLayoutInflater(), resultBinding.routeChoices, false);
+        card.themeGraphic.setImageResource(themeGraphic(route.theme()));
+        card.courseName.setText(route.event() == null ? route.title() : route.event().name());
+        String category = route.event() != null ? "행사" : "CITY".equals(route.theme())
+                ? "일반 도시 명소" : themeLabel(route.theme());
+        card.courseCategory.setText(category);
+        // 서버 정렬에 쓰는 초 단위 차이를 사용해, 분 단위 표시가 같아도 차이를 숨기지 않는다.
+        long delta = route.durationSeconds() - context.minutes() * 60L;
+        long differenceSeconds = Math.abs(delta);
+        String difference = delta == 0 ? "목표 시간과 같아요" : "목표보다 "
+                + (differenceSeconds < 60 ? "1분 미만" : Math.round(differenceSeconds / 60.0) + "분")
+                + (delta > 0 ? " 길어요" : " 짧아요");
+        card.courseMetrics.setText(String.format(Locale.KOREA, "%d분 · %.1f km · %s",
+                route.minutes(), route.meters() / 1000.0, difference));
+        if (route.event() != null) {
+            card.courseReason.setText("예상 도착 " + formatEventTime(route.event().arrivesAt()));
+            card.courseReason.setVisibility(View.VISIBLE);
+        } else if (route.reason() != null && !route.reason().isBlank()) {
+            card.courseReason.setText(route.reason());
+            card.courseReason.setVisibility(View.VISIBLE);
+        }
+        resultBinding.routeChoices.addView(card.getRoot());
         resultBinding.routeChoices.setVisibility(View.VISIBLE);
+        return card;
     }
 
-    private RadioButton createResultChoice(String label, Object tag, boolean enabled) {
-        RadioButton choice = new RadioButton(this, null, 0, R.style.RouteChoice);
-        choice.setId(View.generateViewId());
-        choice.setTag(tag);
-        choice.setText(label);
-        // Pleos에서 스타일로 생성한 선택 항목의 터치와 포커스를 활성화한다.
-        choice.setClickable(true);
-        choice.setFocusable(true);
-        choice.setMaxLines(2);
-        choice.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        choice.setEnabled(enabled);
-        choice.setLayoutParams(new RadioGroup.LayoutParams(
-                RadioGroup.LayoutParams.MATCH_PARENT, RadioGroup.LayoutParams.WRAP_CONTENT));
-        return choice;
+    /** 코스 상세 팝업. 선택한 코스의 구간과 도시 행사 상세를 표시하고 내비 시작을 연결한다. */
+    private void showCourseDetail(SearchContext context, Recommendation result, RouteRecommendationClient.Route route) {
+        String title = route.event() == null ? "코스 상세" : "행사 상세";
+        if (!prepareResult(title, context.conditions())) return;
+        addRouteCard(context, route);
+        // 구간별 측정값이 없는 이전 서버 응답은 지점 순서만 표시한다.
+        StringBuilder itinerary = new StringBuilder("출발 · 현재 위치");
+        for (int index = 0; index < route.stops().size(); index++) {
+            var stop = route.stops().get(index);
+            itinerary.append("\n").append(stop.type() == RouteRecommendationClient.StopType.WAYPOINT
+                    ? "경유 · " : "도착 · ").append(stop.name());
+            if (index < route.legSeconds().size()) {
+                long seconds = route.legSeconds().get(index);
+                itinerary.append("  ·  약 ").append((seconds + 59) / 60).append("분");
+            }
+        }
+        if (route.event() != null) {
+            var event = route.event();
+            itinerary.append("\n\n장소 · ").append(event.venue())
+                    .append("\n운영 · ").append(formatEventTime(event.opensAt()))
+                    .append(" ~ ").append(formatEventTime(event.closesAt()))
+                    .append("\n예상 도착 · ").append(formatEventTime(event.arrivesAt()));
+        }
+        resultBinding.courseDetail.setText(itinerary);
+        resultBinding.courseDetail.setVisibility(View.VISIBLE);
+        if (route.event() != null) {
+            // 행사 데이터를 보여주는 상세 화면에만 원본 출처 링크를 표시한다.
+            var source = resultBinding.eventDataSource;
+            source.setVisibility(View.VISIBLE);
+            source.setPaintFlags(source.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
+            source.setOnClickListener(v -> openEventDataSource());
+        }
+        selectedRoute = route;
+        resultOffersNavigation = true;
+        resultBinding.cancel.setVisibility(View.VISIBLE);
+        resultBinding.cancel.setOnClickListener(v -> showRecommendation(context, result));
+        resultBinding.confirm.setText("시작");
+        resultBinding.confirm.setOnClickListener(v -> startNavigation());
+        refreshNavigationControl();
+        showResultDialog();
+    }
+
+    private void openEventDataSource() {
+        if (!foreground || drivingRestricted) return;
+        Intent link = new Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.event_data_source_url)));
+        try {
+            startActivity(link);
+        } catch (ActivityNotFoundException exception) {
+            Toast.makeText(this, R.string.event_data_source_unavailable, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /** 정상 조회 후 코스가 없는 팝업. 기존 메인 화면에서 시간 또는 테마를 조정하도록 안내한다. */
+    private void showEmptyResult(SearchContext context) {
+        if (!prepareResult("조건에 맞는 코스가 부족해요", context.conditions())) return;
+        showResultDetails("주행시간을 조정하거나 다른 테마를 선택해 보세요.");
+        resultBinding.cancel.setVisibility(View.VISIBLE);
+        resultBinding.cancel.setText("시간 변경");
+        resultBinding.cancel.setOnClickListener(v -> focusSearchChoice(binding.duration));
+        resultBinding.confirm.setText("다른 테마 보기");
+        resultBinding.confirm.setOnClickListener(v -> focusSearchChoice(binding.theme));
+        showResultDialog();
+    }
+
+    private void focusSearchChoice(ViewGroup group) {
+        dismissResult();
+        if (group.getChildCount() > 0) group.getChildAt(0).requestFocus();
+    }
+
+    private static String formatEventTime(java.time.ZonedDateTime time) {
+        return time.format(java.time.format.DateTimeFormatter.ofPattern("MM.dd HH:mm", Locale.KOREA));
+    }
+
+    private static int themeGraphic(String theme) {
+        return switch (theme) {
+            case "CITY" -> R.drawable.ic_city;
+            case "MOUNTAIN" -> R.drawable.ic_mountain;
+            case "SEA" -> R.drawable.ic_sea;
+            case "WATER", "RIVER", "LAKE" -> R.drawable.ic_water;
+            case "PARK" -> R.drawable.ic_park;
+            default -> R.drawable.ic_anywhere;
+        };
     }
 
     private void startNavigation() {
@@ -578,6 +590,12 @@ public final class DriveActivity extends Activity {
             if ("INVALID_CANDIDATE_TOKEN".equals(http.code)) {
                 return "선택한 장소가 만료됐습니다. 장소를 다시 검색해 주세요.";
             }
+            if ("PLACE_SOURCE_UNAVAILABLE".equals(http.code)) {
+                return "장소 데이터를 불러오지 못했어요. 잠시 후 다시 검색해 주세요.";
+            }
+            if ("ROUTE_PROVIDER_QUOTA_EXCEEDED".equals(http.code)) {
+                return "경로 조회 한도에 도달했어요.";
+            }
             if ("ROUTE_API_BUSY".equals(http.code)) {
                 return "다른 추천을 계산하고 있습니다. 잠시 후 다시 시도해 주세요.";
             }
@@ -636,7 +654,6 @@ public final class DriveActivity extends Activity {
                 resultDialog = null;
                 resultBinding = null;
                 selectedRoute = null;
-                selectedCandidate = null;
                 resultOffersNavigation = false;
             }
         });
@@ -668,7 +685,6 @@ public final class DriveActivity extends Activity {
         resultDialog = null;
         resultBinding = null;
         selectedRoute = null;
-        selectedCandidate = null;
         resultOffersNavigation = false;
         dialog.dismiss();
     }
@@ -681,7 +697,7 @@ public final class DriveActivity extends Activity {
         super.onSaveInstanceState(out);
     }
 
-    private record CandidateSearchContext(
+    private record SearchContext(
             double latitude,
             double longitude,
             int minutes,

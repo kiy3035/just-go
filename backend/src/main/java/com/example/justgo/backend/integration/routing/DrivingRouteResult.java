@@ -9,7 +9,13 @@ public record DrivingRouteResult(
         DrivingRouteMode mode,
         boolean mock,
         List<DrivingRouteCandidate> routes,
-        String notice) {
+        String notice,
+        boolean quotaReached) {
+
+    public DrivingRouteResult(DrivingRouteMode mode, boolean mock, List<DrivingRouteCandidate> routes,
+            String notice) {
+        this(mode, mock, routes, notice, false);
+    }
 
     /**
      * 외부에서 전달된 목록이 이후 변경되지 않도록 방어적으로 복사합니다.

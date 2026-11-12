@@ -12,4 +12,9 @@ public interface DrivingRouteProvider {
      * @return 제공자 모드와 코스 후보
      */
     DrivingRouteResult calculate(DrivingRouteRequest request);
+
+    /** 추천 목록을 위해 한 묶음의 목적지를 개별 코스로 계산한다. */
+    default DrivingRouteResult calculateRanked(DrivingRouteRequest request) {
+        return calculate(request);
+    }
 }

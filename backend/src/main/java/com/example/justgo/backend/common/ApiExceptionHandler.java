@@ -4,6 +4,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import jakarta.validation.ConstraintViolationException;
+import com.example.justgo.backend.integration.place.PublicDataClientException;
+import com.example.justgo.backend.integration.routing.DrivingRouteLimitException;
 import com.example.justgo.backend.integration.routing.tmap.TmapClientErrorType;
 import com.example.justgo.backend.integration.routing.tmap.TmapRouteClientException;
 import com.example.justgo.backend.route.UnsupportedDrivingDurationException;
@@ -71,6 +73,18 @@ public class ApiExceptionHandler {
                 "ROUTE_PROVIDER_UNAVAILABLE",
                 "외부 자동차 경로 제공자 호출에 실패했습니다.",
                 Map.of()));
+    }
+
+    @ExceptionHandler(PublicDataClientException.class)
+    public ResponseEntity<ApiErrorResponse> handlePlaceSourceFailure() {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(new ApiErrorResponse(
+                "PLACE_SOURCE_UNAVAILABLE", "장소 후보 서비스가 응답하지 못했습니다.", Map.of()));
+    }
+
+    @ExceptionHandler(DrivingRouteLimitException.class)
+    public ResponseEntity<ApiErrorResponse> handleDrivingRouteLimit() {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(new ApiErrorResponse(
+                "ROUTE_PROVIDER_QUOTA_EXCEEDED", "외부 자동차 경로 조회 한도에 도달했습니다.", Map.of()));
     }
 
     /**

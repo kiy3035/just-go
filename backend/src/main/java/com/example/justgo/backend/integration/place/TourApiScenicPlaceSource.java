@@ -82,6 +82,17 @@ public class TourApiScenicPlaceSource implements ScenicPlaceSource {
             BigDecimal originLongitude,
             long maxDistanceMeters,
             int limit) {
+        return findNearby(theme, originLatitude, originLongitude, maxDistanceMeters, limit, false);
+    }
+
+    @Override
+    public List<SpotCandidateRecord> findForRecommendation(
+            ScenicTheme theme, BigDecimal latitude, BigDecimal longitude, long radiusMeters) {
+        return findNearby(theme, latitude, longitude, radiusMeters, Integer.MAX_VALUE, true);
+    }
+
+    private List<SpotCandidateRecord> findNearby(ScenicTheme theme, BigDecimal originLatitude,
+            BigDecimal originLongitude, long maxDistanceMeters, int limit, boolean spreadSearchCenters) {
         int radius = Math.toIntExact(Math.min(
                 maxDistanceMeters,
                 properties.getTourRadiusMeters()));
@@ -89,7 +100,8 @@ public class TourApiScenicPlaceSource implements ScenicPlaceSource {
                         originLatitude,
                         originLongitude,
                         radius,
-                        maxDistanceMeters)
+                        maxDistanceMeters,
+                        spreadSearchCenters)
                 .stream()
                 .filter(candidate -> theme.includes(candidate.theme()))
                 .filter(candidate -> ScenicPlaceDistance.meters(
@@ -120,8 +132,9 @@ public class TourApiScenicPlaceSource implements ScenicPlaceSource {
             BigDecimal latitude,
             BigDecimal longitude,
             int radius,
-            long maxDistanceMeters) {
-        String key = cacheKey(latitude, longitude, radius, maxDistanceMeters);
+            long maxDistanceMeters,
+            boolean spreadSearchCenters) {
+        String key = cacheKey(latitude, longitude, radius, maxDistanceMeters, spreadSearchCenters);
         List<SpotCandidateRecord> cached = cachedValue(key);
         if (cached != null) {
             return cached;
@@ -141,7 +154,7 @@ public class TourApiScenicPlaceSource implements ScenicPlaceSource {
                 return cachedAfterRegistration;
             }
             List<SpotCandidateRecord> loaded = loadCandidates(
-                    latitude, longitude, radius, maxDistanceMeters);
+                    latitude, longitude, radius, maxDistanceMeters, spreadSearchCenters);
             cacheValue(key, loaded);
             current.complete(loaded);
             return loaded;
@@ -166,9 +179,10 @@ public class TourApiScenicPlaceSource implements ScenicPlaceSource {
             BigDecimal latitude,
             BigDecimal longitude,
             int radius,
-            long maxDistanceMeters) {
+            long maxDistanceMeters,
+            boolean spreadSearchCenters) {
         Map<Long, SpotCandidateRecord> loaded = new LinkedHashMap<>();
-        for (SearchCenter center : searchCenters(latitude, longitude, radius, maxDistanceMeters)) {
+        for (SearchCenter center : searchCenters(latitude, longitude, radius, maxDistanceMeters, spreadSearchCenters)) {
             JsonNode response = fetch(center.latitude(), center.longitude(), radius);
             for (JsonNode item : responseItems(response)) {
                 toCandidate(item).ifPresent(candidate -> loaded.putIfAbsent(
@@ -209,7 +223,8 @@ public class TourApiScenicPlaceSource implements ScenicPlaceSource {
             BigDecimal latitude,
             BigDecimal longitude,
             int radius,
-            long maxDistanceMeters) {
+            long maxDistanceMeters,
+            boolean spreadSearchCenters) {
         String rawKey = latitude.stripTrailingZeros().toPlainString()
                 + '|'
                 + longitude.stripTrailingZeros().toPlainString()
@@ -217,6 +232,8 @@ public class TourApiScenicPlaceSource implements ScenicPlaceSource {
                 + radius
                 + '|'
                 + maxDistanceMeters
+                + '|'
+                + spreadSearchCenters
                 + '|'
                 + properties.getTourSearchMaxCenters()
                 + '|'
@@ -234,14 +251,18 @@ public class TourApiScenicPlaceSource implements ScenicPlaceSource {
             BigDecimal originLatitude,
             BigDecimal originLongitude,
             int radius,
-            long maxDistanceMeters) {
+            long maxDistanceMeters,
+            boolean spreadSearchCenters) {
         List<SearchCenter> centers = new ArrayList<>();
         centers.add(new SearchCenter(originLatitude, originLongitude));
         if (maxDistanceMeters <= radius || properties.getTourSearchMaxCenters() == 1) {
             return List.copyOf(centers);
         }
 
-        long ringDistance = properties.getTourSearchRingStepMeters();
+        // 광역 검색은 고정된 조회 횟수 안에서도 반경이 커질수록 먼 지역을 실제로 조회한다.
+        long ringStep = properties.getTourSearchRingStepMeters();
+        if (spreadSearchCenters) ringStep = Math.max(ringStep, maxDistanceMeters / 4);
+        long ringDistance = ringStep;
         while (centers.size() < properties.getTourSearchMaxCenters()
                 && ringDistance - radius <= maxDistanceMeters) {
             for (int index = 0;
@@ -254,7 +275,7 @@ public class TourApiScenicPlaceSource implements ScenicPlaceSource {
                         ringDistance,
                         index * (360.0 / CENTERS_PER_RING)));
             }
-            ringDistance += properties.getTourSearchRingStepMeters();
+            ringDistance += ringStep;
         }
         return List.copyOf(centers);
     }

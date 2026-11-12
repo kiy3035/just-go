@@ -1,91 +1,124 @@
+<!-- 추천 목록, 코스 상세, 결과 부족 및 조회 실패 화면이 사용하는 공통 팝업. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#55122946"
     android:padding="12dp">
 
-    <ScrollView
+    <LinearLayout
         android:id="@+id/resultPanel"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:background="@drawable/route_result_panel"
-        android:elevation="12dp">
+        android:elevation="12dp"
+        android:orientation="vertical"
+        android:padding="24dp">
 
-        <LinearLayout
+        <!-- 코스가 많아도 본문만 스크롤하고 하단 버튼은 화면에 유지한다. -->
+        <ScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="40dp">
-
-            <TextView
-                android:id="@+id/resultTitle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:accessibilityHeading="true"
-                android:textColor="#101B34"
-                android:textSize="48sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/selectionSummary"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:textColor="#365580"
-                android:textSize="30sp" />
-
-            <RadioGroup
-                android:id="@+id/routeChoices"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:orientation="vertical"
-                android:visibility="gone" />
-
-            <TextView
-                android:id="@+id/navigationStatus"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:accessibilityLiveRegion="polite"
-                android:textColor="#365580"
-                android:textSize="28sp"
-                android:visibility="gone" />
+            android:layout_weight="1">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="28dp"
-                android:orientation="horizontal">
+                android:orientation="vertical">
 
-                <Button
-                    android:id="@+id/cancel"
-                    android:layout_width="0dp"
-                    android:layout_height="92dp"
-                    android:layout_marginEnd="20dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/choice_background"
-                    android:backgroundTint="@null"
-                    android:stateListAnimator="@null"
-                    android:text="취소"
+                <TextView
+                    android:id="@+id/resultTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:accessibilityHeading="true"
+                    android:textColor="#101B34"
+                    android:textSize="32sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/selectionSummary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textColor="#365580"
+                    android:textSize="19sp" />
+
+                <LinearLayout
+                    android:id="@+id/routeChoices"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="vertical"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/courseDetail"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:lineSpacingExtra="6dp"
                     android:textColor="#183763"
-                    android:textSize="32sp"
-                    android:textStyle="bold" />
+                    android:textSize="20sp"
+                    android:visibility="gone" />
 
-                <Button
-                    android:id="@+id/confirm"
-                    android:layout_width="0dp"
-                    android:layout_height="92dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/submit_background"
-                    android:backgroundTint="@null"
-                    android:stateListAnimator="@null"
-                    android:text="닫기"
-                    android:textColor="#FFFFFF"
-                    android:textSize="32sp"
-                    android:textStyle="bold" />
+                <!-- 도시 행사 상세 화면에서만 표시하는 공공데이터 원본 링크. -->
+                <TextView
+                    android:id="@+id/eventDataSource"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:minHeight="48dp"
+                    android:text="@string/event_data_source"
+                    android:textColor="#1659AC"
+                    android:textSize="16sp"
+                    android:visibility="gone" />
             </LinearLayout>
+        </ScrollView>
+
+        <TextView
+            android:id="@+id/navigationStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:accessibilityLiveRegion="polite"
+            android:textColor="#365580"
+            android:textSize="18sp"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/cancel"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_marginEnd="12dp"
+                android:layout_weight="1"
+                android:background="@drawable/choice_background"
+                android:backgroundTint="@null"
+                android:stateListAnimator="@null"
+                android:text="취소"
+                android:textColor="#183763"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/confirm"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_weight="1"
+                android:background="@drawable/route_dialog_action"
+                android:backgroundTint="@null"
+                android:stateListAnimator="@null"
+                android:text="닫기"
+                android:textColor="#FFFFFF"
+                android:textSize="20sp"
+                android:textStyle="bold" />
         </LinearLayout>
-    </ScrollView>
+    </LinearLayout>
 </FrameLayout>

@@ -82,7 +82,7 @@ public final class RouteRecommendationClient {
         activeConnection.set(connection);
         try {
             connection.setRequestMethod("POST");
-            configure(connection, 45_000);
+            configure(connection, 120_000);
             connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
             connection.setDoOutput(true);
             JSONObject request = new JSONObject()
@@ -101,7 +101,7 @@ public final class RouteRecommendationClient {
                 throw readHttpError(connection, status);
             }
             return parse(readJson(connection.getInputStream()));
-        } catch (JSONException | IllegalArgumentException exception) {
+        } catch (JSONException | IllegalArgumentException | java.time.DateTimeException exception) {
             throw new InvalidResponse();
         } finally {
             activeConnection.compareAndSet(connection, null);
@@ -247,6 +247,7 @@ public final class RouteRecommendationClient {
     }
 
     private List<Route> parseRoutes(JSONArray routesJson) throws JSONException, InvalidResponse {
+        if (routesJson.length() > 10) throw new InvalidResponse();
         List<Route> routes = new ArrayList<>();
         for (int index = 0; index < routesJson.length(); index++) {
             JSONObject route = routesJson.getJSONObject(index);
@@ -254,9 +255,10 @@ public final class RouteRecommendationClient {
             String title = route.getString("title");
             String theme = route.getString("theme");
             int estimatedMinutes = route.getInt("estimatedMinutes");
+            long durationSeconds = route.optLong("durationSeconds", estimatedMinutes * 60L);
             long distanceMeters = route.getLong("distanceMeters");
             if (routeId.isBlank() || title.isBlank() || !THEMES.contains(theme)
-                    || estimatedMinutes < 0 || distanceMeters < 0) {
+                    || estimatedMinutes < 0 || durationSeconds < 0 || distanceMeters < 0) {
                 throw new InvalidResponse();
             }
             JSONArray stopsJson = route.getJSONArray("stops");
@@ -284,10 +286,27 @@ public final class RouteRecommendationClient {
                     && (repeatedSegmentPercent < 0 || repeatedSegmentPercent > 100)) {
                 throw new InvalidResponse();
             }
+            List<Long> legSeconds = new ArrayList<>();
+            JSONArray legs = route.optJSONArray("legSeconds");
+            if (legs != null && legs.length() > 0) {
+                // 측정된 각 구간은 내비에 넘기는 순서대로 지점 하나에 대응한다.
+                if (legs.length() != stops.size()) throw new InvalidResponse();
+                for (int leg = 0; leg < legs.length(); leg++) {
+                    long seconds = legs.getLong(leg);
+                    if (seconds <= 0) throw new InvalidResponse();
+                    legSeconds.add(seconds);
+                }
+            }
+            JSONObject eventJson = route.optJSONObject("event");
+            Event event = eventJson == null ? null : new Event(
+                    eventJson.getString("name"), eventJson.getString("venue"),
+                    java.time.ZonedDateTime.parse(eventJson.getString("opensAt")),
+                    java.time.ZonedDateTime.parse(eventJson.getString("closesAt")),
+                    java.time.ZonedDateTime.parse(eventJson.getString("arrivesAt")));
             routes.add(new Route(routeId, title,
-                    estimatedMinutes, distanceMeters,
+                    estimatedMinutes, durationSeconds, distanceMeters,
                     theme, repeatedSegmentPercent, List.copyOf(stops),
-                    route.optString("reason", "")));
+                    route.optString("reason", ""), List.copyOf(legSeconds), event));
         }
         return routes;
     }
@@ -315,9 +334,11 @@ public final class RouteRecommendationClient {
     }
     public record Stop(int sequence, StopType type, String name,
                        double latitude, double longitude) { }
-    public record Route(String routeId, String title, int minutes, long meters,
+    public record Route(String routeId, String title, int minutes, long durationSeconds, long meters,
                         String theme, Integer repeatedSegmentPercent,
-                        List<Stop> stops, String reason) { }
+                        List<Stop> stops, String reason, List<Long> legSeconds, Event event) { }
+    public record Event(String name, String venue, java.time.ZonedDateTime opensAt,
+                        java.time.ZonedDateTime closesAt, java.time.ZonedDateTime arrivesAt) { }
     public record Recommendation(Mode mode, List<Route> routes,
                                  List<Route> alternativeRoutes, String notice) { }
 
