@@ -79,14 +79,13 @@
                     android:orientation="vertical"
                     android:visibility="gone" />
 
-                <TextView
-                    android:id="@+id/courseDetail"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:lineSpacingExtra="6dp"
-                    android:textColor="#183763"
-                    android:textSize="20sp"
-                    android:visibility="gone" />
+                <include
+                    android:id="@+id/courseItinerary"
+                    layout="@layout/route_detail_section" />
+
+                <include
+                    android:id="@+id/courseEvent"
+                    layout="@layout/route_detail_section" />
 
                 <!-- 도시 행사 상세 화면에서만 표시하는 공공데이터 원본 링크. -->
                 <TextView

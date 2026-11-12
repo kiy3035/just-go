@@ -4,6 +4,11 @@
     <string name="route_popup_close_symbol" translatable="false">×</string>
     <string name="route_popup_detail">선택한 코스 상세 보기</string>
     <string name="route_popup_tmap_note">예상 주행시간은 TMAP 기준이며 교통 상황에 따라 달라질 수 있어요.</string>
+    <string name="route_detail_itinerary">코스 한눈에 보기</string>
+    <string name="route_detail_event">행사 정보</string>
+    <string name="route_detail_back">목록으로</string>
+    <string name="route_detail_start">이 코스로 길 안내 시작</string>
+    <string name="route_detail_duration">약 %1$d분</string>
     <string name="event_data_source">행사 정보 출처 · 지방자치단체 제공 「전국공연행사정보표준데이터」 (공공데이터포털)</string>
     <string name="event_data_source_url" translatable="false">https://www.data.go.kr/data/15013106/standard.do</string>
     <string name="event_data_source_unavailable">출처 링크를 열 수 있는 브라우저가 없습니다.</string>

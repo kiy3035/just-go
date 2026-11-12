@@ -39,7 +39,9 @@ import com.example.justgo.data.RouteRecommendationClient;
 import com.example.justgo.data.RouteRecommendationClient.Recommendation;
 import com.example.justgo.databinding.ActivityDriveBinding;
 import com.example.justgo.databinding.DialogRouteResultBinding;
+import com.example.justgo.databinding.ItemRouteDetailBinding;
 import com.example.justgo.databinding.ItemRouteResultBinding;
+import com.example.justgo.databinding.RouteDetailSectionBinding;
 import com.example.justgo.pleos.NavigationGateway;
 import com.example.justgo.pleos.PleosNavigationGateway;
 import com.example.justgo.pleos.DrivingRestrictionsMonitor;
@@ -383,10 +385,7 @@ public final class DriveActivity extends Activity {
         if (!prepareResult(heading, summary)) return;
 
         RoutePalette palette = routePalette(context.theme());
-        resultBinding.selectionSummary.setBackground(roundedColor(palette.tint(), 14));
-        resultBinding.selectionSummary.setTextColor(palette.accent());
-        resultBinding.selectionSummary.setTypeface(Typeface.DEFAULT_BOLD);
-        resultBinding.selectionSummary.setPadding(dp(14), dp(10), dp(14), dp(10));
+        styleRouteSummary(palette);
         resultBinding.closeRecommendation.setVisibility(View.VISIBLE);
         resultBinding.closeRecommendation.setOnClickListener(v -> dismissResult());
         if (live) {
@@ -420,9 +419,7 @@ public final class DriveActivity extends Activity {
         if (live) {
             updateRecommendationSelection(routes, cards, palette);
             resultBinding.confirm.setText(R.string.route_popup_detail);
-            resultBinding.confirm.setBackgroundTintList(new ColorStateList(
-                    new int[][]{new int[]{-android.R.attr.state_enabled}, new int[]{}},
-                    new int[]{0xFF627794, palette.accent()}));
+            tintRouteAction(palette);
             resultBinding.confirm.setOnClickListener(v -> {
                 if (!drivingRestricted && selectedRoute != null) {
                     showCourseDetail(context, result, selectedRoute);
@@ -491,44 +488,93 @@ public final class DriveActivity extends Activity {
 
     /** 코스 상세 팝업. 선택한 코스의 구간과 도시 행사 상세를 표시하고 내비 시작을 연결한다. */
     private void showCourseDetail(SearchContext context, Recommendation result, RouteRecommendationClient.Route route) {
-        String title = route.event() == null ? "코스 상세" : "행사 상세";
-        if (!prepareResult(title, context.conditions())) return;
-        addRouteCard(context, route);
-        // 구간별 측정값이 없는 이전 서버 응답은 지점 순서만 표시한다.
-        StringBuilder itinerary = new StringBuilder("출발 · 현재 위치");
-        for (int index = 0; index < route.stops().size(); index++) {
-            var stop = route.stops().get(index);
-            itinerary.append("\n").append(stop.type() == RouteRecommendationClient.StopType.WAYPOINT
-                    ? "경유 · " : "도착 · ").append(stop.name());
-            if (index < route.legSeconds().size()) {
-                long seconds = route.legSeconds().get(index);
-                itinerary.append("  ·  약 ").append((seconds + 59) / 60).append("분");
-            }
-        }
+        boolean roundTrip = "ROUND_TRIP".equals(context.tripType());
+        String direction = roundTrip ? "왕복" : "편도";
+        if (!prepareResult("코스 상세", themeLabel(context.theme()) + " · " + direction
+                + " " + context.minutes() + "분")) return;
+
+        RoutePalette palette = routePalette(context.theme());
+        styleRouteSummary(palette);
+        addRouteCard(context, route).getRoot().setBackground(routeCardBackground(true, palette, dp(1)));
+        showCourseItinerary(route, roundTrip, palette);
         if (route.event() != null) {
-            var event = route.event();
-            itinerary.append("\n\n장소 · ").append(event.venue())
-                    .append("\n운영 · ").append(formatEventTime(event.opensAt()))
-                    .append(" ~ ").append(formatEventTime(event.closesAt()))
-                    .append("\n예상 도착 · ").append(formatEventTime(event.arrivesAt()));
-        }
-        resultBinding.courseDetail.setText(itinerary);
-        resultBinding.courseDetail.setVisibility(View.VISIBLE);
-        if (route.event() != null) {
-            // 행사 데이터를 보여주는 상세 화면에만 원본 출처 링크를 표시한다.
-            var source = resultBinding.eventDataSource;
-            source.setVisibility(View.VISIBLE);
-            source.setPaintFlags(source.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
-            source.setOnClickListener(v -> openEventDataSource());
+            showCourseEvent(route.event(), palette);
         }
         selectedRoute = route;
         resultOffersNavigation = true;
         resultBinding.cancel.setVisibility(View.VISIBLE);
         resultBinding.cancel.setOnClickListener(v -> showRecommendation(context, result, route));
-        resultBinding.confirm.setText("시작");
+        resultBinding.confirm.setText(R.string.route_detail_start);
+        tintRouteAction(palette);
         resultBinding.confirm.setOnClickListener(v -> startNavigation());
         refreshNavigationControl();
         showResultDialog();
+    }
+
+    private void showCourseItinerary(RouteRecommendationClient.Route route, boolean roundTrip, RoutePalette palette) {
+        var section = resultBinding.courseItinerary;
+        showDetailSection(section, R.string.route_detail_itinerary, palette);
+        addDetailRow(section, "출발", "현재 위치");
+        int finalIndex = route.stops().size() - 1;
+        int destinationIndex = roundTrip ? finalIndex - 1 : finalIndex;
+        for (int index = 0; index <= finalIndex; index++) {
+            var stop = route.stops().get(index);
+            // 왕복 코스는 실제 목적지와 마지막 복귀 지점을 구분해서 표시한다.
+            String label = index == destinationIndex ? "목적지"
+                    : roundTrip && index == finalIndex ? "복귀" : "경로 지점";
+            var row = addDetailRow(section, label, stop.name());
+            // 구간 시간이 없는 서버 응답에서는 지점 이름만 표시한다.
+            if (index < route.legSeconds().size()) {
+                long minutes = (route.legSeconds().get(index) + 59) / 60;
+                row.detailDuration.setText(getString(R.string.route_detail_duration, minutes));
+                row.detailDuration.setTextColor(palette.accent());
+                row.detailDuration.setBackground(roundedColor(palette.tint(), 10));
+                row.detailDuration.setVisibility(View.VISIBLE);
+            }
+        }
+    }
+
+    private void showCourseEvent(RouteRecommendationClient.Event event, RoutePalette palette) {
+        var section = resultBinding.courseEvent;
+        showDetailSection(section, R.string.route_detail_event, palette);
+        addDetailRow(section, "장소", event.venue());
+        addDetailRow(section, "운영 시간", formatEventTime(event.opensAt()) + " ~ " + formatEventTime(event.closesAt()));
+        addDetailRow(section, "예상 도착", formatEventTime(event.arrivesAt()));
+
+        // 행사 데이터를 보여주는 상세 화면에만 원본 출처 링크를 표시한다.
+        var source = resultBinding.eventDataSource;
+        source.setVisibility(View.VISIBLE);
+        source.setTextColor(palette.accent());
+        source.setPaintFlags(source.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
+        source.setOnClickListener(v -> openEventDataSource());
+    }
+
+    private void showDetailSection(RouteDetailSectionBinding section, int title, RoutePalette palette) {
+        section.getRoot().setBackground(routeCardBackground(false, palette, dp(1)));
+        section.getRoot().setVisibility(View.VISIBLE);
+        section.detailHeading.setText(title);
+        section.detailHeading.setTextColor(palette.accent());
+    }
+
+    private ItemRouteDetailBinding addDetailRow(RouteDetailSectionBinding section, String label, String value) {
+        var row = ItemRouteDetailBinding.inflate(getLayoutInflater(), section.detailRows, false);
+        row.detailLabel.setText(label);
+        row.detailValue.setText(value);
+        section.detailRows.addView(row.getRoot());
+        return row;
+    }
+
+    private void styleRouteSummary(RoutePalette palette) {
+        resultBinding.selectionSummary.setBackground(roundedColor(palette.tint(), 14));
+        resultBinding.selectionSummary.setTextColor(palette.accent());
+        resultBinding.selectionSummary.setTypeface(Typeface.DEFAULT_BOLD);
+        resultBinding.selectionSummary.setPadding(dp(14), dp(10), dp(14), dp(10));
+    }
+
+    private void tintRouteAction(RoutePalette palette) {
+        resultBinding.confirm.setBackgroundTintList(new ColorStateList(
+                new int[][]{new int[]{-android.R.attr.state_enabled}, new int[]{}},
+                new int[]{0xFF627794, palette.accent()}));
     }
 
     private void openEventDataSource() {
@@ -617,7 +663,7 @@ public final class DriveActivity extends Activity {
         resultBinding.confirm.setEnabled(!drivingRestricted && navigationRequestDialog == null
                 && connected && selectedRoute != null);
         if (navigationRequestDialog != null) return;
-        resultBinding.cancel.setText("취소");
+        resultBinding.cancel.setText(R.string.route_detail_back);
         if (navigationConnectionFailed) {
             showResultDetails("차량 내비에 연결하지 못했습니다.");
         } else if (!connected) {
@@ -625,7 +671,7 @@ public final class DriveActivity extends Activity {
         } else {
             showResultDetails(selectedRoute == null
                     ? "내비로 보낼 코스를 선택해 주세요."
-                    : "시작을 누르면 차량 내비로 보냅니다.");
+                    : "길 안내를 시작하면 차량 내비로 보냅니다.");
         }
     }
 
