@@ -69,7 +69,7 @@ public final class DriveActivity extends Activity {
     private boolean searchInProgress;
     private boolean foreground;
     private boolean resultOffersNavigation;
-    private Dialog navigationRequestDialog;
+    private volatile Dialog navigationRequestDialog;
     private Dialog resultDialog;
     private DialogRouteResultBinding resultBinding;
     private boolean searchAfterLocationPermission;
@@ -161,28 +161,30 @@ public final class DriveActivity extends Activity {
             }
 
             @Override public void onRouteStarted() {
+                Dialog requestedFrom = navigationRequestDialog;
                 runOnUiThread(() -> {
-                    if (resultDialog != null && resultDialog == navigationRequestDialog) {
+                    if (requestedFrom != null && requestedFrom == navigationRequestDialog
+                            && resultDialog == requestedFrom) {
                         showResultDetails("차량 내비가 경로를 찾고 있어요.");
                     }
                 });
             }
 
             @Override public void onRoutingCompleted() {
+                Dialog requestedFrom = navigationRequestDialog;
                 runOnUiThread(() -> {
-                    Dialog requestedFrom = navigationRequestDialog;
-                    navigationRequestDialog = null;
-                    if (requestedFrom != null && resultDialog == requestedFrom) dismissResult();
+                    if (!finishNavigationRequest(requestedFrom)) return;
+                    if (resultDialog == requestedFrom) dismissResult();
                     else refreshNavigationControl();
                 });
             }
 
             @Override public void onError(String message) {
+                Dialog requestedFrom = navigationRequestDialog;
                 runOnUiThread(() -> {
-                    Dialog requestedFrom = navigationRequestDialog;
-                    navigationRequestDialog = null;
+                    if (!finishNavigationRequest(requestedFrom)) return;
                     refreshNavigationControl();
-                    if (requestedFrom != null && resultDialog == requestedFrom) {
+                    if (resultDialog == requestedFrom) {
                         showResultDetails(message);
                     }
                 });
@@ -347,6 +349,7 @@ public final class DriveActivity extends Activity {
 
     @Override protected void onStop() {
         foreground = false;
+        finishNavigationRequest(navigationRequestDialog);
         dismissResult();
         restrictionsMonitor.stop();
         routeClient.cancelActiveRequest();
@@ -355,6 +358,7 @@ public final class DriveActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        finishNavigationRequest(navigationRequestDialog);
         dismissResult();
         locationProvider.cancel();
         routeClient.cancelActiveRequest();
@@ -651,10 +655,14 @@ public final class DriveActivity extends Activity {
                     stop.name(), stop.latitude(), stop.longitude()));
         }
         navigationRequestDialog = resultDialog;
-        resultBinding.cancel.setText("닫기");
         refreshNavigationControl();
-        showResultDetails("선택한 코스를 차량 내비로 전달하고 있어요…");
         navigationGateway.startRoute(stops);
+    }
+
+    private boolean finishNavigationRequest(Dialog requestedFrom) {
+        if (requestedFrom == null || navigationRequestDialog != requestedFrom) return false;
+        navigationRequestDialog = null;
+        return true;
     }
 
     private void refreshNavigationControl() {
@@ -662,7 +670,13 @@ public final class DriveActivity extends Activity {
         boolean connected = navigationGateway.isConnected();
         resultBinding.confirm.setEnabled(!drivingRestricted && navigationRequestDialog == null
                 && connected && selectedRoute != null);
-        if (navigationRequestDialog != null) return;
+        if (navigationRequestDialog != null) {
+            resultBinding.confirm.setText(R.string.route_navigation_pending_action);
+            resultBinding.cancel.setText(R.string.route_detail_back);
+            showResultDetails(getString(R.string.route_navigation_pending));
+            return;
+        }
+        resultBinding.confirm.setText(R.string.route_detail_start);
         resultBinding.cancel.setText(R.string.route_detail_back);
         if (navigationConnectionFailed) {
             showResultDetails("차량 내비에 연결하지 못했습니다.");
