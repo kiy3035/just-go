@@ -816,3 +816,11 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - Android REST 클라이언트가 요청과 다른 후보 테마, 목적지가 없거나 마지막 순서가 아닌 LIVE 경로, 최대 두 곳을 넘는 경유지를 응답 파싱 단계에서 거부하도록 보강했습니다. 내비 시작을 누른 뒤에야 오류가 드러나는 흐름을 차단했습니다.
 - `android-app\\gradlew.bat testDebugUnitTest lintDebug assembleDebug --no-daemon`: 단위 테스트 16개, Lint 오류 0개, 디버그 APK 빌드가 모두 성공했습니다.
 - `backend\\gradlew.bat clean test build --no-daemon`: Docker Desktop 기동 후 전체 131개 테스트와 실행 JAR 빌드가 성공했습니다. Compose의 PostgreSQL·백엔드 컨테이너 `healthy`, `/actuator/health` `UP`, 정적 웹 HTTP 200을 확인했습니다. 실제 TMAP 경로 호출은 추가로 실행하지 않았습니다.
+
+## 81. 2026-11-14 내비 화면 전환·대기 상태 복구
+
+- NaviHelper 경로 계산 완료 직후 Activity가 먼저 완료 처리되면 이후 Navigation 화면 요청 실패가 무시될 수 있어, 화면 전환 요청이 정상 접수된 뒤에만 완료 콜백을 전달하도록 순서를 수정했습니다.
+- 차량 내비가 완료·오류 콜백을 반환하지 않는 경우에도 45초 뒤 요청 상태와 시작 버튼을 복구합니다. 요청 처리 중에는 상세 화면의 뒤로가기 버튼을 잠가 중복 요청과 다음 시도의 영구 비활성화를 방지합니다.
+- 로컬 NaviHelper 3.0.5 원본에서 `RouteInfo` 좌표 인자 순서가 위도·경도임을 확인했고 기존 변환은 변경하지 않았습니다. `NAVI_ROUTE_SEARCH`, `NAVI_CUSTOM_MAP` 권한도 사용 API와 일치함을 공식 문서에서 확인했습니다.
+- `android-app\\gradlew.bat testDebugUnitTest lintDebug assembleDebug`와 `testReleaseUnitTest lintRelease assembleRelease`가 통과했습니다. Android Studio와 Emulator는 실행하지 않았습니다. Release APK는 여전히 서버 URL·고유 applicationId·서명 결정 전의 unsigned 산출물입니다.
+- 로컬 TMAP 일일 카운터는 2026-11-14 기준 10건이었습니다. 이번 점검에서는 외부 API를 추가 호출하지 않았습니다.
