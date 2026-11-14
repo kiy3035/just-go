@@ -11,3 +11,10 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+
+# 로컬 시연은 loopback으로만 열리므로 여러 테마를 연속 확인할 수 있게 완화합니다.
+# public/local 프로필이 없는 공개 환경은 application.yml의 보수적인 기본값 4를 유지합니다.
+justgo:
+  security:
+    route-api:
+      requests-per-minute: ${ROUTE_API_REQUESTS_PER_MINUTE:60}
