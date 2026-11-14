@@ -1,15 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 차량 가로 화면용 오늘 행사 추천 카드. 광고 배너 대신 추천 근거와 실제 행사 정보를 우선한다. -->
+<!-- 차량 가로 화면용 행사 추천 카드. 포스터와 두 동작을 분리해 역할을 명확히 한다. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="10dp"
     android:background="@drawable/event_banner_background"
     android:clipToOutline="true"
-    android:minHeight="224dp"
+    android:minHeight="326dp"
     android:orientation="vertical"
-    android:paddingHorizontal="18dp"
-    android:paddingVertical="14dp">
+    android:paddingHorizontal="20dp"
+    android:paddingTop="16dp"
+    android:paddingBottom="10dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -31,10 +32,10 @@
             android:id="@+id/eventRegionBadge"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
+            android:layout_marginStart="14dp"
             android:background="@drawable/event_banner_region"
             android:includeFontPadding="false"
-            android:paddingHorizontal="12dp"
+            android:paddingHorizontal="13dp"
             android:paddingVertical="4dp"
             android:textColor="#174E96"
             android:textSize="17sp"
@@ -44,8 +45,8 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="9dp"
+        android:layout_height="190dp"
+        android:layout_marginTop="10dp"
         android:baselineAligned="false"
         android:gravity="center_vertical"
         android:orientation="horizontal">
@@ -55,46 +56,24 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:orientation="vertical"
-            android:paddingEnd="16dp">
+            android:paddingEnd="24dp">
 
-            <LinearLayout
+            <TextView
+                android:id="@+id/eventTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:id="@+id/eventCategory"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/event_category_background"
-                    android:includeFontPadding="false"
-                    android:paddingHorizontal="11dp"
-                    android:paddingVertical="4dp"
-                    android:textColor="#24589C"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:visibility="gone"/>
-
-                <TextView
-                    android:id="@+id/eventTitle"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
-                    android:layout_weight="1"
-                    android:ellipsize="end"
-                    android:maxLines="2"
-                    android:text="@string/event_banner_loading"
-                    android:textColor="#101C3D"
-                    android:textSize="29sp"
-                    android:textStyle="bold"/>
-            </LinearLayout>
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:text="@string/event_banner_loading"
+                android:textColor="#101C3D"
+                android:textSize="30sp"
+                android:textStyle="bold"/>
 
             <TextView
                 android:id="@+id/eventDetail"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
+                android:layout_marginTop="13dp"
                 android:ellipsize="end"
                 android:maxLines="2"
                 android:textColor="#536B8D"
@@ -105,7 +84,7 @@
                 android:id="@+id/eventRecommendationRow"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="9dp"
+                android:layout_marginTop="13dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:visibility="gone">
@@ -130,7 +109,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginHorizontal="14dp"
+                    android:layout_marginHorizontal="15dp"
                     android:text="@string/event_banner_reason_divider"
                     android:textColor="#91A3BA"
                     android:textSize="18sp"/>
@@ -149,53 +128,86 @@
             </LinearLayout>
         </LinearLayout>
 
-        <LinearLayout
-            android:layout_width="180dp"
+        <!-- 포스터는 정보 이미지이며 다음 행사 동작을 갖지 않는다. -->
+        <FrameLayout
+            android:id="@+id/eventArtworkPanel"
+            android:layout_width="230dp"
+            android:layout_height="190dp"
+            android:background="@drawable/event_thumbnail_background"
+            android:clipToOutline="true">
+
+            <ImageView
+                android:id="@+id/eventArt"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:importantForAccessibility="no"
+                android:padding="5dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/event_art_empty"/>
+        </FrameLayout>
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="8dp"
+        android:background="#D6E2F1"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="54dp"
+        android:gravity="end|center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/eventPageStatus"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:gravity="center"
-            android:orientation="vertical">
+            android:layout_marginEnd="16dp"
+            android:text="@string/event_banner_page_preview"
+            android:textColor="#6B7E98"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:visibility="gone"/>
 
-            <FrameLayout
-                android:id="@+id/eventArtworkPanel"
-                android:layout_width="160dp"
-                android:layout_height="112dp"
-                android:background="@drawable/event_thumbnail_background"
-                android:clipToOutline="true">
+        <Button
+            android:id="@+id/eventNext"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:background="@drawable/event_next_action"
+            android:backgroundTint="@null"
+            android:contentDescription="@string/event_banner_next"
+            android:minWidth="0dp"
+            android:paddingHorizontal="18dp"
+            android:stateListAnimator="@null"
+            android:text="@string/event_banner_next"
+            android:textColor="#274866"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:visibility="gone"/>
 
-                <ImageView
-                    android:id="@+id/eventArt"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:importantForAccessibility="no"
-                    android:padding="4dp"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/event_art_empty"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="15dp"
+            android:text="@string/event_banner_reason_divider"
+            android:textColor="#91A3BA"
+            android:textSize="20sp"/>
 
-                <!-- 기존 바인딩 호환을 유지하되 추천 카드에서는 캐러셀 점을 표시하지 않는다. -->
-                <LinearLayout
-                    android:id="@+id/eventPages"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:visibility="gone"/>
-            </FrameLayout>
-
-            <Button
-                android:id="@+id/eventNavigate"
-                android:layout_width="160dp"
-                android:layout_height="48dp"
-                android:layout_marginTop="2dp"
-                android:background="@drawable/event_banner_action"
-                android:backgroundTint="@null"
-                android:contentDescription="@string/event_banner_navigate_description"
-                android:minWidth="0dp"
-                android:paddingHorizontal="8dp"
-                android:stateListAnimator="@null"
-                android:text="@string/event_banner_navigate"
-                android:textColor="#174EFF"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                android:visibility="gone"/>
-        </LinearLayout>
+        <Button
+            android:id="@+id/eventNavigate"
+            android:layout_width="136dp"
+            android:layout_height="48dp"
+            android:background="@drawable/event_banner_action"
+            android:backgroundTint="@null"
+            android:contentDescription="@string/event_banner_navigate_description"
+            android:minWidth="0dp"
+            android:paddingHorizontal="8dp"
+            android:stateListAnimator="@null"
+            android:text="@string/event_banner_navigate"
+            android:textColor="#174EFF"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:visibility="gone"/>
     </LinearLayout>
 </LinearLayout>

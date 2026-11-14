@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 세로 화면에서도 동일한 정보 위계로 오늘 행사 한 건을 추천한다. -->
+<!-- 세로 화면용 행사 추천 카드. 가로 화면과 동일하게 이미지와 동작을 분리한다. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="16dp"
     android:background="@drawable/event_banner_background"
     android:clipToOutline="true"
-    android:minHeight="220dp"
+    android:minHeight="280dp"
     android:orientation="vertical"
     android:padding="14dp">
 
@@ -15,185 +15,39 @@
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
         android:orientation="horizontal">
-
-        <TextView
-            android:id="@+id/eventHeading"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:includeFontPadding="false"
-            android:text="@string/event_banner_label"
-            android:textColor="#10254A"
-            android:textSize="21sp"
-            android:textStyle="bold"/>
-
-        <TextView
-            android:id="@+id/eventRegionBadge"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="9dp"
-            android:background="@drawable/event_banner_region"
-            android:includeFontPadding="false"
-            android:paddingHorizontal="9dp"
-            android:paddingVertical="3dp"
-            android:textColor="#174E96"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:visibility="gone"/>
+        <TextView android:id="@+id/eventHeading" android:layout_width="wrap_content" android:layout_height="wrap_content" android:includeFontPadding="false" android:text="@string/event_banner_label" android:textColor="#10254A" android:textSize="22sp" android:textStyle="bold"/>
+        <TextView android:id="@+id/eventRegionBadge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="9dp" android:background="@drawable/event_banner_region" android:includeFontPadding="false" android:paddingHorizontal="9dp" android:paddingVertical="3dp" android:textColor="#174E96" android:textSize="13sp" android:textStyle="bold" android:visibility="gone"/>
     </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="9dp"
         android:baselineAligned="false"
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:paddingEnd="10dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:id="@+id/eventCategory"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/event_category_background"
-                    android:includeFontPadding="false"
-                    android:paddingHorizontal="8dp"
-                    android:paddingVertical="3dp"
-                    android:textColor="#24589C"
-                    android:textSize="13sp"
-                    android:textStyle="bold"
-                    android:visibility="gone"/>
-
-                <TextView
-                    android:id="@+id/eventTitle"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="7dp"
-                    android:layout_weight="1"
-                    android:ellipsize="end"
-                    android:maxLines="3"
-                    android:text="@string/event_banner_loading"
-                    android:textColor="#101C3D"
-                    android:textSize="20sp"
-                    android:textStyle="bold"/>
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/eventDetail"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="5dp"
-                android:ellipsize="end"
-                android:maxLines="2"
-                android:textColor="#536B8D"
-                android:textSize="15sp"
-                android:visibility="gone"/>
-
-            <LinearLayout
-                android:id="@+id/eventRecommendationRow"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="7dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:visibility="gone">
-
-                <TextView
-                    android:id="@+id/eventSource"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/event_recommendation_reason_background"
-                    android:drawableStart="@drawable/ic_event_drive"
-                    android:drawablePadding="5dp"
-                    android:ellipsize="end"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:paddingHorizontal="9dp"
-                    android:paddingVertical="4dp"
-                    android:textColor="#24558F"
-                    android:textSize="13sp"
-                    android:textStyle="bold"
-                    android:visibility="gone"/>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginHorizontal="8dp"
-                    android:text="@string/event_banner_reason_divider"
-                    android:textColor="#91A3BA"
-                    android:textSize="14sp"/>
-
-                <TextView
-                    android:id="@+id/eventRecommendationReason"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:ellipsize="end"
-                    android:maxLines="2"
-                    android:text="@string/event_banner_recommendation"
-                    android:textColor="#405A79"
-                    android:textSize="14sp"
-                    android:visibility="gone"/>
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:paddingEnd="10dp">
+            <TextView android:id="@+id/eventTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:ellipsize="end" android:maxLines="3" android:text="@string/event_banner_loading" android:textColor="#101C3D" android:textSize="21sp" android:textStyle="bold"/>
+            <TextView android:id="@+id/eventDetail" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="9dp" android:ellipsize="end" android:maxLines="2" android:textColor="#536B8D" android:textSize="15sp" android:visibility="gone"/>
+            <LinearLayout android:id="@+id/eventRecommendationRow" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="9dp" android:gravity="center_vertical" android:orientation="horizontal" android:visibility="gone">
+                <TextView android:id="@+id/eventSource" android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/event_recommendation_reason_background" android:drawableStart="@drawable/ic_event_drive" android:drawablePadding="5dp" android:ellipsize="end" android:includeFontPadding="false" android:maxLines="1" android:paddingHorizontal="9dp" android:paddingVertical="4dp" android:textColor="#24558F" android:textSize="13sp" android:textStyle="bold" android:visibility="gone"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginHorizontal="8dp" android:text="@string/event_banner_reason_divider" android:textColor="#91A3BA" android:textSize="14sp"/>
+                <TextView android:id="@+id/eventRecommendationReason" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:ellipsize="end" android:maxLines="2" android:text="@string/event_banner_recommendation" android:textColor="#405A79" android:textSize="14sp" android:visibility="gone"/>
             </LinearLayout>
         </LinearLayout>
 
-        <LinearLayout
-            android:layout_width="132dp"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:orientation="vertical">
+        <FrameLayout android:id="@+id/eventArtworkPanel" android:layout_width="132dp" android:layout_height="154dp" android:background="@drawable/event_thumbnail_background" android:clipToOutline="true">
+            <ImageView android:id="@+id/eventArt" android:layout_width="match_parent" android:layout_height="match_parent" android:importantForAccessibility="no" android:padding="4dp" android:scaleType="fitCenter" android:src="@drawable/event_art_empty"/>
+        </FrameLayout>
+    </LinearLayout>
 
-            <FrameLayout
-                android:id="@+id/eventArtworkPanel"
-                android:layout_width="120dp"
-                android:layout_height="108dp"
-                android:background="@drawable/event_thumbnail_background"
-                android:clipToOutline="true">
+    <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginTop="8dp" android:background="#D6E2F1"/>
 
-                <ImageView
-                    android:id="@+id/eventArt"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:importantForAccessibility="no"
-                    android:padding="4dp"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/event_art_empty"/>
-
-                <LinearLayout
-                    android:id="@+id/eventPages"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:visibility="gone"/>
-            </FrameLayout>
-
-            <Button
-                android:id="@+id/eventNavigate"
-                android:layout_width="128dp"
-                android:layout_height="48dp"
-                android:layout_marginTop="2dp"
-                android:background="@drawable/event_banner_action"
-                android:backgroundTint="@null"
-                android:contentDescription="@string/event_banner_navigate_description"
-                android:minWidth="0dp"
-                android:paddingHorizontal="6dp"
-                android:stateListAnimator="@null"
-                android:text="@string/event_banner_navigate"
-                android:textColor="#174EFF"
-                android:textSize="15sp"
-                android:textStyle="bold"
-                android:visibility="gone"/>
-        </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="54dp" android:gravity="end|center_vertical" android:orientation="horizontal">
+        <TextView android:id="@+id/eventPageStatus" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginEnd="8dp" android:text="@string/event_banner_page_preview" android:textColor="#6B7E98" android:textSize="14sp" android:textStyle="bold" android:visibility="gone"/>
+        <Button android:id="@+id/eventNext" android:layout_width="wrap_content" android:layout_height="48dp" android:background="@drawable/event_next_action" android:backgroundTint="@null" android:contentDescription="@string/event_banner_next" android:minWidth="0dp" android:paddingHorizontal="10dp" android:stateListAnimator="@null" android:text="@string/event_banner_next" android:textColor="#274866" android:textSize="14sp" android:textStyle="bold" android:visibility="gone"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginHorizontal="6dp" android:text="@string/event_banner_reason_divider" android:textColor="#91A3BA" android:textSize="16sp"/>
+        <Button android:id="@+id/eventNavigate" android:layout_width="102dp" android:layout_height="48dp" android:background="@drawable/event_banner_action" android:backgroundTint="@null" android:contentDescription="@string/event_banner_navigate_description" android:minWidth="0dp" android:paddingHorizontal="5dp" android:stateListAnimator="@null" android:text="@string/event_banner_navigate" android:textColor="#174EFF" android:textSize="15sp" android:textStyle="bold" android:visibility="gone"/>
     </LinearLayout>
 </LinearLayout>

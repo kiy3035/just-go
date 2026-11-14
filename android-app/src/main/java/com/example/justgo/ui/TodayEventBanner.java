@@ -1,6 +1,5 @@
 package com.example.justgo.ui;
 
-import android.app.AlertDialog;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Handler;
@@ -24,8 +23,9 @@ import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import javax.net.ssl.HttpsURLConnection;
 
-/** 메인 화면에서 오늘 행사 한 건을 추천 정보 카드로 조회하고 표시한다. */
+/** 오늘 행사 추천 카드의 조회, 자동 전환, 수동 탐색과 내비 전달을 관리한다. */
 final class TodayEventBanner {
+    private static final long ROTATE_DELAY = 8_000;
     private static final int MAX_IMAGE_BYTES = 2 * 1024 * 1024;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ExecutorService eventWorker = Executors.newSingleThreadExecutor();
@@ -34,11 +34,13 @@ final class TodayEventBanner {
     private final EventBannerBinding binding;
     private final RouteRecommendationClient client;
     private final Consumer<BannerEvent> navigate;
-    private BannerEvent featuredEvent;
-    private AlertDialog detailDialog;
+    private final Runnable rotate = this::next;
+    private List<BannerEvent> events = List.of();
+    private int index;
     private boolean loading;
     private boolean active;
     private boolean restricted = true;
+    private boolean focused;
     private boolean navigationPending;
     private boolean closed;
 
@@ -48,11 +50,17 @@ final class TodayEventBanner {
         this.client = client;
         this.navigate = navigate;
         binding.eventNavigate.setEnabled(false);
-        // 카드에서는 행사 정보를 먼저 확인하고 사용자가 선택한 경우에만 내비로 전달한다.
-        binding.eventNavigate.setOnClickListener(view -> showFeaturedEventDetails());
-        binding.eventPages.setVisibility(View.GONE);
+        binding.eventNavigate.setOnFocusChangeListener((view, hasFocus) -> scheduleRotation());
+        binding.eventNext.setEnabled(false);
+        binding.eventNext.setOnFocusChangeListener((view, hasFocus) -> scheduleRotation());
+        // 포스터와 무관한 명시적 버튼으로 사용자가 다음 행사를 확인한다.
+        binding.eventNext.setOnClickListener(view -> {
+            if (canAdvance()) next();
+        });
         binding.eventArtworkPanel.setClickable(false);
         binding.eventArtworkPanel.setFocusable(false);
+        // 이동하기는 팝업 없이 현재 보이는 행사를 곧바로 차량 내비로 전달한다.
+        binding.eventNavigate.setOnClickListener(view -> navigateToCurrentEvent());
         updateControls();
     }
 
@@ -73,7 +81,6 @@ final class TodayEventBanner {
     void stop() {
         active = false;
         restricted = true;
-        dismissDetails();
         updateControls();
     }
 
@@ -86,38 +93,41 @@ final class TodayEventBanner {
 
     void setRestricted(boolean restricted) {
         this.restricted = restricted;
-        if (restricted) dismissDetails();
         updateControls();
+    }
+
+    void setFocused(boolean focused) {
+        this.focused = focused;
+        scheduleRotation();
     }
 
     void setNavigationPending(boolean pending) {
         navigationPending = pending;
-        if (pending) dismissDetails();
         updateControls();
     }
 
-    /** 서버 정렬 결과의 첫 행사를 오늘의 대표 추천으로 고정해 광고식 자동 전환을 막는다. */
     private void show(TodayEvents result) {
         loading = false;
         if (closed) return;
-        featuredEvent = result.events().isEmpty() ? null : result.events().get(0);
-        if (featuredEvent == null) {
+        events = result.events();
+        index = 0;
+        if (events.isEmpty()) {
             binding.eventHeading.setText(R.string.event_banner_label);
             binding.eventRegionBadge.setVisibility(View.GONE);
-            binding.eventCategory.setVisibility(View.GONE);
             binding.eventTitle.setText(result.partial()
                     ? "행사를 불러오지 못했어요" : "오늘은 행사가 없어요");
             binding.eventDetail.setVisibility(View.GONE);
             binding.eventSource.setVisibility(View.GONE);
             binding.eventRecommendationReason.setVisibility(View.GONE);
             binding.eventRecommendationRow.setVisibility(View.GONE);
+            binding.eventPageStatus.setVisibility(View.GONE);
+            binding.eventNext.setVisibility(View.GONE);
             binding.eventNavigate.setVisibility(View.GONE);
-            binding.eventPages.setVisibility(View.GONE);
             binding.eventArt.setImageResource(R.drawable.event_art_empty);
             updateControls();
             return;
         }
-        render(featuredEvent);
+        render();
     }
 
     private void showFailure(IOException failure) {
@@ -138,14 +148,20 @@ final class TodayEventBanner {
         binding.eventDetail.setVisibility(View.VISIBLE);
     }
 
-    /** 행사 분류, 장소, 일정과 제공처를 한눈에 읽히는 추천 정보 순서로 배치한다. */
-    private void render(BannerEvent event) {
+    /** 자동 또는 수동 전환 후 다음 행사를 같은 표시 시간으로 다시 시작한다. */
+    private void next() {
+        if (!canAdvance()) return;
+        index = (index + 1) % events.size();
+        render();
+    }
+
+    /** 현재 행사의 분류, 장소, 일정과 추천 이유를 카드에 표시한다. */
+    private void render() {
+        BannerEvent event = events.get(index);
         binding.eventHeading.setText(R.string.event_banner_label);
         binding.eventRegionBadge.setText(binding.getRoot().getContext().getString(
                 R.string.event_banner_region_today, event.region()));
         binding.eventRegionBadge.setVisibility(View.VISIBLE);
-        binding.eventCategory.setText(categoryLabel(event.category()));
-        binding.eventCategory.setVisibility(View.VISIBLE);
         binding.eventTitle.setText(event.title());
 
         String detail = event.venue();
@@ -154,14 +170,18 @@ final class TodayEventBanner {
         }
         binding.eventDetail.setText(detail);
         binding.eventDetail.setVisibility(detail.isBlank() ? View.GONE : View.VISIBLE);
-
-        binding.eventSource.setText(R.string.event_banner_reason);
+        String category = binding.getRoot().getContext().getString(categoryLabel(event.category()));
+        binding.eventSource.setText(binding.getRoot().getContext().getString(
+                R.string.event_banner_reason, category));
         binding.eventSource.setVisibility(View.VISIBLE);
         binding.eventRecommendationReason.setText(R.string.event_banner_recommendation);
         binding.eventRecommendationReason.setVisibility(View.VISIBLE);
         binding.eventRecommendationRow.setVisibility(View.VISIBLE);
+        binding.eventPageStatus.setText(binding.getRoot().getContext().getString(
+                R.string.event_banner_page, index + 1, events.size()));
+        binding.eventPageStatus.setVisibility(View.VISIBLE);
+        binding.eventNext.setVisibility(events.size() > 1 ? View.VISIBLE : View.GONE);
         binding.eventNavigate.setVisibility(View.VISIBLE);
-        binding.eventPages.setVisibility(View.GONE);
 
         binding.eventArt.setImageResource(switch (event.category()) {
             case "PERFORMANCE" -> R.drawable.event_art_performance;
@@ -173,7 +193,7 @@ final class TodayEventBanner {
         updateControls();
     }
 
-    /** 원격 이미지는 크기와 프로토콜을 제한하고 대표 추천이 바뀌지 않았을 때만 반영한다. */
+    /** 원격 이미지는 크기와 프로토콜을 제한하고 현재 행사일 때만 반영한다. */
     private void loadPhoto(BannerEvent event) {
         if (event.imageUrl().isBlank()) return;
         imageWorker.execute(() -> {
@@ -181,47 +201,16 @@ final class TodayEventBanner {
             Bitmap photo = stored != null ? stored : downloadPhoto(event.imageUrl());
             if (stored == null && photo != null) photos.put(event.imageUrl(), photo);
             handler.post(() -> {
-                if (photo == null || closed || featuredEvent != event) return;
+                if (photo == null || closed || events.isEmpty() || events.get(index) != event) return;
                 binding.eventArt.setImageBitmap(photo);
             });
         });
     }
 
-    /** 추천 행사 상세를 먼저 보여주고 명시적으로 선택했을 때만 차량 내비를 실행한다. */
-    private void showFeaturedEventDetails() {
-        if (!active || restricted || navigationPending || featuredEvent == null
-                || detailDialog != null) return;
-        BannerEvent event = featuredEvent;
-        String provider = event.source().equals("SEOUL") ? "서울특별시" : "한국관광공사";
-        String category = binding.getRoot().getContext().getString(categoryLabel(event.category()));
-        StringBuilder details = new StringBuilder(category);
-        if (!event.venue().isBlank()) details.append("\n").append(event.venue());
-        if (!event.schedule().isBlank()) details.append("\n").append(event.schedule());
-        details.append("\n\n").append(binding.getRoot().getContext().getString(
-                R.string.event_detail_provider, provider));
-
-        AlertDialog dialog = new AlertDialog.Builder(binding.getRoot().getContext())
-                .setTitle(event.title())
-                .setMessage(details.toString())
-                .setNegativeButton(R.string.event_detail_close, null)
-                .setPositiveButton(R.string.event_detail_navigate, (ignored, which) -> {
-                    if (active && !restricted && !navigationPending && featuredEvent == event) {
-                        navigate.accept(event);
-                    }
-                })
-                .create();
-        detailDialog = dialog;
-        dialog.setOnDismissListener(ignored -> {
-            if (detailDialog == dialog) detailDialog = null;
-        });
-        dialog.show();
-    }
-
-    private void dismissDetails() {
-        if (detailDialog == null) return;
-        AlertDialog dialog = detailDialog;
-        detailDialog = null;
-        dialog.dismiss();
+    private void navigateToCurrentEvent() {
+        if (active && !restricted && !navigationPending && !events.isEmpty()) {
+            navigate.accept(events.get(index));
+        }
     }
 
     private int categoryLabel(String category) {
@@ -235,7 +224,26 @@ final class TodayEventBanner {
 
     private void updateControls() {
         binding.eventNavigate.setEnabled(active && !restricted
-                && !navigationPending && featuredEvent != null);
+                && !navigationPending && !events.isEmpty());
+        boolean advance = canAdvance();
+        binding.eventNext.setEnabled(advance);
+        binding.eventArtworkPanel.setEnabled(true);
+        binding.eventArtworkPanel.setClickable(false);
+        binding.eventArtworkPanel.setFocusable(false);
+        binding.eventArtworkPanel.setContentDescription(null);
+        scheduleRotation();
+    }
+
+    private boolean canAdvance() {
+        return active && !restricted && !navigationPending && events.size() > 1;
+    }
+
+    private void scheduleRotation() {
+        handler.removeCallbacks(rotate);
+        if (focused && canAdvance()
+                && !binding.eventNext.hasFocus() && !binding.eventNavigate.hasFocus()) {
+            handler.postDelayed(rotate, ROTATE_DELAY);
+        }
     }
 
     private static Bitmap downloadPhoto(String address) {

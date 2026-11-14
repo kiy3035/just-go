@@ -404,6 +404,11 @@ public final class DriveActivity extends Activity {
         super.onDestroy();
     }
 
+    @Override public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (eventBanner != null) eventBanner.setFocused(hasFocus);
+    }
+
     private void cancelActiveSearch() {
         searchGeneration++;
         locationProvider.cancel();
