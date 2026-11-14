@@ -6,9 +6,10 @@
 
 ## 1. 공식 응답 근거
 
-- [TMAP 다중 경유지 안내 샘플](https://tmap-skopenapi.readme.io/reference/%EB%8B%A4%EC%A4%91-%EA%B2%BD%EC%9C%A0%EC%A7%80-%EC%95%88%EB%82%B4-%EC%83%98%ED%94%8C%EC%98%88%EC%A0%9C)은 응답 `features[].geometry`가 GeoJSON 형식이며, `LineString` 좌표는 `[경도, 위도]` 배열이라고 설명합니다.
+- [TMAP 다중 경유지 안내 샘플](https://tmap-skopenapi.readme.io/reference/%EB%8B%A4%EC%A4%91-%EA%B2%BD%EC%9C%A0%EC%A7%80-%EC%95%88%EB%82%B4-%EC%83%98%ED%94%8C%EC%98%88%EC%A0%9C)은 응답 `features[].geometry`가 GeoJSON 형식이며, `LineString` 좌표는 `[경도, 위도]` 배열이라고 설명합니다. 2026-11-14 재확인 결과 경유지·도착점의 `pointType`과 직전 지점부터의 구간 초인 `time`도 공식 응답 필드로 제공됩니다.
 - [TMAP 자동차 경로안내](https://tmap-skopenapi.readme.io/reference/%EC%9E%90%EB%8F%99%EC%B0%A8-%EA%B2%BD%EB%A1%9C%EC%95%88%EB%82%B4)는 `totalValue=1`이면 전체 응답, `totalValue=2`이면 총 거리·시간 등의 요약만 반환한다고 설명합니다.
 - 현재 왕복은 다중 경유지 응답의 선형을 분석합니다. 편도는 요약 응답을 사용하므로 중복률을 계산하지 않습니다.
+- 왕복 단일 목적지는 `출발지 → 목적지 경유 → 출발지` 다중 경유지 요청 한 번으로 계산합니다. 경유지와 도착점의 공식 구간 시간 합계가 `totalTime`과 정확히 일치할 때만 앱에 구간 시간으로 전달하고, 불일치하거나 누락되면 값을 추측하지 않습니다.
 
 ## 2. 임시 계산 방식
 

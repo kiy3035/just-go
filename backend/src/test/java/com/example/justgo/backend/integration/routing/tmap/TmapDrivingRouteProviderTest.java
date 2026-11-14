@@ -27,26 +27,26 @@ class TmapDrivingRouteProviderTest {
     private final TmapRouteClient client = mock(TmapRouteClient.class);
     private final TmapDrivingRouteProvider provider = new TmapDrivingRouteProvider(client);
 
-    /** 순위 목록의 왕복은 두 방향을 따로 측정하고 내비에 넘길 두 지점과 구간을 맞춘다. */
+    /** 순위 목록의 왕복은 다중 경유지 한 번으로 전체와 왕복 두 구간을 함께 받습니다. */
     @Test
-    void rankedRoundTripAddsIndependentOutboundAndReturnLegs() {
-        when(client.findRoute(any())).thenReturn(
-                new TmapRouteSummary(9_000L, 1_601L, null),
-                new TmapRouteSummary(11_000L, 1_999L, null));
+    void rankedRoundTripUsesOneMultiStopCallWithTwoLegs() {
+        when(client.findRoute(any())).thenReturn(new TmapRouteSummary(
+                20_000L, 3_600L, 35, List.of(1_601L, 1_999L)));
 
         var route = provider.calculateRanked(request(TripType.ROUND_TRIP, List.of(candidate(7L))))
                 .routes().getFirst();
 
         ArgumentCaptor<TmapRouteSearch> captor = ArgumentCaptor.forClass(TmapRouteSearch.class);
-        verify(client, times(2)).findRoute(captor.capture());
-        var outbound = captor.getAllValues().getFirst();
-        var inbound = captor.getAllValues().getLast();
-        assertThat(inbound.start()).isEqualTo(outbound.end());
-        assertThat(inbound.end()).isEqualTo(outbound.start());
+        verify(client).findRoute(captor.capture());
+        var roundTrip = captor.getValue();
+        assertThat(roundTrip.start()).isEqualTo(roundTrip.end());
+        assertThat(roundTrip.waypoints()).singleElement()
+                .satisfies(waypoint -> assertThat(waypoint.id()).isEqualTo("7"));
         assertThat(route.legSeconds()).containsExactly(1_601L, 1_999L);
         assertThat(route.durationSeconds()).isEqualTo(3_600L);
         assertThat(route.estimatedMinutes()).isEqualTo(60);
         assertThat(route.distanceMeters()).isEqualTo(20_000L);
+        assertThat(route.repeatedSegmentPercent()).isEqualTo(35);
         assertThat(route.stops()).extracting(stop -> stop.type())
                 .containsExactly(DrivingRouteStopType.WAYPOINT, DrivingRouteStopType.DESTINATION);
     }
@@ -80,7 +80,8 @@ class TmapDrivingRouteProviderTest {
     /** 편도는 경관 후보를 도착점으로 사용하고 경유지를 비우는지 확인합니다. */
     @Test
     void buildsOneWayTripEndingAtScenicCandidate() {
-        when(client.findRoute(any())).thenReturn(new TmapRouteSummary(4_200L, 900L, null));
+        when(client.findRoute(any())).thenReturn(
+                new TmapRouteSummary(4_200L, 900L, null, List.of(900L)));
 
         var result = provider.calculate(request(TripType.ONE_WAY, List.of(candidate(8L))));
 
@@ -92,6 +93,7 @@ class TmapDrivingRouteProviderTest {
         assertThat(search.waypoints()).isEmpty();
         assertThat(result.routes().getFirst().routeId()).isEqualTo("TMAP-SPOT-8");
         assertThat(result.routes().getFirst().repeatedSegmentPercent()).isNull();
+        assertThat(result.routes().getFirst().legSeconds()).containsExactly(900L);
         assertThat(result.routes().getFirst().stops()).singleElement()
                 .satisfies(stop -> {
                     assertThat(stop.type()).isEqualTo(DrivingRouteStopType.DESTINATION);

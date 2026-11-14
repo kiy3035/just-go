@@ -86,6 +86,14 @@ class TmapRouteClientTest {
                           },
                           "features": [
                             {
+                              "geometry": {"type": "Point", "coordinates": [0.0, 0.0]},
+                              "properties": {"index": 0, "pointType": "S", "time": "0"}
+                            },
+                            {
+                              "geometry": {"type": "Point", "coordinates": [0.01, 0.0]},
+                              "properties": {"index": 1, "pointType": "B1", "time": "1200"}
+                            },
+                            {
                               "geometry": {
                                 "type": "LineString",
                                 "coordinates": [[0.0, 0.0], [0.01, 0.0], [0.02, 0.0]]
@@ -98,6 +106,10 @@ class TmapRouteClientTest {
                                 "coordinates": [[0.02, 0.0], [0.01, 0.0], [0.0, 0.0]]
                               },
                               "properties": {"index": "2"}
+                            },
+                            {
+                              "geometry": {"type": "Point", "coordinates": [0.0, 0.0]},
+                              "properties": {"index": 3, "pointType": "E", "time": "1020"}
                             }
                           ]
                         }
@@ -108,6 +120,32 @@ class TmapRouteClientTest {
         assertThat(result.distanceMeters()).isEqualTo(7271L);
         assertThat(result.durationSeconds()).isEqualTo(2220L);
         assertThat(result.repeatedSegmentPercent()).isEqualTo(50);
+        assertThat(result.legSeconds()).containsExactly(1_200L, 1_020L);
+        server.verify();
+    }
+
+    /** 구간 합계가 전체 시간과 다르면 임의 보정하지 않고 총 시간만 사용합니다. */
+    @Test
+    void ignoresInconsistentLegTimesWithoutGuessing() {
+        RestClient.Builder builder = RestClient.builder().baseUrl(BASE_URL);
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        TmapRouteClient client = createClient(builder, 90);
+        server.expect(requestTo(BASE_URL + "/tmap/routes/routeSequential30?version=1"))
+                .andRespond(withSuccess("""
+                        {
+                          "type": "FeatureCollection",
+                          "properties": {"totalDistance": "20000", "totalTime": "3600"},
+                          "features": [
+                            {"properties": {"index": 1, "pointType": "B1", "time": "1200"}},
+                            {"properties": {"index": 2, "pointType": "E", "time": "1200"}}
+                          ]
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        TmapRouteSummary result = client.findRoute(testSearch());
+
+        assertThat(result.durationSeconds()).isEqualTo(3_600L);
+        assertThat(result.legSeconds()).isEmpty();
         server.verify();
     }
 

@@ -85,22 +85,21 @@ public class TmapDrivingRouteProvider implements DrivingRouteProvider {
 
     private DrivingRouteCandidate calculateDestination(DrivingRouteRequest request,
             TmapCoordinate origin, DrivingRouteWaypointCandidate candidate) {
-        TmapCoordinate destination = new TmapCoordinate(candidate.latitude(), candidate.longitude());
-        TmapRouteSummary outbound = tmapRouteClient.findRoute(new TmapRouteSearch(origin, destination, List.of()));
-        long seconds = outbound.durationSeconds();
-        long meters = outbound.distanceMeters();
-        List<Long> legs = List.of(seconds);
-        if (request.tripType() == TripType.ROUND_TRIP) {
-            // 돌아오는 길의 일방통행·교통 상황이 다를 수 있어 복귀 시간을 별도로 조회한다.
-            TmapRouteSummary inbound = tmapRouteClient.findRoute(new TmapRouteSearch(destination, origin, List.of()));
-            seconds += inbound.durationSeconds();
-            meters += inbound.distanceMeters();
-            legs = List.of(outbound.durationSeconds(), inbound.durationSeconds());
-        }
         var stops = List.of(candidate);
-        return new DrivingRouteCandidate(routeId(stops), candidate.name(), toWholeMinutes(seconds), meters,
-                candidate.theme() == null ? request.theme() : candidate.theme(), null,
-                buildStops(request, stops), "", seconds, legs);
+        TmapRouteSummary summary = tmapRouteClient.findRoute(
+                buildSearch(request.tripType(), origin, stops));
+        List<Long> legs = summary.legSeconds();
+        if (request.tripType() == TripType.ONE_WAY && legs.isEmpty()) {
+            // 편도 단일 목적지는 전체 시간이 곧 유일한 구간 시간이다.
+            legs = List.of(summary.durationSeconds());
+        }
+        return new DrivingRouteCandidate(routeId(stops), candidate.name(),
+                toWholeMinutes(summary.durationSeconds()), summary.distanceMeters(),
+                candidate.theme() == null ? request.theme() : candidate.theme(),
+                request.tripType() == TripType.ROUND_TRIP
+                        ? summary.repeatedSegmentPercent()
+                        : null,
+                buildStops(request, stops), "", summary.durationSeconds(), legs);
     }
 
     /**
@@ -164,6 +163,13 @@ public class TmapDrivingRouteProvider implements DrivingRouteProvider {
             List<DrivingRouteWaypointCandidate> scenicStops) {
         TmapRouteSearch search = buildSearch(request.tripType(), origin, scenicStops);
         TmapRouteSummary summary = tmapRouteClient.findRoute(search);
+        List<DrivingRouteStop> stops = buildStops(request, scenicStops);
+        List<Long> legs = summary.legSeconds();
+        if (request.tripType() == TripType.ONE_WAY
+                && stops.size() == 1
+                && legs.isEmpty()) {
+            legs = List.of(summary.durationSeconds());
+        }
 
         return new DrivingRouteCandidate(
                 routeId(scenicStops),
@@ -174,10 +180,12 @@ public class TmapDrivingRouteProvider implements DrivingRouteProvider {
                 request.tripType() == TripType.ROUND_TRIP
                         ? summary.repeatedSegmentPercent()
                         : null,
-                buildStops(request, scenicStops),
+                stops,
                 scenicStops.size() == 1
                         ? "검수된 경관 후보의 TMAP 자동차 경로 시간·거리 결과입니다."
-                        : "검수된 두 경관 후보를 잇는 TMAP 자동차 경로 시간·거리 결과입니다.");
+                        : "검수된 두 경관 후보를 잇는 TMAP 자동차 경로 시간·거리 결과입니다.",
+                summary.durationSeconds(),
+                legs);
     }
 
     /**
