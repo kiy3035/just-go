@@ -414,10 +414,12 @@ components:
             이전 토큰 기반 왕복에서 형상을 분석할 수 있을 때만 제공합니다.
         stops:
           type: array
+          maxItems: 3
           description: >-
             차량 내비게이션에 순서대로 전달할 WGS84 지점입니다. 왕복은 경관
             WAYPOINT 다음 출발지 복귀 DESTINATION, 편도는 경관 DESTINATION 한 건을
-            반환합니다. MOCK 응답은 가짜 좌표를 만들지 않고 빈 배열을 반환합니다.
+            반환하며 NaviHelper가 지원하는 최대 2개 경유지와 목적지 1개를 넘지 않습니다.
+            MOCK 응답은 가짜 좌표를 만들지 않고 빈 배열을 반환합니다.
           items:
             $ref: '#/components/schemas/RouteRecommendationStop'
         reason:

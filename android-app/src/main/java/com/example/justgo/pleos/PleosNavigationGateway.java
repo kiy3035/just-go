@@ -28,9 +28,11 @@ public final class PleosNavigationGateway implements NavigationGateway {
 
         @Override public void onRoutingCompleted() {
             if (listener == null) return;
-            listener.onRoutingCompleted();
             try {
                 naviHelper.requestNavigationScreen(NavigationScreenRequest.Foreground.INSTANCE);
+                // 화면 전환 요청까지 접수된 뒤에만 완료로 알린다. 완료 콜백이 먼저
+                // 전달되면 Activity가 대화상자를 닫아 이후 화면 전환 실패를 놓친다.
+                listener.onRoutingCompleted();
             } catch (RuntimeException error) {
                 listener.onError("경로 탐색은 완료됐지만 차량 내비 화면을 열지 못했습니다.");
             }
