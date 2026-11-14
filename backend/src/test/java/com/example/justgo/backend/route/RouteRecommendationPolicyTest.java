@@ -9,21 +9,23 @@ import com.example.justgo.backend.integration.routing.DrivingRouteCandidate;
 import com.example.justgo.backend.spot.ScenicTheme;
 import org.junit.jupiter.api.Test;
 
-/** 실제 계산 경로를 숨기지 않는 안정적인 추천 순서를 검증합니다. */
+/** 목표 시간 허용범위와 안정적인 추천 순서를 검증합니다. */
 class RouteRecommendationPolicyTest {
 
     private final RouteRecommendationPolicy policy = new RouteRecommendationPolicy();
 
-    /** 희망 시간에서 멀리 벗어난 경로도 시간 차이가 가까운 순으로 모두 유지합니다. */
+    /** 60분 목표의 15% 경계는 포함하고 경계 밖 경로는 제외합니다. */
     @Test
-    void keepsCalculatedCandidatesOutsideFormerDurationTolerance() {
+    void keepsOnlyCandidatesWithinDurationTolerance() {
         var ranked = policy.rankByDurationProximity(60, List.of(
-                candidate("LONG", 123, 2_000),
-                candidate("NEAR", 90, 1_000)));
+                candidate("LOWER_OUTSIDE", 50, 1_000),
+                candidate("LOWER_BOUNDARY", 51, 2_000),
+                candidate("UPPER_BOUNDARY", 69, 3_000),
+                candidate("UPPER_OUTSIDE", 70, 4_000)));
 
         assertThat(ranked)
                 .extracting(DrivingRouteCandidate::routeId)
-                .containsExactly("NEAR", "LONG");
+                .containsExactly("LOWER_BOUNDARY", "UPPER_BOUNDARY");
     }
 
     /** 목표 시간의 앞뒤를 모두 비교하고 최대 열 건만 반환한다. */
@@ -34,14 +36,14 @@ class RouteRecommendationPolicyTest {
                 candidate("EXACT", 60, 8_000),
                 candidate("FIVE_MINUTES_AWAY", 55, 1_000),
                 candidate("BELOW_TARGET", 58, 4_000)));
-        for (int minutes = 70; minutes < 80; minutes++) {
-            candidates.add(candidate("SLOW_" + minutes, minutes, 1_000));
+        for (int index = 0; index < 10; index++) {
+            candidates.add(candidate("EXACT_" + index, 60, 10_000L + index));
         }
         var ranked = policy.rankByDurationProximity(60, candidates);
 
         assertThat(ranked).hasSize(10)
                 .extracting(DrivingRouteCandidate::routeId)
-                .startsWith("EXACT", "BELOW_TARGET", "ABOVE_TARGET", "FIVE_MINUTES_AWAY");
+                .startsWith("EXACT", "EXACT_0", "EXACT_1", "EXACT_2");
     }
 
     /** 시간 차이가 같으면 중복 주행 비율이 낮은 왕복 후보를 거리보다 먼저 선택합니다. */

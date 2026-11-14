@@ -303,6 +303,48 @@ class TmapRouteClientTest {
         server.verify();
     }
 
+    /** 1km도 되지 않는 거리에 두 시간이 걸리는 응답을 실제 추천 경로로 사용하지 않습니다. */
+    @Test
+    void rejectsImplausiblySlowRouteSummary() {
+        RestClient.Builder builder = RestClient.builder().baseUrl(BASE_URL);
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        TmapRouteClient client = createClient(builder, 90);
+        server.expect(requestTo(BASE_URL + "/tmap/routes/routeSequential30?version=1"))
+                .andRespond(withSuccess("""
+                        {
+                          "type": "FeatureCollection",
+                          "properties": {"totalDistance": "600", "totalTime": "7080"}
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> client.findRoute(testSearch()))
+                .isInstanceOfSatisfying(TmapRouteClientException.class, exception ->
+                        assertThat(exception.errorType())
+                                .isEqualTo(TmapClientErrorType.IMPLAUSIBLE_ROUTE));
+        server.verify();
+    }
+
+    /** 30분에 100km처럼 평균속도가 비현실적으로 높은 응답도 제외합니다. */
+    @Test
+    void rejectsImplausiblyFastRouteSummary() {
+        RestClient.Builder builder = RestClient.builder().baseUrl(BASE_URL);
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        TmapRouteClient client = createClient(builder, 90);
+        server.expect(requestTo(BASE_URL + "/tmap/routes/routeSequential30?version=1"))
+                .andRespond(withSuccess("""
+                        {
+                          "type": "FeatureCollection",
+                          "properties": {"totalDistance": "100000", "totalTime": "1800"}
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> client.findRoute(testSearch()))
+                .isInstanceOfSatisfying(TmapRouteClientException.class, exception ->
+                        assertThat(exception.errorType())
+                                .isEqualTo(TmapClientErrorType.IMPLAUSIBLE_ROUTE));
+        server.verify();
+    }
+
     /**
      * 경유지가 없는 편도는 공식 자동차 경로안내 API와 간소화 응답을 사용하는지 확인합니다.
      */

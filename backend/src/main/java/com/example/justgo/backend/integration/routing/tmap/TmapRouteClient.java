@@ -1,6 +1,7 @@
 package com.example.justgo.backend.integration.routing.tmap;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -35,6 +36,8 @@ public class TmapRouteClient {
     private static final String WGS84 = "WGS84GEO";
     private static final String RECOMMENDED_ROUTE = "0";
     private static final String PASSENGER_CAR = "1";
+    private static final long MIN_AVERAGE_SPEED_KILOMETERS_PER_HOUR = 5L;
+    private static final long MAX_AVERAGE_SPEED_KILOMETERS_PER_HOUR = 130L;
     private static final DateTimeFormatter START_TIME_FORMAT =
             DateTimeFormatter.ofPattern("yyyyMMddHHmm");
 
@@ -291,6 +294,7 @@ public class TmapRouteClient {
             if (distanceMeters <= 0 || durationSeconds <= 0) {
                 throw invalidResponse();
             }
+            validatePlausibleDrivingMetrics(distanceMeters, durationSeconds);
             return new TmapRouteSummary(
                     distanceMeters,
                     durationSeconds,
@@ -300,6 +304,22 @@ public class TmapRouteClient {
                     TmapClientErrorType.INVALID_RESPONSE,
                     "TMAP 거리 또는 시간 응답 형식이 올바르지 않습니다.",
                     exception);
+        }
+    }
+
+    /** 거리와 시간이 평균 시속 5~130km 범위를 벗어나면 추천용 자동차 경로에서 제외합니다. */
+    private void validatePlausibleDrivingMetrics(long distanceMeters, long durationSeconds) {
+        BigInteger hourlyDistance = BigInteger.valueOf(distanceMeters)
+                .multiply(BigInteger.valueOf(3_600L));
+        BigInteger minimumDistance = BigInteger.valueOf(durationSeconds)
+                .multiply(BigInteger.valueOf(MIN_AVERAGE_SPEED_KILOMETERS_PER_HOUR * 1_000L));
+        BigInteger maximumDistance = BigInteger.valueOf(durationSeconds)
+                .multiply(BigInteger.valueOf(MAX_AVERAGE_SPEED_KILOMETERS_PER_HOUR * 1_000L));
+        if (hourlyDistance.compareTo(minimumDistance) < 0
+                || hourlyDistance.compareTo(maximumDistance) > 0) {
+            throw new TmapRouteClientException(
+                    TmapClientErrorType.IMPLAUSIBLE_ROUTE,
+                    "TMAP 거리와 시간의 조합이 추천 가능한 자동차 경로 범위를 벗어났습니다.");
         }
     }
 

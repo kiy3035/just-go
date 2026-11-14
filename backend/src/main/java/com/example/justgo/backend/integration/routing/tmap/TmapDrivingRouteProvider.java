@@ -69,7 +69,7 @@ public class TmapDrivingRouteProvider implements DrivingRouteProvider {
             try {
                 routes.add(calculateDestination(request, origin, candidate));
             } catch (TmapRouteClientException exception) {
-                if (exception.errorType() == TmapClientErrorType.NO_ROUTE) continue;
+                if (isUnusableRoute(exception)) continue;
                 if (exception.errorType() != TmapClientErrorType.QUOTA_EXCEEDED) {
                     throw exception;
                 }
@@ -116,7 +116,7 @@ public class TmapDrivingRouteProvider implements DrivingRouteProvider {
             try {
                 routes.add(calculateOption(request, origin, scenicStops));
             } catch (TmapRouteClientException exception) {
-                if (exception.errorType() == TmapClientErrorType.NO_ROUTE) {
+                if (isUnusableRoute(exception)) {
                     continue;
                 }
                 if (exception.errorType() == TmapClientErrorType.QUOTA_EXCEEDED
@@ -127,6 +127,12 @@ public class TmapDrivingRouteProvider implements DrivingRouteProvider {
             }
         }
         return false;
+    }
+
+    /** 경로 없음과 비현실적인 거리·시간 조합은 다른 후보 평가를 막지 않습니다. */
+    private boolean isUnusableRoute(TmapRouteClientException exception) {
+        return exception.errorType() == TmapClientErrorType.NO_ROUTE
+                || exception.errorType() == TmapClientErrorType.IMPLAUSIBLE_ROUTE;
     }
 
     /**

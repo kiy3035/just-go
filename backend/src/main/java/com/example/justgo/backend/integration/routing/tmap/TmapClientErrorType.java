@@ -7,6 +7,7 @@ public enum TmapClientErrorType {
     AUTHENTICATION,
     QUOTA_EXCEEDED,
     NO_ROUTE,
+    IMPLAUSIBLE_ROUTE,
     INVALID_REQUEST,
     NETWORK,
     UPSTREAM_FAILURE,

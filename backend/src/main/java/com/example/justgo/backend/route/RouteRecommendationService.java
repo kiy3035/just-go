@@ -38,7 +38,7 @@ public class RouteRecommendationService {
     private static final int DURATION_STEP_MINUTES = 5;
     private static final int MAX_WAYPOINT_CANDIDATES = 20;
     private static final int ROUTES_PER_STAGE = 5;
-    private static final int MAX_ROUTES = 10;
+    private static final int TARGET_RECOMMENDATION_COUNT = 5;
 
     private final DrivingRouteProvider drivingRouteProvider;
     private final SpotCandidateQuery spotCandidateQuery;
@@ -117,7 +117,7 @@ public class RouteRecommendationService {
             throw new PublicDataClientException("장소 후보 서비스가 응답하지 못했습니다.");
         }
         String notice = alternatives.isEmpty()
-                ? broadenedLiveResultNotice(result, recommendedRoutes)
+                ? durationMatchedLiveResultNotice(result, recommendedRoutes)
                 : "선택한 풍경의 코스가 없어 가까운 다른 풍경의 실제 경로를 찾았습니다.";
 
         return new RouteRecommendationResponse(
@@ -182,11 +182,14 @@ public class RouteRecommendationService {
                             event.closes().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
                             arrival.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)));
                 }
-                routes.add(route);
+                if (recommendationPolicy.isWithinDurationTolerance(
+                        request.desiredMinutes(), route)) {
+                    routes.add(route);
+                }
             }
             notice = result.notice();
             quotaReached = result.quotaReached();
-            if (quotaReached || routes.size() >= MAX_ROUTES) break;
+            if (quotaReached || routes.size() >= TARGET_RECOMMENDATION_COUNT) break;
         }
         if (quotaReached && routes.isEmpty()) {
             throw new DrivingRouteLimitException();
@@ -254,15 +257,18 @@ public class RouteRecommendationService {
         return List.of(selected);
     }
 
-    /** LIVE 결과는 시간 차이가 크더라도 비교할 수 있도록 숨기지 않았음을 알립니다. */
-    private String broadenedLiveResultNotice(
+    /** LIVE 결과가 목표 시간 허용범위를 충족했는지 사용자에게 분명히 알립니다. */
+    private String durationMatchedLiveResultNotice(
             DrivingRouteResult result,
             List<DrivingRouteCandidate> recommendedRoutes) {
-        if (result.mode() != DrivingRouteMode.LIVE || recommendedRoutes.isEmpty()) {
+        if (result.mode() != DrivingRouteMode.LIVE) {
             return result.notice();
         }
+        if (recommendedRoutes.isEmpty()) {
+            return "목표 시간 ±15% 안의 자동차 경로를 찾지 못했습니다. 시간이나 풍경 조건을 변경해 주세요.";
+        }
         return result.notice()
-                + " 희망 시간과 차이가 있는 경로도 가까운 순으로 함께 표시합니다.";
+                + " 목표 시간 ±15% 안의 경로만 가까운 순으로 표시합니다.";
     }
 
     /**

@@ -213,7 +213,7 @@ class RouteRecommendationServiceTest {
                 TripType.ROUND_TRIP,
                 ScenicTheme.LAKE));
 
-        assertThat(capturedDistanceMeters.get()).isEqualTo(75_000L);
+        assertThat(capturedDistanceMeters.get()).isEqualTo(50_000L);
     }
 
     /**
@@ -255,7 +255,7 @@ class RouteRecommendationServiceTest {
 
         assertThat(response.routes())
                 .extracting(RouteRecommendationItem::routeId)
-                .containsExactly("FIRST", "SECOND", "THIRD", "OUTSIDE");
+                .containsExactly("FIRST", "SECOND", "THIRD");
     }
 
     @Test
@@ -285,15 +285,15 @@ class RouteRecommendationServiceTest {
 
         var result = service.recommend(new RouteRecommendationRequest(
                 BigDecimal.ZERO, BigDecimal.ZERO, 60, TripType.ONE_WAY, ScenicTheme.MOUNTAIN));
-        assertThat(searchedRadii).containsExactly(150_000L, 187_500L, 225_000L);
+        assertThat(searchedRadii).containsExactly(100_000L, 125_000L, 150_000L);
         assertThat(calculatedIds).containsExactly(1L, 2L, 3L, 4L, 5L);
-        assertThat(result.routes()).hasSize(5).first().extracting(RouteRecommendationItem::routeId)
+        assertThat(result.routes()).hasSize(1).first().extracting(RouteRecommendationItem::routeId)
                 .isEqualTo("5");
     }
 
-    /** 시간 차이가 큰 LIVE 후보도 숨기지 않고 실제 계산 결과를 가까운 순으로 반환합니다. */
+    /** 시간 차이가 큰 LIVE 후보는 추천에서 제외하고 조건 변경을 안내합니다. */
     @Test
-    void returnsCalculatedLiveRoutesOutsideFormerDurationTolerance() {
+    void rejectsCalculatedLiveRoutesOutsideDurationTolerance() {
         RouteRecommendationService liveService = new RouteRecommendationService(request ->
                 new DrivingRouteResult(
                         DrivingRouteMode.LIVE,
@@ -312,11 +312,9 @@ class RouteRecommendationServiceTest {
                 ScenicTheme.LAKE));
 
         assertThat(response.mode()).isEqualTo("LIVE");
-        assertThat(response.routes())
-                .extracting(RouteRecommendationItem::routeId)
-                .containsExactly("OUTSIDE_NEAR", "OUTSIDE_FAR");
+        assertThat(response.routes()).isEmpty();
         assertThat(response.suggestions()).isEmpty();
-        assertThat(response.notice()).contains("시간과 차이가 있는 경로", "가까운 순");
+        assertThat(response.notice()).contains("±15%", "조건을 변경");
     }
 
     /** Provider 지점 모델을 Android가 사용할 수 있는 API 지점 DTO로 변환합니다. */

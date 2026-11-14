@@ -172,6 +172,23 @@ class TmapDrivingRouteProviderTest {
         verify(client, times(3)).findRoute(any());
     }
 
+    /** 한 후보의 거리·시간 조합이 비정상이어도 다음 정상 후보는 계속 평가합니다. */
+    @Test
+    void skipsImplausibleCandidateAndKeepsNextRoute() {
+        var implausible = new TmapRouteClientException(
+                TmapClientErrorType.IMPLAUSIBLE_ROUTE, "TEST_IMPLAUSIBLE_ROUTE");
+        when(client.findRoute(any()))
+                .thenThrow(implausible)
+                .thenReturn(new TmapRouteSummary(20_000L, 3_600L, null));
+
+        var result = provider.calculateRanked(request(
+                TripType.ONE_WAY, List.of(candidate(1L), candidate(2L))));
+
+        assertThat(result.routes()).extracting(route -> route.routeId())
+                .containsExactly("TMAP-SPOT-2");
+        verify(client, times(2)).findRoute(any());
+    }
+
     /** 앞선 후보가 성공했다면 일일 한도 소진 시 그 결과를 버리지 않는지 확인합니다. */
     @Test
     void preservesSuccessfulRoutesWhenQuotaIsReachedMidRequest() {

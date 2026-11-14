@@ -6,7 +6,7 @@ package com.example.justgo.backend.route;
  */
 final class RouteCandidateDistancePolicy {
 
-    private static final long CONSERVATIVE_MAX_SPEED_METERS_PER_HOUR = 150_000L;
+    private static final long MAX_CANDIDATE_SPEED_METERS_PER_HOUR = 100_000L;
     private static final int MINUTES_PER_HOUR = 60;
 
     /** 왕복은 출발지 복귀 시간을 고려해 편도 후보 거리 상한을 절반으로 계산합니다. */
@@ -15,7 +15,7 @@ final class RouteCandidateDistancePolicy {
             throw new IllegalArgumentException("희망 시간과 주행 방식이 필요합니다.");
         }
         long totalTravelUpperBound = desiredMinutes
-                * CONSERVATIVE_MAX_SPEED_METERS_PER_HOUR
+                * MAX_CANDIDATE_SPEED_METERS_PER_HOUR
                 / MINUTES_PER_HOUR;
         return tripType == TripType.ROUND_TRIP
                 ? totalTravelUpperBound / 2L
