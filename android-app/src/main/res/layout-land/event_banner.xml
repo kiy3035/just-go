@@ -7,7 +7,7 @@
     android:background="@drawable/event_banner_background"
     android:baselineAligned="false"
     android:clipToOutline="true"
-    android:minHeight="168dp"
+    android:minHeight="224dp"
     android:orientation="horizontal"
     android:padding="6dp">
 
