@@ -6,10 +6,10 @@
     android:background="@drawable/route_choice_card"
     android:foreground="?android:attr/selectableItemBackground"
     android:gravity="center_vertical"
-    android:minHeight="80dp"
+    android:minHeight="96dp"
     android:orientation="horizontal"
-    android:paddingHorizontal="14dp"
-    android:paddingVertical="9dp">
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="12dp">
 
     <LinearLayout
         android:layout_width="0dp"
@@ -22,7 +22,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textColor="#101B34"
-            android:textSize="21sp"
+            android:textSize="25sp"
             android:textStyle="bold" />
 
         <LinearLayout
@@ -37,7 +37,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
                 android:paddingHorizontal="8dp"
-                android:textSize="14sp"
+                android:textSize="17sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -46,7 +46,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:textColor="#365580"
-                android:textSize="15sp"
+                android:textSize="18sp"
                 android:visibility="gone" />
         </LinearLayout>
 
@@ -63,7 +63,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="10dp"
                 android:textColor="#101B34"
-                android:textSize="16sp"
+                android:textSize="20sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -71,7 +71,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:paddingHorizontal="8dp"
-                android:textSize="14sp"
+                android:textSize="17sp"
                 android:textStyle="bold" />
         </LinearLayout>
     </LinearLayout>
@@ -83,7 +83,7 @@
         android:layout_marginStart="8dp"
         android:gravity="center"
         android:importantForAccessibility="no"
-        android:textSize="20sp"
+        android:textSize="24sp"
         android:textStyle="bold"
         android:visibility="gone" />
 </LinearLayout>

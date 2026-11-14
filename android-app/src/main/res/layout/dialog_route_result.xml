@@ -15,10 +15,12 @@
         android:orientation="vertical"
         android:padding="24dp">
 
-        <!-- 코스가 많아도 본문만 스크롤하고 하단 버튼은 화면에 유지한다. -->
+        <!-- 상세 내용이 화면보다 길 때만 본문을 스크롤하고 하단 버튼은 화면에 유지한다. -->
         <ScrollView
+            android:id="@+id/resultScroll"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:fillViewport="true"
             android:layout_weight="1">
 
             <LinearLayout
@@ -38,7 +40,7 @@
                         android:layout_weight="1"
                         android:accessibilityHeading="true"
                         android:textColor="#101B34"
-                        android:textSize="32sp"
+                        android:textSize="36sp"
                         android:textStyle="bold" />
 
                     <Button
@@ -50,7 +52,7 @@
                         android:padding="0dp"
                         android:text="@string/route_popup_close_symbol"
                         android:textColor="#183763"
-                        android:textSize="26sp"
+                        android:textSize="32sp"
                         android:visibility="gone" />
                 </LinearLayout>
 
@@ -60,7 +62,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:textColor="#365580"
-                    android:textSize="19sp" />
+                    android:textSize="22sp" />
 
                 <TextView
                     android:id="@+id/recommendationOrder"
@@ -68,7 +70,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:textColor="#365580"
-                    android:textSize="15sp"
+                    android:textSize="18sp"
                     android:visibility="gone" />
 
                 <LinearLayout
@@ -104,6 +106,54 @@
             </LinearLayout>
         </ScrollView>
 
+        <!-- 추천 목록은 한 화면에 다섯 개만 표시하고 버튼으로 다음 묶음을 탐색한다. -->
+        <LinearLayout
+            android:id="@+id/recommendationPager"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone">
+
+            <Button
+                android:id="@+id/previousPage"
+                android:layout_width="0dp"
+                android:layout_height="60dp"
+                android:layout_weight="1"
+                android:background="@drawable/choice_background"
+                android:backgroundTint="@null"
+                android:stateListAnimator="@null"
+                android:text="@string/route_popup_previous_page"
+                android:textColor="#183763"
+                android:textSize="21sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/pageIndicator"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="12dp"
+                android:layout_weight="1.2"
+                android:gravity="center"
+                android:textColor="#183763"
+                android:textSize="19sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/nextPage"
+                android:layout_width="0dp"
+                android:layout_height="60dp"
+                android:layout_weight="1"
+                android:background="@drawable/choice_background"
+                android:backgroundTint="@null"
+                android:stateListAnimator="@null"
+                android:text="@string/route_popup_next_page"
+                android:textColor="#183763"
+                android:textSize="21sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
         <TextView
             android:id="@+id/navigationStatus"
             android:layout_width="match_parent"
@@ -111,7 +161,7 @@
             android:layout_marginTop="8dp"
             android:accessibilityLiveRegion="polite"
             android:textColor="#365580"
-            android:textSize="18sp"
+            android:textSize="20sp"
             android:visibility="gone" />
 
         <LinearLayout
@@ -131,7 +181,7 @@
                 android:stateListAnimator="@null"
                 android:text="취소"
                 android:textColor="#183763"
-                android:textSize="20sp"
+                android:textSize="22sp"
                 android:textStyle="bold" />
 
             <Button
@@ -144,7 +194,7 @@
                 android:stateListAnimator="@null"
                 android:text="닫기"
                 android:textColor="#FFFFFF"
-                android:textSize="20sp"
+                android:textSize="22sp"
                 android:textStyle="bold" />
         </LinearLayout>
     </LinearLayout>

@@ -58,6 +58,7 @@ import java.util.concurrent.Executors;
 public final class DriveActivity extends Activity {
     private static final String SEARCH_PROMPT = "이 조건으로 코스 찾기 →";
     private static final int LOCATION_PERMISSION_REQUEST = 1;
+    private static final int RECOMMENDATION_PAGE_SIZE = 5;
     private static final long NAVIGATION_REQUEST_TIMEOUT_MS = 45_000L;
     private final ExecutorService routeExecutor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -427,26 +428,10 @@ public final class DriveActivity extends Activity {
             resultBinding.navigationStatus.setPadding(dp(12), dp(8), dp(12), dp(8));
         }
 
-        List<ItemRouteResultBinding> cards = new ArrayList<>();
         if (live) {
             selectedRoute = previousSelection != null && routes.contains(previousSelection)
                     && !previousSelection.stops().isEmpty() ? previousSelection
                     : routes.stream().filter(route -> !route.stops().isEmpty()).findFirst().orElse(null);
-        }
-        for (RouteRecommendationClient.Route route : routes) {
-            var card = addRouteCard(context, route);
-            cards.add(card);
-            // 코스를 선택하면 체크 표시만 바꾸고 하단 버튼에서 해당 코스의 상세를 연다.
-            if (live && !route.stops().isEmpty()) {
-                card.getRoot().setFocusable(true);
-                card.getRoot().setOnClickListener(v -> {
-                    selectedRoute = route;
-                    updateRecommendationSelection(routes, cards, palette);
-                });
-            }
-        }
-        if (live) {
-            updateRecommendationSelection(routes, cards, palette);
             resultBinding.confirm.setText(R.string.route_popup_detail);
             tintRouteAction(palette);
             resultBinding.confirm.setOnClickListener(v -> {
@@ -455,7 +440,57 @@ public final class DriveActivity extends Activity {
                 }
             });
         }
+        int initialPage = previousSelection != null && routes.contains(previousSelection)
+                ? routes.indexOf(previousSelection) / RECOMMENDATION_PAGE_SIZE : 0;
+        renderRecommendationPage(context, result, routes, palette, live, initialPage);
         showResultDialog();
+    }
+
+    /** 추천 목록은 다섯 개씩 다시 그려 작은 글씨와 긴 세로 스크롤을 피한다. */
+    private void renderRecommendationPage(SearchContext context, Recommendation result,
+                                          List<RouteRecommendationClient.Route> routes,
+                                          RoutePalette palette, boolean live, int requestedPage) {
+        if (resultBinding == null || routes.isEmpty()) return;
+        int pageCount = (routes.size() + RECOMMENDATION_PAGE_SIZE - 1) / RECOMMENDATION_PAGE_SIZE;
+        int page = Math.max(0, Math.min(requestedPage, pageCount - 1));
+        int fromIndex = page * RECOMMENDATION_PAGE_SIZE;
+        int toIndex = Math.min(fromIndex + RECOMMENDATION_PAGE_SIZE, routes.size());
+        List<RouteRecommendationClient.Route> pageRoutes = routes.subList(fromIndex, toIndex);
+
+        resultBinding.routeChoices.removeAllViews();
+        List<ItemRouteResultBinding> cards = new ArrayList<>();
+        if (live && !pageRoutes.contains(selectedRoute)) {
+            selectedRoute = pageRoutes.stream().filter(route -> !route.stops().isEmpty())
+                    .findFirst().orElse(null);
+        }
+        for (RouteRecommendationClient.Route route : pageRoutes) {
+            var card = addRouteCard(context, route);
+            cards.add(card);
+            // 현재 페이지에서 선택한 코스만 하단 상세 버튼과 연결한다.
+            if (live && !route.stops().isEmpty()) {
+                card.getRoot().setFocusable(true);
+                card.getRoot().setOnClickListener(v -> {
+                    selectedRoute = route;
+                    updateRecommendationSelection(pageRoutes, cards, palette);
+                });
+            }
+        }
+        if (live) updateRecommendationSelection(pageRoutes, cards, palette);
+
+        resultBinding.recommendationPager.setVisibility(pageCount > 1 ? View.VISIBLE : View.GONE);
+        resultBinding.pageIndicator.setText(getString(R.string.route_popup_page,
+                page + 1, pageCount, fromIndex + 1, toIndex));
+        resultBinding.previousPage.setEnabled(page > 0);
+        resultBinding.nextPage.setEnabled(page + 1 < pageCount);
+        resultBinding.previousPage.setOnClickListener(v ->
+                renderRecommendationPage(context, result, routes, palette, live, page - 1));
+        resultBinding.nextPage.setOnClickListener(v ->
+                renderRecommendationPage(context, result, routes, palette, live, page + 1));
+
+        DialogRouteResultBinding pageBinding = resultBinding;
+        pageBinding.resultScroll.post(() -> {
+            if (resultBinding == pageBinding) pageBinding.resultScroll.scrollTo(0, 0);
+        });
     }
 
     private void updateRecommendationSelection(List<RouteRecommendationClient.Route> routes,

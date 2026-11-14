@@ -3,6 +3,9 @@
     <string name="route_popup_close">추천 팝업 닫기</string>
     <string name="route_popup_close_symbol" translatable="false">×</string>
     <string name="route_popup_detail">선택한 코스 상세 보기</string>
+    <string name="route_popup_previous_page">← 이전 5개</string>
+    <string name="route_popup_next_page">다음 5개 →</string>
+    <string name="route_popup_page">%1$d / %2$d 페이지 · %3$d~%4$d번째</string>
     <string name="route_popup_tmap_note">예상 주행시간은 TMAP 기준이며 교통 상황에 따라 달라질 수 있어요.</string>
     <string name="route_detail_itinerary">코스 한눈에 보기</string>
     <string name="route_detail_event">행사 정보</string>
