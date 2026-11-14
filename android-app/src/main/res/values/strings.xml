@@ -1,11 +1,20 @@
 <resources>
     <string name="app_name">Just Go</string>
-    <string name="event_banner_label">오늘 행사</string>
-    <string name="event_banner_seoul_label">오늘 서울 행사</string>
-    <string name="event_banner_gyeonggi_label">오늘 경기 행사</string>
-    <string name="event_banner_navigate">→ 행사 찾아가기</string>
-    <string name="event_banner_navigate_description">행사 찾아가기</string>
-    <string name="event_banner_next_description">다음 행사 보기 (%1$d/%2$d)</string>
+    <string name="event_banner_label">오늘의 행사 추천</string>
+    <string name="event_banner_loading">오늘의 행사를 찾고 있어요</string>
+    <string name="event_banner_navigate">자세히 보기  ›</string>
+    <string name="event_banner_navigate_description">추천 행사 상세 보기</string>
+    <string name="event_banner_region_today">%1$s · 오늘</string>
+    <string name="event_banner_reason">오늘 열리는 행사</string>
+    <string name="event_banner_reason_divider" translatable="false">│</string>
+    <string name="event_banner_recommendation">드라이브 중 들르기 좋아요</string>
+    <string name="event_detail_provider">정보 제공 · %1$s</string>
+    <string name="event_detail_close">닫기</string>
+    <string name="event_detail_navigate">내비로 가기</string>
+    <string name="event_banner_category_performance">공연</string>
+    <string name="event_banner_category_exhibition">전시</string>
+    <string name="event_banner_category_festival">축제</string>
+    <string name="event_banner_category_default">행사</string>
     <string name="route_popup_close">추천 팝업 닫기</string>
     <string name="route_popup_close_symbol" translatable="false">×</string>
     <string name="route_popup_detail">선택한 코스 상세 보기</string>
