@@ -9,6 +9,38 @@ info:
     Free TMAP 상품 활성화 후 실제 일반 자동차 경로와 다중 경유지 왕복 경로의
     LIVE 처리 및 실제 계산 시간 기반 대체 조건 응답을 검증했습니다.
 paths:
+  /api/v1/events/today:
+    get:
+      operationId: findTodayEvents
+      summary: 메인 배너용 서울·경기 오늘 행사
+      responses:
+        '200':
+          description: 최대 5건. partial이 true이면 일부 원천을 조회하지 못했습니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [events, partial]
+                properties:
+                  partial: {type: boolean}
+                  events:
+                    type: array
+                    maxItems: 5
+                    items:
+                      type: object
+                      required: [title, region, venue, category, latitude, longitude, source]
+                      properties:
+                        title: {type: string}
+                        region: {type: string}
+                        venue: {type: string}
+                        category: {type: string, enum: [PERFORMANCE, EXHIBITION, FESTIVAL, OTHER]}
+                        imageUrl: {type: [string, 'null'], format: uri}
+                        latitude: {type: number}
+                        longitude: {type: number}
+                        source: {type: string, enum: [SEOUL, TOUR_API]}
+                        schedule: {type: [string, 'null']}
+        '503':
+          description: 행사 원천을 모두 조회하지 못했습니다.
   /api/v1/spots:
     get:
       summary: 검수 완료 경관 장소 후보 조회

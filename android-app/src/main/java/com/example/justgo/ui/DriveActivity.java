@@ -65,6 +65,7 @@ public final class DriveActivity extends Activity {
     private final RouteRecommendationClient routeClient =
             new RouteRecommendationClient(BuildConfig.ROUTE_API_BASE_URL);
     private ActivityDriveBinding binding;
+    private TodayEventBanner eventBanner;
     private CurrentLocationProvider locationProvider;
     private NavigationGateway navigationGateway;
     private DrivingRestrictionsMonitor restrictionsMonitor;
@@ -76,6 +77,7 @@ public final class DriveActivity extends Activity {
     private boolean resultOffersNavigation;
     private volatile Dialog navigationRequestDialog;
     private Runnable navigationRequestTimeout;
+    private volatile Runnable eventNavigationTimeout;
     private Dialog resultDialog;
     private DialogRouteResultBinding resultBinding;
     private boolean searchAfterLocationPermission;
@@ -89,6 +91,7 @@ public final class DriveActivity extends Activity {
         restrictionsMonitor = new DrivingRestrictionsMonitor(this);
         binding = ActivityDriveBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+        eventBanner = new TodayEventBanner(binding.eventBanner, routeClient, this::navigateToEvent);
         binding.findRoute.setOnClickListener(v -> chooseOrigin());
         binding.theme.setOnCheckedChangeListener((group, id) -> { syncScenery(); syncConditions(); });
         binding.duration.setOnCheckedChangeListener((g, id) -> { syncCustomInput(); syncConditions(); });
@@ -179,7 +182,12 @@ public final class DriveActivity extends Activity {
 
             @Override public void onRoutingCompleted() {
                 Dialog requestedFrom = navigationRequestDialog;
+                Runnable eventRequest = eventNavigationTimeout;
                 runOnUiThread(() -> {
+                    if (eventRequest != null && eventRequest == eventNavigationTimeout) {
+                        finishEventNavigation();
+                        return;
+                    }
                     if (!finishNavigationRequest(requestedFrom)) return;
                     if (resultDialog == requestedFrom) dismissResult();
                     else refreshNavigationControl();
@@ -188,7 +196,13 @@ public final class DriveActivity extends Activity {
 
             @Override public void onError(String message) {
                 Dialog requestedFrom = navigationRequestDialog;
+                Runnable eventRequest = eventNavigationTimeout;
                 runOnUiThread(() -> {
+                    if (eventRequest != null && eventRequest == eventNavigationTimeout) {
+                        finishEventNavigation();
+                        Toast.makeText(DriveActivity.this, message, Toast.LENGTH_LONG).show();
+                        return;
+                    }
                     if (!finishNavigationRequest(requestedFrom)) return;
                     refreshNavigationControl();
                     if (resultDialog == requestedFrom) {
@@ -361,6 +375,7 @@ public final class DriveActivity extends Activity {
     @Override protected void onStart() {
         super.onStart();
         foreground = true;
+        eventBanner.start();
         if (hasLocationPermission()) prefetchCurrentLocation();
         restrictionsMonitor.start(restricted -> runOnUiThread(
                 () -> applyDrivingRestrictions(restricted)));
@@ -368,6 +383,8 @@ public final class DriveActivity extends Activity {
 
     @Override protected void onStop() {
         foreground = false;
+        eventBanner.stop();
+        finishEventNavigation();
         finishNavigationRequest(navigationRequestDialog);
         dismissResult();
         restrictionsMonitor.stop();
@@ -376,6 +393,7 @@ public final class DriveActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        eventBanner.close();
         finishNavigationRequest(navigationRequestDialog);
         dismissResult();
         cancelActiveSearch();
@@ -384,6 +402,11 @@ public final class DriveActivity extends Activity {
         navigationGateway.release();
         binding = null;
         super.onDestroy();
+    }
+
+    @Override public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (eventBanner != null) eventBanner.setFocused(hasFocus);
     }
 
     private void cancelActiveSearch() {
@@ -703,7 +726,7 @@ public final class DriveActivity extends Activity {
     private record RoutePalette(int accent, int tint) {}
 
     private void startNavigation() {
-        if (drivingRestricted || navigationRequestDialog != null || selectedRoute == null
+        if (drivingRestricted || navigationRequestDialog != null || eventNavigationTimeout != null || selectedRoute == null
                 || !navigationGateway.isConnected()) return;
         List<NavigationGateway.Stop> stops = new ArrayList<>();
         for (RouteRecommendationClient.Stop stop : selectedRoute.stops()) {
@@ -728,6 +751,34 @@ public final class DriveActivity extends Activity {
         navigationGateway.startRoute(stops);
     }
 
+    private void navigateToEvent(RouteRecommendationClient.BannerEvent event) {
+        if (!foreground || drivingRestricted || navigationRequestDialog != null
+                || eventNavigationTimeout != null) return;
+        if (!navigationGateway.isConnected()) {
+            Toast.makeText(this, "차량 내비에 연결되지 않았어요.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        // 행사 좌표 한 곳을 차량 내비에 직접 넘긴다. 추천 서버로 경로를 요청하지 않는다.
+        eventNavigationTimeout = () -> {
+            finishEventNavigation();
+            Toast.makeText(this, "차량 내비 응답이 지연되고 있어요.", Toast.LENGTH_SHORT).show();
+        };
+        mainHandler.postDelayed(eventNavigationTimeout, NAVIGATION_REQUEST_TIMEOUT_MS);
+        eventBanner.setNavigationPending(true);
+        refreshNavigationControl();
+        navigationGateway.startRoute(List.of(new NavigationGateway.Stop(1,
+                NavigationGateway.StopType.DESTINATION, event.venue(), event.latitude(), event.longitude())));
+    }
+
+    private boolean finishEventNavigation() {
+        if (eventNavigationTimeout == null) return false;
+        mainHandler.removeCallbacks(eventNavigationTimeout);
+        eventNavigationTimeout = null;
+        eventBanner.setNavigationPending(false);
+        refreshNavigationControl();
+        return true;
+    }
+
     private boolean finishNavigationRequest(Dialog requestedFrom) {
         if (requestedFrom == null || navigationRequestDialog != requestedFrom) return false;
         navigationRequestDialog = null;
@@ -742,7 +793,7 @@ public final class DriveActivity extends Activity {
         if (resultBinding == null || !resultOffersNavigation) return;
         boolean connected = navigationGateway.isConnected();
         resultBinding.confirm.setEnabled(!drivingRestricted && navigationRequestDialog == null
-                && connected && selectedRoute != null);
+                && eventNavigationTimeout == null && connected && selectedRoute != null);
         if (navigationRequestDialog != null) {
             resultBinding.confirm.setText(R.string.route_navigation_pending_action);
             resultBinding.cancel.setText(R.string.route_detail_back);
@@ -773,6 +824,7 @@ public final class DriveActivity extends Activity {
     private void applyDrivingRestrictions(boolean restricted) {
         if (binding == null) return;
         drivingRestricted = restricted;
+        eventBanner.setRestricted(restricted);
         binding.drivingRestrictionNotice.setVisibility(restricted ? View.VISIBLE : View.GONE);
         binding.scenery.setMotionAllowed(!restricted);
         setChildrenEnabled(binding.tripMode, !restricted);

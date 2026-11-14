@@ -1,5 +1,8 @@
 <resources>
     <string name="app_name">just go</string>
+    <string name="event_banner_label">오늘 행사</string>
+    <string name="event_banner_seoul_label">오늘 서울 행사</string>
+    <string name="event_banner_gyeonggi_label">오늘 경기 행사</string>
     <string name="route_popup_close">추천 팝업 닫기</string>
     <string name="route_popup_close_symbol" translatable="false">×</string>
     <string name="route_popup_detail">선택한 코스 상세 보기</string>

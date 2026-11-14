@@ -49,6 +49,43 @@ public final class RouteRecommendationClient {
         return recommend(latitude, longitude, minutes, tripType, theme, null);
     }
 
+    /** 메인 행사 배너는 코스 추천과 별개의 읽기 요청을 사용한다. */
+    public TodayEvents todayEvents() throws IOException {
+        HttpURLConnection connection = open("/api/v1/events/today");
+        try {
+            configure(connection, 75_000);
+            if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                throw new IOException("행사 정보를 불러오지 못했어요.");
+            }
+            JSONObject body = readJson(connection.getInputStream());
+            JSONArray rows = body.getJSONArray("events");
+            if (rows.length() > 5) throw new InvalidResponse();
+            List<BannerEvent> events = new ArrayList<>();
+            for (int index = 0; index < rows.length(); index++) {
+                JSONObject row = rows.getJSONObject(index);
+                double latitude = row.getDouble("latitude");
+                double longitude = row.getDouble("longitude");
+                if (!(latitude >= 36.8 && latitude <= 38.4 && longitude >= 126 && longitude <= 128)) {
+                    throw new InvalidResponse();
+                }
+                events.add(new BannerEvent(row.getString("title"), row.getString("region"),
+                        row.getString("venue"), row.getString("category"),
+                        row.isNull("imageUrl") ? "" : row.getString("imageUrl"),
+                        latitude, longitude, row.getString("source"),
+                        row.isNull("schedule") ? "" : row.getString("schedule")));
+            }
+            return new TodayEvents(List.copyOf(events), body.getBoolean("partial"));
+        } catch (JSONException exception) {
+            throw new InvalidResponse();
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    public record BannerEvent(String title, String region, String venue, String category, String imageUrl,
+                              double latitude, double longitude, String source, String schedule) { }
+    public record TodayEvents(List<BannerEvent> events, boolean partial) { }
+
     public CandidateList findCandidates(double latitude, double longitude, int minutes,
                                         String tripType, String theme, int limit) throws IOException {
         String query = "?latitude=" + encode(Double.toString(latitude))

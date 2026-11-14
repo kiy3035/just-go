@@ -10,6 +10,7 @@
 </FrameLayout>
 
 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center_vertical" android:padding="24dp" android:background="@drawable/control_panel" android:layout_marginTop="16dp">
+<include android:id="@+id/eventBanner" layout="@layout/event_banner"/>
 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="54sp" android:textStyle="bold" android:textColor="#102D5A" android:layout_marginBottom="48dp" android:text="오늘은 어떻게 달릴까요?"/>
 <TextView android:id="@+id/drivingRestrictionNotice" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="24dp" android:padding="18dp" android:background="@drawable/selection_strip" android:text="주행 중에는 안전을 위해 코스 탐색을 사용할 수 없습니다." android:textColor="#183153" android:textSize="24sp" android:textStyle="bold" android:visibility="gone" android:accessibilityLiveRegion="assertive"/>
 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="28sp" android:textStyle="bold" android:textColor="#162F59" android:layout_marginBottom="12dp" android:text="①  주행 방식"/>
