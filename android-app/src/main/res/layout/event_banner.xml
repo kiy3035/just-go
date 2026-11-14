@@ -5,6 +5,7 @@
     android:layout_height="wrap_content"
     android:minHeight="192dp"
     android:layout_marginBottom="16dp"
+    android:padding="8dp"
     android:background="@drawable/event_banner_background"
     android:clipToOutline="true"
     android:baselineAligned="false"
@@ -13,46 +14,54 @@
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
+        android:layout_weight="37"
         android:layout_gravity="center_vertical"
         android:orientation="vertical"
-        android:padding="20dp">
+        android:paddingStart="20dp"
+        android:paddingEnd="16dp"
+        android:paddingVertical="12dp">
 
         <TextView
             android:id="@+id/eventHeading"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:background="@drawable/event_banner_region"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="3dp"
+            android:includeFontPadding="false"
             android:text="@string/event_banner_label"
-            android:textColor="#102D5A"
-            android:textSize="28sp"
+            android:textColor="#101C3D"
+            android:textSize="20sp"
             android:textStyle="bold"/>
 
         <TextView
             android:id="@+id/eventTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="8dp"
             android:maxLines="2"
             android:ellipsize="end"
             android:text="행사를 불러오는 중이에요"
-            android:textColor="#102D5A"
-            android:textSize="25sp"
+            android:textColor="#101C3D"
+            android:textSize="36sp"
             android:textStyle="bold"/>
 
         <TextView
             android:id="@+id/eventDetail"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
             android:maxLines="2"
             android:ellipsize="end"
-            android:textColor="#365580"
-            android:textSize="19sp"
+            android:textColor="#526A91"
+            android:textSize="22sp"
             android:visibility="gone"/>
 
         <TextView
             android:id="@+id/eventSource"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
             android:textColor="#526A85"
             android:textSize="16sp"
             android:visibility="gone"/>
@@ -60,24 +69,30 @@
         <Button
             android:id="@+id/eventNavigate"
             android:layout_width="wrap_content"
-            android:layout_height="60dp"
-            android:layout_marginTop="4dp"
+            android:layout_height="54dp"
+            android:layout_marginTop="9dp"
             android:minWidth="0dp"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:background="@drawable/submit_background"
+            android:paddingStart="18dp"
+            android:paddingEnd="18dp"
+            android:background="@drawable/event_banner_action"
             android:backgroundTint="@null"
-            android:text="행사 찾아가기"
-            android:textColor="#FFFFFF"
+            android:stateListAnimator="@null"
+            android:text="@string/event_banner_navigate"
+            android:contentDescription="@string/event_banner_navigate_description"
+            android:textColor="#174EFF"
             android:textSize="22sp"
             android:textStyle="bold"
             android:visibility="gone"/>
     </LinearLayout>
 
+    <!-- 배너 오른쪽은 대표 이미지 또는 테마 그림으로 채운다. -->
     <FrameLayout
+        android:id="@+id/eventArtworkPanel"
         android:layout_width="0dp"
         android:layout_height="match_parent"
-        android:layout_weight="1">
+        android:layout_weight="63"
+        android:background="@drawable/event_banner_background"
+        android:clipToOutline="true">
 
         <ImageView
             android:id="@+id/eventArt"
@@ -87,17 +102,14 @@
             android:scaleType="centerCrop"
             android:src="@drawable/event_art_empty"/>
 
-        <TextView
+        <LinearLayout
             android:id="@+id/eventPages"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|end"
-            android:layout_margin="8dp"
-            android:background="@drawable/submit_background"
-            android:paddingHorizontal="8dp"
-            android:paddingVertical="4dp"
-            android:textColor="#FFFFFF"
-            android:textSize="18sp"
+            android:layout_margin="14dp"
+            android:orientation="horizontal"
+            android:importantForAccessibility="noHideDescendants"
             android:visibility="gone"/>
     </FrameLayout>
 </LinearLayout>

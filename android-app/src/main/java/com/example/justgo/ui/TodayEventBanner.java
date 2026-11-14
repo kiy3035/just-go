@@ -2,11 +2,12 @@ package com.example.justgo.ui;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.LruCache;
 import android.view.View;
-import android.widget.ImageView;
+import android.widget.LinearLayout;
 import com.example.justgo.R;
 import com.example.justgo.data.RouteRecommendationClient;
 import com.example.justgo.data.RouteRecommendationClient.BannerEvent;
@@ -50,6 +51,10 @@ final class TodayEventBanner {
         this.client = client;
         binding.eventNavigate.setEnabled(false);
         binding.eventNavigate.setOnFocusChangeListener((view, hasFocus) -> scheduleRotation());
+        binding.eventArtworkPanel.setOnClickListener(view -> {
+            if (canAdvance()) next();
+        });
+        updateControls();
         // 클릭 당시 화면에 보이는 카드를 목적지로 고정한다.
         binding.eventNavigate.setOnClickListener(view -> {
             if (active && !restricted && !navigationPending && !events.isEmpty()) {
@@ -75,7 +80,7 @@ final class TodayEventBanner {
     void stop() {
         active = false;
         restricted = true;
-        scheduleRotation();
+        updateControls();
     }
 
     void close() {
@@ -113,9 +118,8 @@ final class TodayEventBanner {
             binding.eventSource.setVisibility(View.GONE);
             binding.eventNavigate.setVisibility(View.GONE);
             binding.eventPages.setVisibility(View.GONE);
-            binding.eventArt.setScaleType(ImageView.ScaleType.CENTER_CROP);
             binding.eventArt.setImageResource(R.drawable.event_art_empty);
-            scheduleRotation();
+            updateControls();
             return;
         }
         render();
@@ -140,6 +144,8 @@ final class TodayEventBanner {
     }
 
     private void next() {
+        if (!canAdvance()) return;
+        // 수동으로 넘긴 카드도 같은 시간 동안 표시하도록 render에서 타이머를 다시 시작한다.
         index = (index + 1) % events.size();
         render();
     }
@@ -161,14 +167,7 @@ final class TodayEventBanner {
                 ? "출처 · 서울특별시" : "출처 · 한국관광공사");
         binding.eventSource.setVisibility(View.VISIBLE);
         binding.eventNavigate.setVisibility(View.VISIBLE);
-        binding.eventPages.setVisibility(events.size() > 1 ? View.VISIBLE : View.GONE);
-        StringBuilder dots = new StringBuilder();
-        for (int page = 0; page < events.size(); page++) {
-            dots.append(page == index ? "● " : "○ ");
-        }
-        binding.eventPages.setText(dots.toString().trim());
-        binding.eventPages.setContentDescription((index + 1) + " / " + events.size());
-        binding.eventArt.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        renderPageDots();
         binding.eventArt.setImageResource(switch (event.category()) {
             case "PERFORMANCE" -> R.drawable.event_art_performance;
             case "EXHIBITION" -> R.drawable.event_art_exhibition;
@@ -182,8 +181,7 @@ final class TodayEventBanner {
                 if (stored == null && photo != null) photos.put(event.imageUrl(), photo);
                 handler.post(() -> {
                     if (photo == null || closed || events.isEmpty() || events.get(index) != event) return;
-                    // 출처 이미지 전체를 보여줘 포스터 제목과 일정이 잘리지 않게 한다.
-                    binding.eventArt.setScaleType(ImageView.ScaleType.FIT_CENTER);
+                    // 원본 비율을 유지하면서 대표 이미지가 배너 오른쪽을 채우도록 중앙을 표시한다.
                     binding.eventArt.setImageBitmap(photo);
                 });
             });
@@ -191,15 +189,48 @@ final class TodayEventBanner {
         updateControls();
     }
 
+    private void renderPageDots() {
+        binding.eventPages.removeAllViews();
+        binding.eventPages.setVisibility(events.size() > 1 ? View.VISIBLE : View.GONE);
+        if (events.size() <= 1) return;
+
+        // 사진 위에 페이지 점을 직접 표시하고 현재 행사만 흰색으로 강조한다.
+        float density = binding.eventPages.getResources().getDisplayMetrics().density;
+        int diameter = Math.round(12 * density);
+        int gap = Math.round(7 * density);
+        for (int page = 0; page < events.size(); page++) {
+            View dot = new View(binding.eventPages.getContext());
+            GradientDrawable circle = new GradientDrawable();
+            circle.setShape(GradientDrawable.OVAL);
+            circle.setColor(page == index ? 0xFFFFFFFF : 0xAAE0E5EE);
+            circle.setStroke(Math.max(1, Math.round(density)), 0x55344256);
+            dot.setBackground(circle);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(diameter, diameter);
+            if (page > 0) params.setMarginStart(gap);
+            binding.eventPages.addView(dot, params);
+        }
+    }
+
     private void updateControls() {
         binding.eventNavigate.setEnabled(active && !restricted && !navigationPending);
+        boolean advance = canAdvance();
+        binding.eventArtworkPanel.setEnabled(advance);
+        binding.eventArtworkPanel.setClickable(advance);
+        binding.eventArtworkPanel.setFocusable(advance);
+        binding.eventArtworkPanel.setContentDescription(advance
+                ? binding.getRoot().getContext().getString(
+                        R.string.event_banner_next_description, index + 1, events.size())
+                : null);
         scheduleRotation();
+    }
+
+    private boolean canAdvance() {
+        return active && !restricted && !navigationPending && events.size() > 1;
     }
 
     private void scheduleRotation() {
         handler.removeCallbacks(rotate);
-        if (active && focused && !restricted && !navigationPending && events.size() > 1
-                && !binding.eventNavigate.hasFocus()) {
+        if (focused && canAdvance() && !binding.eventNavigate.hasFocus()) {
             handler.postDelayed(rotate, ROTATE_DELAY);
         }
     }
