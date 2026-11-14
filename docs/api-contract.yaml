@@ -340,7 +340,7 @@ components:
             생략하면 기존 자동 추천 후보를 사용합니다.
     RouteRecommendationResponse:
       type: object
-      required: [mode, mock, routes, suggestions, notice]
+      required: [mode, mock, routes, alternativeRoutes, suggestions, notice]
       properties:
         mode:
           type: string
@@ -387,7 +387,18 @@ components:
           type: string
     RouteRecommendationItem:
       type: object
-      required: [routeId, title, estimatedMinutes, distanceMeters, theme, stops, reason]
+      required:
+        - routeId
+        - title
+        - estimatedMinutes
+        - durationSeconds
+        - distanceMeters
+        - theme
+        - repeatedSegmentPercent
+        - stops
+        - reason
+        - legSeconds
+        - event
       properties:
         routeId:
           type: string

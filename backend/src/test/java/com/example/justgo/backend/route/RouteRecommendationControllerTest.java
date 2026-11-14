@@ -1,5 +1,6 @@
 package com.example.justgo.backend.route;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -83,7 +84,12 @@ class RouteRecommendationControllerTest {
                 .andExpect(jsonPath("$.mode").value("MOCK"))
                 .andExpect(jsonPath("$.mock").value(true))
                 .andExpect(jsonPath("$.routes[0].routeId").value("MOCK-ROUTE-001"))
+                .andExpect(jsonPath("$.routes[0].durationSeconds").value(3_600))
+                .andExpect(jsonPath("$.routes[0].repeatedSegmentPercent").value(nullValue()))
                 .andExpect(jsonPath("$.routes[0].stops").isEmpty())
+                .andExpect(jsonPath("$.routes[0].legSeconds").isEmpty())
+                .andExpect(jsonPath("$.routes[0].event").value(nullValue()))
+                .andExpect(jsonPath("$.alternativeRoutes").isEmpty())
                 .andExpect(jsonPath("$.suggestions").isEmpty());
     }
 
