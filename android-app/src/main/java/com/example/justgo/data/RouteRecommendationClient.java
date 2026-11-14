@@ -54,8 +54,9 @@ public final class RouteRecommendationClient {
         HttpURLConnection connection = open("/api/v1/events/today");
         try {
             configure(connection, 75_000);
-            if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
-                throw new IOException("행사 정보를 불러오지 못했어요.");
+            int status = connection.getResponseCode();
+            if (status != HttpURLConnection.HTTP_OK) {
+                throw new EventHttpFailure(status);
             }
             JSONObject body = readJson(connection.getInputStream());
             JSONArray rows = body.getJSONArray("events");
@@ -85,6 +86,14 @@ public final class RouteRecommendationClient {
     public record BannerEvent(String title, String region, String venue, String category, String imageUrl,
                               double latitude, double longitude, String source, String schedule) { }
     public record TodayEvents(List<BannerEvent> events, boolean partial) { }
+
+    public static final class EventHttpFailure extends IOException {
+        private final int status;
+
+        EventHttpFailure(int status) { this.status = status; }
+
+        public int status() { return status; }
+    }
 
     public CandidateList findCandidates(double latitude, double longitude, int minutes,
                                         String tripType, String theme, int limit) throws IOException {

@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -24,6 +26,7 @@ import org.springframework.web.server.ResponseStatusException;
 /** 홈 행사 배너용 공개 장소만 조회한다. 드라이브 추천 및 TMAP 호출과 독립적이다. */
 @Service
 public class TodayEventSource {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TodayEventSource.class);
     private static final int SEOUL_PAGE_SIZE = 1000;
     private static final int TOUR_PAGE_SIZE = 100;
     private static final Pattern CLOCK_RANGE = Pattern.compile(
@@ -47,16 +50,16 @@ public class TodayEventSource {
                 .requestFactory(factory).build();
         this.tour = builder.clone().baseUrl("https://apis.data.go.kr/B551011/KorService2")
                 .requestFactory(factory).build();
-        this.seoulKey = seoulKey;
-        this.tourKey = tourKey;
+        this.seoulKey = seoulKey.strip();
+        this.tourKey = tourKey.strip();
     }
 
     public synchronized Result today() {
         ZonedDateTime now = ZonedDateTime.now(CityEventSource.SEOUL);
         LocalDate date = now.toLocalDate();
         // 같은 날짜의 조회를 서버에서 공유하고, 행사 운영 종료는 응답 시마다 확인한다.
-        cachedSeoul = refresh(cachedSeoul, now, seoulKey, () -> fetchSeoul(date));
-        cachedGyeonggi = refresh(cachedGyeonggi, now, tourKey, () -> fetchGyeonggi(date));
+        cachedSeoul = refresh(cachedSeoul, now, "SEOUL_EVENT_API_KEY", seoulKey, () -> fetchSeoul(date));
+        cachedGyeonggi = refresh(cachedGyeonggi, now, "TOUR_API_KEY", tourKey, () -> fetchGyeonggi(date));
         if (cachedSeoul.events().isEmpty() && cachedGyeonggi.events().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "행사 정보를 불러오지 못했어요.");
         }
@@ -72,13 +75,13 @@ public class TodayEventSource {
         return new Result(List.copyOf(events), cachedSeoul.events().isEmpty() || cachedGyeonggi.events().isEmpty());
     }
 
-    private static Snapshot refresh(Snapshot snapshot, ZonedDateTime now, String key,
+    private static Snapshot refresh(Snapshot snapshot, ZonedDateTime now, String keyName, String key,
                                     Supplier<List<Event>> fetch) {
         LocalDate date = now.toLocalDate();
         if (snapshot != null && date.equals(snapshot.date()) && now.isBefore(snapshot.expires())) {
             return snapshot;
         }
-        Optional<List<Event>> events = load(key, fetch);
+        Optional<List<Event>> events = load(keyName, key, fetch);
         return new Snapshot(date, now.plusMinutes(events.isPresent() ? 60 : 5), events);
     }
 
@@ -88,11 +91,17 @@ public class TodayEventSource {
                 .map(Event::banner).distinct().toList();
     }
 
-    private static Optional<List<Event>> load(String key, Supplier<List<Event>> fetch) {
-        if (key.isBlank()) return Optional.empty();
+    private static Optional<List<Event>> load(String keyName, String key, Supplier<List<Event>> fetch) {
+        if (key.isBlank() || key.startsWith("replace-with-")) {
+            LOGGER.warn("행사 API 키 설정을 확인해 주세요. 변수={}", keyName);
+            return Optional.empty();
+        }
         try {
             return Optional.of(fetch.get());
         } catch (RestClientException | PublicDataClientException exception) {
+            // 외부 요청 URL과 예외 메시지에는 인증키가 포함될 수 있어 출력하지 않는다.
+            LOGGER.warn("행사 API 조회 실패. 변수={}, 오류유형={}",
+                    keyName, exception.getClass().getSimpleName());
             return Optional.empty();
         }
     }

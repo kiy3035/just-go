@@ -3,6 +3,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:minHeight="192dp"
     android:layout_marginBottom="16dp"
     android:background="@drawable/event_banner_background"
     android:clipToOutline="true"
@@ -15,7 +16,7 @@
         android:layout_weight="1"
         android:layout_gravity="center_vertical"
         android:orientation="vertical"
-        android:padding="12dp">
+        android:padding="20dp">
 
         <TextView
             android:id="@+id/eventHeading"
@@ -23,19 +24,19 @@
             android:layout_height="wrap_content"
             android:text="@string/event_banner_label"
             android:textColor="#102D5A"
-            android:textSize="18sp"
+            android:textSize="28sp"
             android:textStyle="bold"/>
 
         <TextView
             android:id="@+id/eventTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="3dp"
+            android:layout_marginTop="4dp"
             android:maxLines="2"
             android:ellipsize="end"
             android:text="행사를 불러오는 중이에요"
             android:textColor="#102D5A"
-            android:textSize="16sp"
+            android:textSize="25sp"
             android:textStyle="bold"/>
 
         <TextView
@@ -45,7 +46,7 @@
             android:maxLines="2"
             android:ellipsize="end"
             android:textColor="#365580"
-            android:textSize="13sp"
+            android:textSize="19sp"
             android:visibility="gone"/>
 
         <TextView
@@ -53,13 +54,14 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textColor="#526A85"
-            android:textSize="12sp"
+            android:textSize="16sp"
             android:visibility="gone"/>
 
         <Button
             android:id="@+id/eventNavigate"
             android:layout_width="wrap_content"
-            android:layout_height="48dp"
+            android:layout_height="60dp"
+            android:layout_marginTop="4dp"
             android:minWidth="0dp"
             android:paddingStart="12dp"
             android:paddingEnd="12dp"
@@ -67,7 +69,7 @@
             android:backgroundTint="@null"
             android:text="행사 찾아가기"
             android:textColor="#FFFFFF"
-            android:textSize="15sp"
+            android:textSize="22sp"
             android:textStyle="bold"
             android:visibility="gone"/>
     </LinearLayout>
@@ -95,7 +97,7 @@
             android:paddingHorizontal="8dp"
             android:paddingVertical="4dp"
             android:textColor="#FFFFFF"
-            android:textSize="13sp"
+            android:textSize="18sp"
             android:visibility="gone"/>
     </FrameLayout>
 </LinearLayout>

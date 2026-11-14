@@ -10,6 +10,8 @@ import android.widget.ImageView;
 import com.example.justgo.R;
 import com.example.justgo.data.RouteRecommendationClient;
 import com.example.justgo.data.RouteRecommendationClient.BannerEvent;
+import com.example.justgo.data.RouteRecommendationClient.EventHttpFailure;
+import com.example.justgo.data.RouteRecommendationClient.InvalidResponse;
 import com.example.justgo.data.RouteRecommendationClient.TodayEvents;
 import com.example.justgo.databinding.EventBannerBinding;
 import java.io.ByteArrayOutputStream;
@@ -65,7 +67,7 @@ final class TodayEventBanner {
                 TodayEvents result = client.todayEvents();
                 handler.post(() -> show(result));
             } catch (IOException exception) {
-                handler.post(() -> show(new TodayEvents(List.of(), true)));
+                handler.post(() -> showFailure(exception));
             }
         });
     }
@@ -117,6 +119,24 @@ final class TodayEventBanner {
             return;
         }
         render();
+    }
+
+    private void showFailure(IOException failure) {
+        show(new TodayEvents(List.of(), true));
+        if (closed) return;
+        // 서버 연결과 행사 데이터 오류를 구분해 어느 곳을 확인할지 안내한다.
+        String detail = "백엔드 실행과 연결 주소를 확인해 주세요.";
+        if (failure instanceof EventHttpFailure http) {
+            detail = switch (http.status()) {
+                case 404 -> "백엔드를 최신 버전으로 다시 실행해 주세요.";
+                case 503 -> "백엔드의 행사 API 키와 조회 상태를 확인해 주세요.";
+                default -> "백엔드의 행사 API 응답을 확인해 주세요.";
+            };
+        } else if (failure instanceof InvalidResponse) {
+            detail = "백엔드의 행사 API 응답을 확인해 주세요.";
+        }
+        binding.eventDetail.setText(detail);
+        binding.eventDetail.setVisibility(View.VISIBLE);
     }
 
     private void next() {
