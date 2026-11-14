@@ -16,6 +16,8 @@ import android.graphics.drawable.StateListDrawable;
 import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.text.SpannableString;
 import android.text.Spanned;
@@ -56,7 +58,9 @@ import java.util.concurrent.Executors;
 public final class DriveActivity extends Activity {
     private static final String SEARCH_PROMPT = "이 조건으로 코스 찾기 →";
     private static final int LOCATION_PERMISSION_REQUEST = 1;
+    private static final long NAVIGATION_REQUEST_TIMEOUT_MS = 45_000L;
     private final ExecutorService routeExecutor = Executors.newSingleThreadExecutor();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final RouteRecommendationClient routeClient =
             new RouteRecommendationClient(BuildConfig.ROUTE_API_BASE_URL);
     private ActivityDriveBinding binding;
@@ -70,6 +74,7 @@ public final class DriveActivity extends Activity {
     private boolean foreground;
     private boolean resultOffersNavigation;
     private volatile Dialog navigationRequestDialog;
+    private Runnable navigationRequestTimeout;
     private Dialog resultDialog;
     private DialogRouteResultBinding resultBinding;
     private boolean searchAfterLocationPermission;
@@ -675,6 +680,15 @@ public final class DriveActivity extends Activity {
                     stop.name(), stop.latitude(), stop.longitude()));
         }
         navigationRequestDialog = resultDialog;
+        Dialog requestedFrom = navigationRequestDialog;
+        navigationRequestTimeout = () -> {
+            if (!finishNavigationRequest(requestedFrom)) return;
+            refreshNavigationControl();
+            if (resultDialog == requestedFrom) {
+                showResultDetails("차량 내비 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.");
+            }
+        };
+        mainHandler.postDelayed(navigationRequestTimeout, NAVIGATION_REQUEST_TIMEOUT_MS);
         refreshNavigationControl();
         navigationGateway.startRoute(stops);
     }
@@ -682,6 +696,10 @@ public final class DriveActivity extends Activity {
     private boolean finishNavigationRequest(Dialog requestedFrom) {
         if (requestedFrom == null || navigationRequestDialog != requestedFrom) return false;
         navigationRequestDialog = null;
+        if (navigationRequestTimeout != null) {
+            mainHandler.removeCallbacks(navigationRequestTimeout);
+            navigationRequestTimeout = null;
+        }
         return true;
     }
 
@@ -693,9 +711,11 @@ public final class DriveActivity extends Activity {
         if (navigationRequestDialog != null) {
             resultBinding.confirm.setText(R.string.route_navigation_pending_action);
             resultBinding.cancel.setText(R.string.route_detail_back);
+            resultBinding.cancel.setEnabled(false);
             showResultDetails(getString(R.string.route_navigation_pending));
             return;
         }
+        resultBinding.cancel.setEnabled(true);
         resultBinding.confirm.setText(R.string.route_detail_start);
         resultBinding.cancel.setText(R.string.route_detail_back);
         if (navigationConnectionFailed) {
