@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
-/** 전국공연행사 표준데이터에서 위치와 당일 운영시간을 확인할 수 있는 행사만 읽는다. */
+/** 전국공연행사 표준데이터에서 위치와 검색 날짜의 운영시간을 확인할 수 있는 행사만 읽는다. */
 @Component
 @Profile("tmap & !mock")
 public class CityEventSource {
@@ -54,11 +54,16 @@ public class CityEventSource {
                 cached = new Snapshot(now.plusSeconds(60), List.of());
             }
         }
-        return cached.events().stream().filter(event -> departure.isBefore(event.closes())).toList();
+        LocalDate serviceDate = departure.withZoneSameInstant(SEOUL).toLocalDate();
+        return cached.schedules().stream()
+                .map(schedule -> schedule.occurrenceOn(serviceDate))
+                .flatMap(Optional::stream)
+                .filter(event -> departure.isBefore(event.closes()))
+                .toList();
     }
 
-    private List<Event> fetchEvents() {
-        List<Event> events = new ArrayList<>();
+    private List<EventSchedule> fetchEvents() {
+        List<EventSchedule> schedules = new ArrayList<>();
         for (int page = 1; page <= MAX_PAGES; page++) {
             int pageNumber = page;
             JsonNode json = client.get().uri(uri -> uri.path("/tn_pubr_public_pblprfr_event_info_api")
@@ -75,37 +80,46 @@ public class CityEventSource {
             JsonNode items = body.path("items");
             if (items.has("item")) items = items.path("item");
             if (items.isArray()) {
-                items.forEach(item -> parse(item).ifPresent(events::add));
+                items.forEach(item -> parse(item).ifPresent(schedules::add));
             } else if (items.isObject()) {
-                parse(items).ifPresent(events::add);
+                parse(items).ifPresent(schedules::add);
             }
             if (page * PAGE_SIZE >= body.path("totalCount").asInt(0)) break;
         }
-        return List.copyOf(events);
+        return List.copyOf(schedules);
     }
 
-    static Optional<Event> parse(JsonNode item) {
+    static Optional<EventSchedule> parse(JsonNode item) {
         String name = item.path("eventNm").asText().strip();
         String venue = item.path("opar").asText().strip();
         if (name.isBlank() || venue.isBlank()) return Optional.empty();
         try {
             LocalDate firstDay = LocalDate.parse(item.path("eventStartDate").asText().strip());
             LocalDate lastDay = LocalDate.parse(item.path("eventEndDate").asText().strip());
-            // 여러 날의 시작·종료 시각만으로는 날짜별 운영시간을 확인할 수 없다.
-            if (!firstDay.equals(lastDay)) return Optional.empty();
-            ZonedDateTime opens = firstDay.atTime(LocalTime.parse(item.path("eventStartTime").asText().strip())).atZone(SEOUL);
-            ZonedDateTime closes = lastDay.atTime(LocalTime.parse(item.path("eventEndTime").asText().strip())).atZone(SEOUL);
-            if (!closes.isAfter(opens)) return Optional.empty();
+            LocalTime opensAt = LocalTime.parse(item.path("eventStartTime").asText().strip());
+            LocalTime closesAt = LocalTime.parse(item.path("eventEndTime").asText().strip());
+            if (lastDay.isBefore(firstDay) || !closesAt.isAfter(opensAt)) return Optional.empty();
             BigDecimal latitude = new BigDecimal(item.path("latitude").asText(item.path("lat").asText()).strip());
             BigDecimal longitude = new BigDecimal(item.path("longitude").asText(item.path("lot").asText()).strip());
             if (latitude.signum() <= 0 || longitude.signum() <= 0
                     || latitude.compareTo(BigDecimal.valueOf(90)) > 0
                     || longitude.compareTo(BigDecimal.valueOf(180)) > 0) return Optional.empty();
-            long id = ExternalCandidateId.from(SOURCE, name + "|" + venue + "|" + opens + "|" + closes);
-            return Optional.of(new Event(new SpotCandidateRecord(id, venue, ScenicTheme.CITY,
-                    latitude, longitude, SOURCE), name, opens, closes));
+            long id = ExternalCandidateId.from(SOURCE, name + "|" + venue + "|" + firstDay + "|"
+                    + lastDay + "|" + opensAt + "|" + closesAt);
+            return Optional.of(new EventSchedule(new SpotCandidateRecord(id, venue, ScenicTheme.CITY,
+                    latitude, longitude, SOURCE), name, firstDay, lastDay, opensAt, closesAt));
         } catch (DateTimeParseException | NumberFormatException exception) {
             return Optional.empty();
+        }
+    }
+
+    /** 여러 날 행사는 시작일부터 종료일까지 매일 같은 운영시간을 적용한다. */
+    record EventSchedule(SpotCandidateRecord venue, String name, LocalDate firstDay,
+                         LocalDate lastDay, LocalTime opensAt, LocalTime closesAt) {
+        Optional<Event> occurrenceOn(LocalDate date) {
+            if (date.isBefore(firstDay) || date.isAfter(lastDay)) return Optional.empty();
+            return Optional.of(new Event(venue, name,
+                    date.atTime(opensAt).atZone(SEOUL), date.atTime(closesAt).atZone(SEOUL)));
         }
     }
 
@@ -115,5 +129,5 @@ public class CityEventSource {
         }
     }
 
-    private record Snapshot(Instant expires, List<Event> events) {}
+    private record Snapshot(Instant expires, List<EventSchedule> schedules) {}
 }
