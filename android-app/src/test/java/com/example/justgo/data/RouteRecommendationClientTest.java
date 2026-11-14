@@ -174,6 +174,91 @@ public class RouteRecommendationClientTest {
     }
 
     @Test
+    public void acceptsRiverRouteForWaterRequest() throws Exception {
+        server.enqueue(jsonResponse("""
+                {"mode":"LIVE","mock":false,"routes":[{
+                  "routeId":"water-route","title":"강변 경로","theme":"RIVER",
+                  "estimatedMinutes":60,"durationSeconds":3600,"distanceMeters":25000,
+                  "stops":[{"sequence":1,"type":"DESTINATION","name":"강변","latitude":37.5,"longitude":127.0}],
+                  "legSeconds":[3600]
+                }]}
+                """));
+
+        var result = client.recommend(37.5, 127.0, 60, "ONE_WAY", "WATER");
+
+        assertEquals("RIVER", result.routes().get(0).theme());
+    }
+
+    @Test
+    public void rejectsCandidateOutsideRequestedTheme() throws Exception {
+        server.enqueue(jsonResponse("""
+                {
+                  "theme":"PARK","count":1,"tokenExpiresInMinutes":30,
+                  "partial":false,"unavailableSources":[],
+                  "candidates":[{
+                    "candidateToken":"11111111-1111-1111-1111-111111111111",
+                    "name":"잘못 섞인 도시 후보","theme":"CITY",
+                    "latitude":37.5,"longitude":127.0,"straightLineDistanceMeters":1000,
+                    "source":"TMAP_POI","sourceCategory":"도시 명소"
+                  }]
+                }
+                """));
+
+        try {
+            client.findCandidates(37.5, 127.0, 60, "ONE_WAY", "PARK", 50);
+            fail("요청 테마 밖의 후보를 거부해야 합니다.");
+        } catch (RouteRecommendationClient.InvalidResponse expected) {
+            assertNotNull(expected);
+        }
+    }
+
+    @Test
+    public void rejectsRouteThemeAndTimeThatDoNotMatchRequestContract() throws Exception {
+        server.enqueue(jsonResponse("""
+                {"mode":"LIVE","mock":false,"routes":[{
+                  "routeId":"wrong-theme","title":"잘못된 테마","theme":"CITY",
+                  "estimatedMinutes":60,"durationSeconds":3600,"distanceMeters":25000,
+                  "stops":[{"sequence":1,"type":"DESTINATION","name":"도착지","latitude":37.5,"longitude":127.0}]
+                }]}
+                """));
+        try {
+            client.recommend(37.5, 127.0, 60, "ONE_WAY", "PARK");
+            fail("요청 테마와 다른 일반 추천 경로를 거부해야 합니다.");
+        } catch (RouteRecommendationClient.InvalidResponse expected) {
+            assertNotNull(expected);
+        }
+
+        server.enqueue(jsonResponse("""
+                {"mode":"LIVE","mock":false,"routes":[{
+                  "routeId":"wrong-duration","title":"잘못된 시간","theme":"PARK",
+                  "estimatedMinutes":59,"durationSeconds":3600,"distanceMeters":25000,
+                  "stops":[{"sequence":1,"type":"DESTINATION","name":"도착지","latitude":37.5,"longitude":127.0}]
+                }]}
+                """));
+        try {
+            client.recommend(37.5, 127.0, 60, "ONE_WAY", "PARK");
+            fail("초 단위 시간과 분 단위 표시가 다른 경로를 거부해야 합니다.");
+        } catch (RouteRecommendationClient.InvalidResponse expected) {
+            assertNotNull(expected);
+        }
+
+        server.enqueue(jsonResponse("""
+                {"mode":"LIVE","mock":false,"routes":[{
+                  "routeId":"wrong-legs","title":"잘못된 구간 시간","theme":"PARK",
+                  "estimatedMinutes":60,"durationSeconds":3600,"distanceMeters":25000,
+                  "stops":[{"sequence":1,"type":"DESTINATION","name":"도착지","latitude":37.5,"longitude":127.0}],
+                  "legSeconds":[3599]
+                }]}
+                """));
+        try {
+            client.recommend(37.5, 127.0, 60, "ONE_WAY", "PARK");
+            fail("구간 시간 합계와 전체 시간이 다른 경로를 거부해야 합니다.");
+        } catch (RouteRecommendationClient.InvalidResponse expected) {
+            assertNotNull(expected);
+        }
+    }
+
+    @Test
     public void disconnectsAnActiveRequestWhenScreenStops() throws Exception {
         server.enqueue(new MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE));
         ExecutorService executor = Executors.newSingleThreadExecutor();

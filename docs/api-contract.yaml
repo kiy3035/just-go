@@ -394,6 +394,7 @@ components:
         estimatedMinutes:
           type: integer
           minimum: 0
+          description: durationSeconds를 분 단위로 올림한 표시 시간입니다.
         durationSeconds:
           type: integer
           format: int64
@@ -428,6 +429,7 @@ components:
           type: array
           description: >-
             출발지부터 stops 순서대로 각 도로 구간의 TMAP 예상시간(초)입니다.
+            값이 있으면 stops와 개수가 같고 합계가 durationSeconds와 일치합니다.
             구간을 제공하지 않는 응답은 빈 배열입니다.
           items:
             type: integer

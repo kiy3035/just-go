@@ -100,7 +100,7 @@ public final class RouteRecommendationClient {
             if (status != HttpURLConnection.HTTP_OK) {
                 throw readHttpError(connection, status);
             }
-            return parse(readJson(connection.getInputStream()));
+            return parse(readJson(connection.getInputStream()), theme);
         } catch (JSONException | IllegalArgumentException | java.time.DateTimeException exception) {
             throw new InvalidResponse();
         } finally {
@@ -193,6 +193,7 @@ public final class RouteRecommendationClient {
             long distanceMeters = item.getLong("straightLineDistanceMeters");
             if (!isUuid(token) || name.isBlank() || name.length() > MAX_CANDIDATE_NAME_LENGTH
                     || !CANDIDATE_THEMES.contains(theme)
+                    || !matchesRequestedTheme(expectedTheme, theme)
                     || !CANDIDATE_SOURCES.contains(source) || sourceCategory.isBlank()
                     || sourceCategory.length() > MAX_SOURCE_CATEGORY_LENGTH
                     || !Double.isFinite(latitude) || latitude < -90 || latitude > 90
@@ -232,7 +233,8 @@ public final class RouteRecommendationClient {
                 List.copyOf(candidates));
     }
 
-    private Recommendation parse(JSONObject json) throws JSONException, InvalidResponse {
+    private Recommendation parse(JSONObject json, String expectedTheme)
+            throws JSONException, InvalidResponse {
         Mode mode = Mode.valueOf(json.getString("mode"));
         JSONArray routesJson = json.getJSONArray("routes");
         JSONArray alternativesJson = json.optJSONArray("alternativeRoutes");
@@ -244,14 +246,15 @@ public final class RouteRecommendationClient {
         boolean requireNavigationStops = mode == Mode.LIVE;
         return new Recommendation(
                 mode,
-                parseRoutes(routesJson, requireNavigationStops),
+                parseRoutes(routesJson, requireNavigationStops, expectedTheme),
                 alternativesJson == null
                         ? List.of()
-                        : parseRoutes(alternativesJson, requireNavigationStops),
+                        : parseRoutes(alternativesJson, requireNavigationStops, null),
                 json.optString("notice", ""));
     }
 
-    private List<Route> parseRoutes(JSONArray routesJson, boolean requireNavigationStops)
+    private List<Route> parseRoutes(JSONArray routesJson, boolean requireNavigationStops,
+                                   String expectedTheme)
             throws JSONException, InvalidResponse {
         if (routesJson.length() > 10) throw new InvalidResponse();
         List<Route> routes = new ArrayList<>();
@@ -264,7 +267,9 @@ public final class RouteRecommendationClient {
             long durationSeconds = route.optLong("durationSeconds", estimatedMinutes * 60L);
             long distanceMeters = route.getLong("distanceMeters");
             if (routeId.isBlank() || title.isBlank() || !THEMES.contains(theme)
-                    || estimatedMinutes < 0 || durationSeconds < 0 || distanceMeters < 0) {
+                    || !matchesRequestedTheme(expectedTheme, theme)
+                    || estimatedMinutes < 0 || durationSeconds < 0 || distanceMeters < 0
+                    || estimatedMinutes != wholeMinutes(durationSeconds)) {
                 throw new InvalidResponse();
             }
             JSONArray stopsJson = route.getJSONArray("stops");
@@ -302,11 +307,16 @@ public final class RouteRecommendationClient {
             if (legs != null && legs.length() > 0) {
                 // 측정된 각 구간은 내비에 넘기는 순서대로 지점 하나에 대응한다.
                 if (legs.length() != stops.size()) throw new InvalidResponse();
+                long measuredSeconds = 0;
                 for (int leg = 0; leg < legs.length(); leg++) {
                     long seconds = legs.getLong(leg);
-                    if (seconds <= 0) throw new InvalidResponse();
+                    if (seconds <= 0 || seconds > durationSeconds - measuredSeconds) {
+                        throw new InvalidResponse();
+                    }
+                    measuredSeconds += seconds;
                     legSeconds.add(seconds);
                 }
+                if (measuredSeconds != durationSeconds) throw new InvalidResponse();
             }
             JSONObject eventJson = route.optJSONObject("event");
             Event event = eventJson == null ? null : new Event(
@@ -320,6 +330,20 @@ public final class RouteRecommendationClient {
                     route.optString("reason", ""), List.copyOf(legSeconds), event));
         }
         return routes;
+    }
+
+    private boolean matchesRequestedTheme(String requestedTheme, String actualTheme) {
+        if (requestedTheme == null || "ANYWHERE".equals(requestedTheme)) return true;
+        if ("WATER".equals(requestedTheme)) {
+            return "WATER".equals(actualTheme)
+                    || "RIVER".equals(actualTheme)
+                    || "LAKE".equals(actualTheme);
+        }
+        return requestedTheme.equals(actualTheme);
+    }
+
+    private long wholeMinutes(long durationSeconds) {
+        return durationSeconds / 60L + (durationSeconds % 60L == 0 ? 0 : 1);
     }
 
     /** LIVE 경로가 Pleos의 최대 두 경유지와 마지막 목적지 계약을 만족하는지 확인합니다. */

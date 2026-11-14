@@ -830,3 +830,9 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - Release 소스에 서버 주소나 개인 IP를 하드코딩하지 않고 `JUST_GO_ROUTE_API_BASE_URL` 환경변수 또는 `justGoRouteApiBaseUrl` Gradle 속성으로 주입할 수 있게 했습니다. 주소가 없으면 기존처럼 추천 기능을 비활성화합니다.
 - Release에는 HTTPS 주소만 허용합니다. 가짜 HTTP 주소를 넣은 Gradle 구성은 의도대로 실패했고, 가짜 HTTPS 주소는 생성된 `BuildConfig`에 정상 반영됐습니다. Debug의 `10.0.2.2:18080` 로컬 연결과 debug 전용 cleartext 허용은 그대로 분리되어 있습니다.
 - Debug·Release 단위 테스트와 APK 조립, Release lint가 통과했습니다. 실제 심사 환경에서 접근 가능한 HTTPS 주소는 아직 없으며 서명·고유 applicationId도 미결정 상태입니다.
+
+## 83. 2026-11-14 추천 테마·시간 응답 계약 강화
+
+- Android가 요청 테마 밖의 후보와 일반 추천 경로를 화면에 표시하지 않도록 검증했습니다. `ANYWHERE`는 전체 실제 테마를 허용하고 `WATER`는 `RIVER`·`LAKE` 응답을 허용하는 기존 제품 규칙을 유지합니다. 다른 풍경 대체 코스는 별도 `alternativeRoutes`이므로 요청 테마 제한을 적용하지 않습니다.
+- `estimatedMinutes`가 `durationSeconds`를 분 단위로 올림한 값인지, 구간 시간이 있으면 지점 수와 개수가 같고 합계가 전체 시간과 일치하는지 Android와 백엔드 양쪽에서 확인합니다. 잘못된 시간 조합은 REST 응답 또는 화면 표시 전에 거부합니다.
+- Android 단위 테스트 19개와 `lintDebug`, `assembleDebug`, 백엔드 전체 133개 테스트가 통과했습니다. Android Studio·Emulator와 실제 외부 API는 사용하지 않았습니다.
