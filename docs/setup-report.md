@@ -808,3 +808,11 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - Compose 백엔드는 Git 제외 대상인 `backend/.env`를 선택적으로 읽고, 컨테이너 전용 DB 주소·계정·포트만 `infra/.env` 값으로 덮어씁니다. 실제 키를 복사·출력·커밋하지 않았습니다.
 - 백엔드 전체 131개 테스트와 실행 JAR 빌드, Compose 구성 검증을 통과했습니다. PostgreSQL과 백엔드 컨테이너 `healthy`, `/actuator/health` `UP`, 정적 웹 HTTP 200을 확인했습니다.
 - 후보 10건 조회 후 선택 토큰으로 `LIVE`, `mock=false` 경로 1건을 반환하는 실제 계약을 재검증했습니다. TMAP 자동차 경로 호출권은 이 검증에서 1건 사용했고 키·토큰·좌표·원시 응답은 기록하지 않았습니다.
+
+## 80. 2026-11-14 제출 전 Android 요청·응답 안정화
+
+- 앱 시작 때 사전 수신한 좌표를 검색 버튼에서 곧바로 재사용하지 않고, 검색 시점의 위치를 먼저 요청하도록 변경했습니다. 새 위치를 받지 못한 경우에만 30초 이내의 유효한 사전 위치를 보조로 사용합니다.
+- 화면 이탈·Activity 종료·주행 제한으로 검색을 취소한 뒤 늦게 도착한 위치 또는 HTTP 콜백이 이전 결과 팝업을 다시 표시하지 않도록 검색 세대 번호로 무효화합니다. 취소 시 검색 버튼 상태도 즉시 복구합니다.
+- Android REST 클라이언트가 요청과 다른 후보 테마, 목적지가 없거나 마지막 순서가 아닌 LIVE 경로, 최대 두 곳을 넘는 경유지를 응답 파싱 단계에서 거부하도록 보강했습니다. 내비 시작을 누른 뒤에야 오류가 드러나는 흐름을 차단했습니다.
+- `android-app\\gradlew.bat testDebugUnitTest lintDebug assembleDebug --no-daemon`: 단위 테스트 16개, Lint 오류 0개, 디버그 APK 빌드가 모두 성공했습니다.
+- `backend\\gradlew.bat clean test build --no-daemon`: Docker Desktop 기동 후 전체 131개 테스트와 실행 JAR 빌드가 성공했습니다. Compose의 PostgreSQL·백엔드 컨테이너 `healthy`, `/actuator/health` `UP`, 정적 웹 HTTP 200을 확인했습니다. 실제 TMAP 경로 호출은 추가로 실행하지 않았습니다.

@@ -66,7 +66,7 @@ public final class RouteRecommendationClient {
             if (status != HttpURLConnection.HTTP_OK) {
                 throw readHttpError(connection, status);
             }
-            return parseCandidates(readJson(connection.getInputStream()));
+            return parseCandidates(readJson(connection.getInputStream()), theme);
         } catch (JSONException | IllegalArgumentException exception) {
             throw new InvalidResponse();
         } finally {
@@ -169,13 +169,15 @@ public final class RouteRecommendationClient {
         return URLEncoder.encode(value, StandardCharsets.UTF_8.name());
     }
 
-    private CandidateList parseCandidates(JSONObject json) throws JSONException, InvalidResponse {
+    private CandidateList parseCandidates(JSONObject json, String expectedTheme)
+            throws JSONException, InvalidResponse {
         JSONArray candidatesJson = json.getJSONArray("candidates");
         int count = json.getInt("count");
         String requestedTheme = json.getString("theme");
         int tokenExpiresInMinutes = json.getInt("tokenExpiresInMinutes");
         if (count != candidatesJson.length() || count < 0 || count > 50
-                || !THEMES.contains(requestedTheme) || tokenExpiresInMinutes != 30) {
+                || !THEMES.contains(requestedTheme) || !requestedTheme.equals(expectedTheme)
+                || tokenExpiresInMinutes != 30) {
             throw new InvalidResponse();
         }
         List<Candidate> candidates = new ArrayList<>();
@@ -239,14 +241,18 @@ public final class RouteRecommendationClient {
                 || (mode != Mode.LIVE && alternativesJson != null && alternativesJson.length() != 0)) {
             throw new InvalidResponse();
         }
+        boolean requireNavigationStops = mode == Mode.LIVE;
         return new Recommendation(
                 mode,
-                parseRoutes(routesJson),
-                alternativesJson == null ? List.of() : parseRoutes(alternativesJson),
+                parseRoutes(routesJson, requireNavigationStops),
+                alternativesJson == null
+                        ? List.of()
+                        : parseRoutes(alternativesJson, requireNavigationStops),
                 json.optString("notice", ""));
     }
 
-    private List<Route> parseRoutes(JSONArray routesJson) throws JSONException, InvalidResponse {
+    private List<Route> parseRoutes(JSONArray routesJson, boolean requireNavigationStops)
+            throws JSONException, InvalidResponse {
         if (routesJson.length() > 10) throw new InvalidResponse();
         List<Route> routes = new ArrayList<>();
         for (int index = 0; index < routesJson.length(); index++) {
@@ -262,6 +268,10 @@ public final class RouteRecommendationClient {
                 throw new InvalidResponse();
             }
             JSONArray stopsJson = route.getJSONArray("stops");
+            if (stopsJson.length() > 3
+                    || (requireNavigationStops && stopsJson.length() == 0)) {
+                throw new InvalidResponse();
+            }
             List<Stop> stops = new ArrayList<>();
             Set<Integer> stopSequences = new HashSet<>();
             for (int stopIndex = 0; stopIndex < stopsJson.length(); stopIndex++) {
@@ -279,6 +289,7 @@ public final class RouteRecommendationClient {
                         name, latitude, longitude));
             }
             stops.sort(Comparator.comparingInt(Stop::sequence));
+            validateStopOrder(stops, requireNavigationStops);
             Integer repeatedSegmentPercent = route.isNull("repeatedSegmentPercent")
                     ? null
                     : route.getInt("repeatedSegmentPercent");
@@ -309,6 +320,25 @@ public final class RouteRecommendationClient {
                     route.optString("reason", ""), List.copyOf(legSeconds), event));
         }
         return routes;
+    }
+
+    /** LIVE 경로가 Pleos의 최대 두 경유지와 마지막 목적지 계약을 만족하는지 확인합니다. */
+    private void validateStopOrder(List<Stop> stops, boolean requireNavigationStops)
+            throws InvalidResponse {
+        if (stops.isEmpty()) {
+            if (requireNavigationStops) throw new InvalidResponse();
+            return;
+        }
+        int destinationCount = 0;
+        for (int index = 0; index < stops.size(); index++) {
+            Stop stop = stops.get(index);
+            if (stop.sequence() != index + 1) throw new InvalidResponse();
+            if (stop.type() == StopType.DESTINATION) {
+                destinationCount++;
+                if (index != stops.size() - 1) throw new InvalidResponse();
+            }
+        }
+        if (destinationCount != 1) throw new InvalidResponse();
     }
 
     private boolean isUuid(String value) {

@@ -74,6 +74,7 @@ public final class DriveActivity extends Activity {
     private DialogRouteResultBinding resultBinding;
     private boolean searchAfterLocationPermission;
     private Location prefetchedLocation;
+    private long searchGeneration;
 
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
@@ -261,24 +262,27 @@ public final class DriveActivity extends Activity {
     private void enterOrigin(int minutes, boolean roundTrip, String theme) {
         dismissResult();
         searchInProgress = true;
+        long locationGeneration = ++searchGeneration;
         binding.findRoute.setEnabled(false);
         binding.findRoute.setText("현재 위치를 확인하고 있어요…");
-        Location location = freshPrefetchedLocation();
-        if (location != null) {
-            requestRecommendations(location.getLatitude(), location.getLongitude(),
-                    minutes, roundTrip, theme);
-            return;
-        }
+        // 앱 시작 때 받은 좌표를 바로 재사용하지 않고 검색 시점의 최신 위치를 우선한다.
         locationProvider.request(new CurrentLocationProvider.Callback() {
             @Override public void onLocation(Location location) {
-                if (binding == null) return;
+                if (!isSearchActive(locationGeneration)) return;
                 prefetchedLocation = location;
                 requestRecommendations(location.getLatitude(), location.getLongitude(),
                         minutes, roundTrip, theme);
             }
 
             @Override public void onError(String message) {
-                renderResult("현재 위치 확인 필요", message);
+                if (!isSearchActive(locationGeneration)) return;
+                Location fallback = freshPrefetchedLocation();
+                if (fallback != null) {
+                    requestRecommendations(fallback.getLatitude(), fallback.getLongitude(),
+                            minutes, roundTrip, theme);
+                } else {
+                    renderResult("현재 위치 확인 필요", message);
+                }
             }
         });
     }
@@ -293,18 +297,26 @@ public final class DriveActivity extends Activity {
     private void requestRecommendations(SearchContext context) {
         dismissResult();
         searchInProgress = true;
+        long requestGeneration = ++searchGeneration;
         showSearchProgress("코스를 계산하고 있어요…   ", context.conditions());
         routeExecutor.execute(() -> {
             try {
                 Recommendation result = routeClient.recommend(context.latitude(), context.longitude(),
                         context.minutes(), context.tripType(), context.theme());
                 runOnUiThread(() -> {
-                    if (binding != null) showRecommendation(context, result, null);
+                    if (isSearchActive(requestGeneration)) {
+                        showRecommendation(context, result, null);
+                    }
                 });
             } catch (IOException error) {
-                showRequestError(context, describeError(error));
+                showRequestError(context, describeError(error), requestGeneration);
             }
         });
+    }
+
+    private boolean isSearchActive(long generation) {
+        return binding != null && foreground && !drivingRestricted
+                && generation == searchGeneration;
     }
 
     private void showSearchProgress(String prefix, String conditions) {
@@ -320,8 +332,9 @@ public final class DriveActivity extends Activity {
     }
 
     /** 조회 실패 팝업. 기존 조건으로 바로 재시도할 수 있다. */
-    private void showRequestError(SearchContext context, String message) {
+    private void showRequestError(SearchContext context, String message, long requestGeneration) {
         runOnUiThread(() -> {
+            if (!isSearchActive(requestGeneration)) return;
             if (!prepareResult("추천 요청 실패", context.conditions())) return;
             showResultDetails(message);
             resultBinding.cancel.setVisibility(View.VISIBLE);
@@ -352,21 +365,26 @@ public final class DriveActivity extends Activity {
         finishNavigationRequest(navigationRequestDialog);
         dismissResult();
         restrictionsMonitor.stop();
-        routeClient.cancelActiveRequest();
-        if (locationProvider.cancel()) resetSearchButton();
+        cancelActiveSearch();
         super.onStop();
     }
 
     @Override protected void onDestroy() {
         finishNavigationRequest(navigationRequestDialog);
         dismissResult();
-        locationProvider.cancel();
-        routeClient.cancelActiveRequest();
+        cancelActiveSearch();
         routeExecutor.shutdownNow();
         restrictionsMonitor.stop();
         navigationGateway.release();
         binding = null;
         super.onDestroy();
+    }
+
+    private void cancelActiveSearch() {
+        searchGeneration++;
+        locationProvider.cancel();
+        routeClient.cancelActiveRequest();
+        if (binding != null) resetSearchButton();
     }
 
     /** 추천 코스 목록 팝업. 서버가 계산하고 정렬한 경로를 카드로 보여준다. */
@@ -376,7 +394,9 @@ public final class DriveActivity extends Activity {
         var routes = alternative ? result.alternativeRoutes() : result.routes();
         if (routes.isEmpty()) {
             if (result.mode() == RouteRecommendationClient.Mode.UNAVAILABLE) {
-                showRequestError(context, "추천 서비스에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.");
+                showRequestError(context,
+                        "추천 서비스에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.",
+                        searchGeneration);
             } else {
                 showEmptyResult(context);
             }
@@ -707,8 +727,7 @@ public final class DriveActivity extends Activity {
         binding.findRoute.setEnabled(!restricted && !searchInProgress);
         if (restricted) {
             dismissResult();
-            routeClient.cancelActiveRequest();
-            if (locationProvider.cancel()) resetSearchButton();
+            cancelActiveSearch();
             ((InputMethodManager) getSystemService(INPUT_METHOD_SERVICE))
                     .hideSoftInputFromWindow(binding.getRoot().getWindowToken(), 0);
         }

@@ -250,6 +250,23 @@ public class RouteRecommendationClientTest {
         } catch (RouteRecommendationClient.InvalidResponse expected) {
             assertNotNull(expected);
         }
+
+        server.enqueue(jsonResponse("""
+                {
+                  "theme": "CITY",
+                  "count": 0,
+                  "tokenExpiresInMinutes": 30,
+                  "partial": false,
+                  "unavailableSources": [],
+                  "candidates": []
+                }
+                """));
+        try {
+            client.findCandidates(37.5, 127.0, 60, "ONE_WAY", "PARK", 50);
+            fail("요청과 다른 테마의 후보 응답은 거부해야 합니다.");
+        } catch (RouteRecommendationClient.InvalidResponse expected) {
+            assertNotNull(expected);
+        }
     }
 
     @Test
@@ -307,6 +324,64 @@ public class RouteRecommendationClientTest {
         try {
             client.recommend(37.5, 127.0, 60, "ONE_WAY", "PARK", null);
             fail("중복된 지점 순번은 거부해야 합니다.");
+        } catch (RouteRecommendationClient.InvalidResponse expected) {
+            assertNotNull(expected);
+        }
+    }
+
+    @Test
+    public void rejectsLiveRouteThatCannotBeSentToNavigation() throws Exception {
+        server.enqueue(jsonResponse("""
+                {
+                  "mode": "LIVE",
+                  "mock": false,
+                  "routes": [{
+                    "routeId": "missing-destination",
+                    "title": "목적지 누락 테스트",
+                    "estimatedMinutes": 60,
+                    "distanceMeters": 100,
+                    "theme": "PARK",
+                    "repeatedSegmentPercent": null,
+                    "stops": [
+                      {"sequence": 1, "type": "WAYPOINT", "name": "경유지만 있음", "latitude": 37.5, "longitude": 127.0}
+                    ],
+                    "reason": "손상 응답"
+                  }],
+                  "alternativeRoutes": [],
+                  "notice": ""
+                }
+                """));
+        try {
+            client.recommend(37.5, 127.0, 60, "ROUND_TRIP", "PARK", null);
+            fail("목적지가 없는 LIVE 경로는 거부해야 합니다.");
+        } catch (RouteRecommendationClient.InvalidResponse expected) {
+            assertNotNull(expected);
+        }
+
+        server.enqueue(jsonResponse("""
+                {
+                  "mode": "LIVE",
+                  "mock": false,
+                  "routes": [{
+                    "routeId": "destination-before-waypoint",
+                    "title": "목적지 순서 테스트",
+                    "estimatedMinutes": 60,
+                    "distanceMeters": 100,
+                    "theme": "PARK",
+                    "repeatedSegmentPercent": null,
+                    "stops": [
+                      {"sequence": 1, "type": "DESTINATION", "name": "잘못된 목적지", "latitude": 37.5, "longitude": 127.0},
+                      {"sequence": 2, "type": "WAYPOINT", "name": "뒤늦은 경유지", "latitude": 37.6, "longitude": 127.1}
+                    ],
+                    "reason": "손상 응답"
+                  }],
+                  "alternativeRoutes": [],
+                  "notice": ""
+                }
+                """));
+        try {
+            client.recommend(37.5, 127.0, 60, "ONE_WAY", "PARK", null);
+            fail("마지막이 아닌 목적지는 거부해야 합니다.");
         } catch (RouteRecommendationClient.InvalidResponse expected) {
             assertNotNull(expected);
         }
