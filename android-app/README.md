@@ -49,6 +49,8 @@ android run --device=emulator-5554 --apks="build/outputs/apk/debug/just go-debug
 어디든은 전체 후보, 강/호수는 강·호수 후보, 공원은 공원 후보를 조회합니다. 검수된 공원 후보가 없으면 빈 결과가 반환됩니다.
 MOCK 응답은 화면에 표시하지만 내비 시작은 허용하지 않습니다. NaviHelper 3.0.5의 단일 목적지 전달과 Navigation 화면 전환은 Pleos Emulator에서 실제 LIVE 코스로 확인했습니다. 다중 경유지 전달과 실제 주행 상태의 `CarUxRestrictions` 전환은 `NOT VERIFIED`입니다.
 `com.example.justgo`는 PROVISIONAL applicationId입니다. Release 서명키는 생성하지 않았습니다.
+Release 추천 서버 주소는 `JUST_GO_ROUTE_API_BASE_URL` 환경변수 또는
+`-PjustGoRouteApiBaseUrl=https://...` Gradle 속성으로만 주입하며, 빈 값은 허용하지만 HTTP 주소는 빌드에서 거부합니다.
 Android와 백엔드의 연결은 `GET /api/v1/places/candidates`와 `POST /api/v1/routes/recommendations` 계약 테스트로 확인합니다.
 
 ## 검증 기준

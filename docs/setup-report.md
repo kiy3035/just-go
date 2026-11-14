@@ -824,3 +824,9 @@ Gradle 배포 ZIP은 공식 SHA-256 `7988ed071b2a07900e2ec715fca15c6ab72bce6db43
 - 로컬 NaviHelper 3.0.5 원본에서 `RouteInfo` 좌표 인자 순서가 위도·경도임을 확인했고 기존 변환은 변경하지 않았습니다. `NAVI_ROUTE_SEARCH`, `NAVI_CUSTOM_MAP` 권한도 사용 API와 일치함을 공식 문서에서 확인했습니다.
 - `android-app\\gradlew.bat testDebugUnitTest lintDebug assembleDebug`와 `testReleaseUnitTest lintRelease assembleRelease`가 통과했습니다. Android Studio와 Emulator는 실행하지 않았습니다. Release APK는 여전히 서버 URL·고유 applicationId·서명 결정 전의 unsigned 산출물입니다.
 - 로컬 TMAP 일일 카운터는 2026-11-14 기준 10건이었습니다. 이번 점검에서는 외부 API를 추가 호출하지 않았습니다.
+
+## 82. 2026-11-14 Release 추천 서버 주소 주입 경계
+
+- Release 소스에 서버 주소나 개인 IP를 하드코딩하지 않고 `JUST_GO_ROUTE_API_BASE_URL` 환경변수 또는 `justGoRouteApiBaseUrl` Gradle 속성으로 주입할 수 있게 했습니다. 주소가 없으면 기존처럼 추천 기능을 비활성화합니다.
+- Release에는 HTTPS 주소만 허용합니다. 가짜 HTTP 주소를 넣은 Gradle 구성은 의도대로 실패했고, 가짜 HTTPS 주소는 생성된 `BuildConfig`에 정상 반영됐습니다. Debug의 `10.0.2.2:18080` 로컬 연결과 debug 전용 cleartext 허용은 그대로 분리되어 있습니다.
+- Debug·Release 단위 테스트와 APK 조립, Release lint가 통과했습니다. 실제 심사 환경에서 접근 가능한 HTTPS 주소는 아직 없으며 서명·고유 applicationId도 미결정 상태입니다.

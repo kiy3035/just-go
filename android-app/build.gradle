@@ -1,4 +1,16 @@
 plugins { id 'com.android.application' version '8.10.1' }
+
+def releaseRouteApiBaseUrl = providers.gradleProperty('justGoRouteApiBaseUrl')
+        .orElse(providers.environmentVariable('JUST_GO_ROUTE_API_BASE_URL'))
+        .getOrElse('')
+        .trim()
+if (!releaseRouteApiBaseUrl.isEmpty() && !releaseRouteApiBaseUrl.startsWith('https://')) {
+    throw new GradleException('Release 추천 서버 주소는 HTTPS여야 합니다.')
+}
+def quotedReleaseRouteApiBaseUrl = '"' + releaseRouteApiBaseUrl
+        .replace('\\', '\\\\')
+        .replace('"', '\\"') + '"'
+
 android {
     namespace 'com.example.justgo'
     compileSdk 34
@@ -14,6 +26,9 @@ android {
     buildTypes {
         debug {
             buildConfigField 'String', 'ROUTE_API_BASE_URL', '"http://10.0.2.2:18080"'
+        }
+        release {
+            buildConfigField 'String', 'ROUTE_API_BASE_URL', quotedReleaseRouteApiBaseUrl
         }
     }
     buildFeatures {
