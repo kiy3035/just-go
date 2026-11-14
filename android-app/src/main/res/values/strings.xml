@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">just go</string>
+    <string name="app_name">Just Go</string>
     <string name="event_banner_label">오늘 행사</string>
     <string name="event_banner_seoul_label">오늘 서울 행사</string>
     <string name="event_banner_gyeonggi_label">오늘 경기 행사</string>
