@@ -33,6 +33,7 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Toast;
+import android.widget.PopupMenu;
 import com.example.justgo.BuildConfig;
 import com.example.justgo.R;
 import com.example.justgo.data.DriveSelection;
@@ -91,7 +92,8 @@ public final class DriveActivity extends Activity {
         restrictionsMonitor = new DrivingRestrictionsMonitor(this);
         binding = ActivityDriveBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-        eventBanner = new TodayEventBanner(binding.eventBanner, routeClient, this::navigateToEvent);
+        eventBanner = new TodayEventBanner(binding.eventBanner, routeClient,
+                this::navigateToEvent, this::openDataSource);
         binding.findRoute.setOnClickListener(v -> chooseOrigin());
         binding.theme.setOnCheckedChangeListener((group, id) -> { syncScenery(); syncConditions(); });
         binding.duration.setOnCheckedChangeListener((g, id) -> { syncCustomInput(); syncConditions(); });
@@ -443,6 +445,7 @@ public final class DriveActivity extends Activity {
         resultBinding.closeRecommendation.setOnClickListener(v -> dismissResult());
         if (live) {
             boolean hasEvents = routes.stream().anyMatch(route -> route.event() != null);
+            showRouteDataSources(palette, hasEvents);
             String order = hasEvents ? "관람 가능한 행사 우선" : "목표 시간과 가까운 순";
             resultBinding.recommendationOrder.setText(order + " · 총 " + routes.size() + "개");
             resultBinding.recommendationOrder.setVisibility(View.VISIBLE);
@@ -583,6 +586,9 @@ public final class DriveActivity extends Activity {
         RoutePalette palette = routePalette(context.theme());
         styleRouteSummary(palette);
         addRouteCard(context, route).getRoot().setBackground(routeCardBackground(true, palette, dp(1)));
+        if (result.mode() == RouteRecommendationClient.Mode.LIVE) {
+            showRouteDataSources(palette, route.event() != null);
+        }
         showCourseItinerary(route, roundTrip, palette);
         if (route.event() != null) {
             showCourseEvent(route.event(), palette);
@@ -633,7 +639,7 @@ public final class DriveActivity extends Activity {
         source.setVisibility(View.VISIBLE);
         source.setTextColor(palette.accent());
         source.setPaintFlags(source.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
-        source.setOnClickListener(v -> openEventDataSource());
+        source.setOnClickListener(v -> openDataSource(R.string.event_data_source_url));
     }
 
     private void showDetailSection(RouteDetailSectionBinding section, int title, RoutePalette palette) {
@@ -664,9 +670,32 @@ public final class DriveActivity extends Activity {
                 new int[]{0xFF627794, palette.accent()}));
     }
 
-    private void openEventDataSource() {
+    /** 추천에는 여러 장소 원천이 쓰이므로 코스별 출처 대신 서비스 원천 목록을 표시한다. */
+    private void showRouteDataSources(RoutePalette palette, boolean includesEvent) {
+        var source = resultBinding.routeDataSources;
+        source.setVisibility(View.VISIBLE);
+        source.setTextColor(palette.accent());
+        source.setPaintFlags(source.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
+        source.setOnClickListener(anchor -> {
+            if (!foreground || drivingRestricted) return;
+            PopupMenu menu = new PopupMenu(this, anchor);
+            menu.getMenu().add(0, R.string.route_source_tmap_url, 0, R.string.route_source_tmap);
+            menu.getMenu().add(0, R.string.banner_source_tour_url, 1, R.string.route_source_tour);
+            menu.getMenu().add(0, R.string.route_source_park_url, 2, R.string.route_source_park);
+            if (includesEvent) {
+                menu.getMenu().add(0, R.string.event_data_source_url, 3, R.string.route_source_event);
+            }
+            menu.setOnMenuItemClickListener(item -> {
+                openDataSource(item.getItemId());
+                return true;
+            });
+            menu.show();
+        });
+    }
+
+    private void openDataSource(int urlResource) {
         if (!foreground || drivingRestricted) return;
-        Intent link = new Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.event_data_source_url)));
+        Intent link = new Intent(Intent.ACTION_VIEW, Uri.parse(getString(urlResource)));
         try {
             startActivity(link);
         } catch (ActivityNotFoundException exception) {

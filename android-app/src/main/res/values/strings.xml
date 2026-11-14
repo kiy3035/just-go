@@ -23,4 +23,15 @@
     <string name="event_data_source">행사 정보 출처 · 지방자치단체 제공 「전국공연행사정보표준데이터」 (공공데이터포털)</string>
     <string name="event_data_source_url" translatable="false">https://www.data.go.kr/data/15013106/standard.do</string>
     <string name="event_data_source_unavailable">출처 링크를 열 수 있는 브라우저가 없습니다.</string>
+    <string name="banner_source_seoul">출처 · 서울특별시</string>
+    <string name="banner_source_tour">출처 · 한국관광공사</string>
+    <string name="banner_source_seoul_url" translatable="false">https://data.seoul.go.kr/dataList/OA-15486/A/1/datasetView.do</string>
+    <string name="banner_source_tour_url" translatable="false">https://www.data.go.kr/data/15101578/openapi.do</string>
+    <string name="route_sources">코스 데이터 출처</string>
+    <string name="route_source_tmap">TMAP · 장소 검색 및 예상 주행시간·거리</string>
+    <string name="route_source_tour">한국관광공사 TourAPI · 관광 장소 후보</string>
+    <string name="route_source_park">공공데이터포털 · 전국도시공원정보표준데이터</string>
+    <string name="route_source_event">공공데이터포털 · 전국공연행사정보표준데이터</string>
+    <string name="route_source_tmap_url" translatable="false">https://tmapapi.tmapmobility.com/</string>
+    <string name="route_source_park_url" translatable="false">https://www.data.go.kr/data/15012890/standard.do</string>
 </resources>
