@@ -14,8 +14,10 @@ paths:
       summary: 검수 완료 경관 장소 후보 조회
       description: >-
         지정한 풍경 테마에서 활성 상태이고 WGS84 좌표·출처·품질 검수를 마친
-        VERIFIED 장소만 품질 합계가 높은 순으로 조회합니다. 서울·수도권 초기 후보
-        13건은 Git 제외 로컬 파일로 준비했으며 실제 주행·경관 최종 검수는 남아 있습니다.
+        VERIFIED 장소만 품질 합계가 높은 순으로 조회합니다. 원천 분류를 수동 추정한
+        초기 관광지 PoC 13건은 V8에서 제거했으므로 보정·제외·fallback 장소를 별도로
+        검수해 등록하지 않은 DB에서는 빈 목록을 반환할 수 있습니다. 일반 사용자 후보는
+        `/api/v1/places/candidates`에서 공공데이터·TourAPI·TMAP POI와 함께 조회합니다.
       operationId: findVerifiedSpotCandidates
       parameters:
         - name: theme

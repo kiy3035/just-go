@@ -87,11 +87,11 @@ backend/src/main/java/.../
 backend/src/main/resources/
   mapper/             # MyBatis XML
   db/migration/       # Flyway
-android-app/app/src/main/java/.../
+android-app/src/main/java/.../
   ui/                 # Activity/Fragment/XML ViewBinding
   data/               # API / DTO
   repository/         # UI ↔ 데이터 공급
-  pleos/              # NavigationGateway 및 NaviHelper 3.0.5 adapter (실경로 호출은 NOT VERIFIED)
+  pleos/              # NavigationGateway 및 NaviHelper 3.0.5 adapter (단일 목적지 LIVE 확인, 다중 경유지 NOT VERIFIED)
 ```
 
 MyBatis SQL은 Mapper XML에 둔다. 데이터 모델과 API DTO를 혼용하지 않는다.
