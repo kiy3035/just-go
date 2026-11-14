@@ -30,7 +30,7 @@ final class TodayEventBanner {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ExecutorService eventWorker = Executors.newSingleThreadExecutor();
     private final ExecutorService imageWorker = Executors.newSingleThreadExecutor();
-    private final LruCache<String, Bitmap> photos = new LruCache<>(5);
+    private final LruCache<String, Bitmap> photos = new LruCache<>(10);
     private final EventBannerBinding binding;
     private final RouteRecommendationClient client;
     private final Consumer<BannerEvent> navigate;

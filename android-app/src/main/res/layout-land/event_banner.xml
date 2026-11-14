@@ -6,7 +6,7 @@
     android:layout_marginBottom="10dp"
     android:background="@drawable/event_banner_background"
     android:clipToOutline="true"
-    android:minHeight="326dp"
+    android:minHeight="366dp"
     android:orientation="vertical"
     android:paddingHorizontal="20dp"
     android:paddingTop="16dp"
@@ -45,7 +45,7 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="190dp"
+        android:layout_height="230dp"
         android:layout_marginTop="10dp"
         android:baselineAligned="false"
         android:gravity="center_vertical"
@@ -131,8 +131,8 @@
         <!-- 포스터는 정보 이미지이며 다음 행사 동작을 갖지 않는다. -->
         <FrameLayout
             android:id="@+id/eventArtworkPanel"
-            android:layout_width="230dp"
-            android:layout_height="190dp"
+            android:layout_width="300dp"
+            android:layout_height="230dp"
             android:background="@drawable/event_thumbnail_background"
             android:clipToOutline="true">
 
@@ -141,7 +141,6 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:importantForAccessibility="no"
-                android:padding="5dp"
                 android:scaleType="fitCenter"
                 android:src="@drawable/event_art_empty"/>
         </FrameLayout>

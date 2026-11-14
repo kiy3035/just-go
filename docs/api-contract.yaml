@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: just go backend API
-  version: 0.13.0-draft
+  version: 0.14.0-draft
   description: >-
     브라우저와 백엔드 연결 검증을 위한 추천 요청 초안입니다. mock=true 또는
     mode=MOCK인 응답은 실제 도로·시간·거리 데이터가 아닙니다. tmap 프로필의
@@ -15,7 +15,7 @@ paths:
       summary: 메인 배너용 서울·경기 오늘 행사
       responses:
         '200':
-          description: 최대 5건. partial이 true이면 일부 원천을 조회하지 못했습니다.
+          description: 최대 10건. partial이 true이면 일부 원천을 조회하지 못했습니다.
           content:
             application/json:
               schema:
@@ -25,7 +25,7 @@ paths:
                   partial: {type: boolean}
                   events:
                     type: array
-                    maxItems: 5
+                    maxItems: 10
                     items:
                       type: object
                       required: [title, region, venue, category, latitude, longitude, source]

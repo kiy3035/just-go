@@ -25,6 +25,7 @@ public final class RouteRecommendationClient {
     static final String CANDIDATE_PATH = "/api/v1/places/candidates";
     static final String RECOMMENDATION_PATH = "/api/v1/routes/recommendations";
     private static final int MAX_RESPONSE_CHARACTERS = 65_536;
+    private static final int MAX_TODAY_EVENTS = 10;
     private static final int MAX_CANDIDATE_NAME_LENGTH = 100;
     private static final int MAX_SOURCE_CATEGORY_LENGTH = 200;
     private static final Set<String> THEMES = Set.of(
@@ -60,7 +61,7 @@ public final class RouteRecommendationClient {
             }
             JSONObject body = readJson(connection.getInputStream());
             JSONArray rows = body.getJSONArray("events");
-            if (rows.length() > 5) throw new InvalidResponse();
+            if (rows.length() > MAX_TODAY_EVENTS) throw new InvalidResponse();
             List<BannerEvent> events = new ArrayList<>();
             for (int index = 0; index < rows.length(); index++) {
                 JSONObject row = rows.getJSONObject(index);
