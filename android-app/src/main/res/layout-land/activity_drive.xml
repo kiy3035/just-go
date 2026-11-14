@@ -1,46 +1,259 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/screen" android:layout_width="match_parent" android:layout_height="match_parent" android:background="#EAF1F9">
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/screen"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#EAF1F9">
 
-<LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal" android:padding="16dp">
-<FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="0.36" android:background="@drawable/scene_card" android:clipToOutline="true">
-<com.example.justgo.ui.RiversideSceneView android:id="@+id/scenery" android:layout_width="match_parent" android:layout_height="match_parent"/>
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="36dp" android:textSize="48sp" android:textStyle="bold" android:textColor="#FFFFFF" android:text="@string/app_name"/>
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="160dp" android:layout_marginStart="36dp" android:layout_marginEnd="28dp" android:textSize="60sp" android:textStyle="bold" android:textColor="#FFFFFF" android:shadowColor="#33506F8F" android:shadowRadius="4" android:shadowDy="2" android:text="정하지 않아도\n좋은 길로"/>
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_gravity="bottom" android:padding="36dp" android:textColor="#F0F8FC" android:textSize="28sp" android:lineSpacingExtra="6dp" android:text="시간과 목적지 고민 없이\n가볍게 떠날 수 있어요"/>
-</FrameLayout>
-<ScrollView android:id="@+id/scroll" android:layout_width="0dp" android:layout_weight="0.64" android:layout_height="match_parent" android:layout_marginStart="20dp" android:background="@drawable/control_panel" android:clipToOutline="true" android:fillViewport="true">
-<!-- 차량 가로 화면에서는 행사 카드와 코스 선택이 안내 패널을 공유한다. -->
-<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center_vertical" android:paddingHorizontal="40dp" android:paddingVertical="24dp">
-<include android:id="@+id/eventBanner" layout="@layout/event_banner"/>
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="44sp" android:textStyle="bold" android:textColor="#102D5A" android:layout_marginBottom="20dp" android:text="오늘은 어떻게 달릴까요?"/>
-<TextView android:id="@+id/drivingRestrictionNotice" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="24dp" android:padding="18dp" android:background="@drawable/selection_strip" android:text="주행 중에는 안전을 위해 코스 탐색을 사용할 수 없습니다." android:textColor="#183153" android:textSize="24sp" android:textStyle="bold" android:visibility="gone" android:accessibilityLiveRegion="assertive"/>
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="28sp" android:textStyle="bold" android:textColor="#162F59" android:layout_marginBottom="12dp" android:text="①  주행 방식"/>
-<RadioGroup android:id="@+id/tripMode" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:checkedButton="@id/roundTrip" android:layout_marginBottom="22dp"><RadioButton android:id="@+id/roundTrip" style="@style/Choice"  android:text="왕복\n출발지로 돌아오기" android:drawableStart="@drawable/ic_roundtrip" android:drawablePadding="8dp"/><RadioButton android:id="@+id/oneWay" style="@style/Choice"  android:text="편도\n새로운 곳으로" android:drawableStart="@drawable/ic_oneway" android:drawablePadding="8dp"/></RadioGroup>
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="28sp" android:textStyle="bold" android:textColor="#162F59" android:layout_marginBottom="12dp" android:text="②  드라이브 시간"/>
-<RadioGroup android:id="@+id/duration" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:checkedButton="@id/time60" android:layout_marginBottom="22dp"><RadioButton android:id="@+id/time30" style="@style/TimeChoice"  android:text="30분"/>
-<RadioButton android:id="@+id/time60" style="@style/TimeChoice"  android:text="60분"/>
-<RadioButton android:id="@+id/time120" style="@style/TimeChoice"  android:text="120분"/>
-<RadioButton android:id="@+id/timeCustom" style="@style/TimeChoice"  android:text="직접 입력"/></RadioGroup>
-<LinearLayout android:id="@+id/customTime" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:visibility="gone" android:layout_marginBottom="16dp">
-<TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="10~240분 · 5분 단위" android:textSize="24sp" android:textColor="#526A85"/>
-<EditText android:id="@+id/customMinutes" android:layout_width="160dp" android:layout_height="88dp" android:inputType="number" android:maxLength="3" android:singleLine="true" android:text="90" android:textSize="36sp" android:textColor="#183153" android:selectAllOnFocus="true" android:hint="시간(분)" android:imeOptions="actionDone"/>
-<TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="분" android:textSize="32sp" android:textStyle="bold" android:textColor="#183153"/>
-</LinearLayout>
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:id="@+id/timeHint" android:textSize="20sp" android:textColor="#657D9B" android:layout_marginBottom="20dp" android:text="출발지 복귀까지 · 체류 시간 제외"/>
-<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="28sp" android:textStyle="bold" android:textColor="#162F59" android:layout_marginBottom="12dp" android:text="③  가고 싶은 곳"/>
-<RadioGroup android:id="@+id/theme" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:checkedButton="@id/anywhere" android:layout_marginBottom="22dp"><RadioButton android:id="@+id/anywhere" style="@style/ThemeChoice"  android:text="어디든" android:drawableTop="@drawable/art_anywhere" android:drawablePadding="8dp"/>
-<RadioButton android:id="@+id/city" style="@style/ThemeChoice"  android:text="도시" android:drawableTop="@drawable/art_city" android:drawablePadding="8dp"/>
-<RadioButton android:id="@+id/mountain" style="@style/ThemeChoice"  android:text="산" android:drawableTop="@drawable/art_mountain" android:drawablePadding="8dp"/>
-<RadioButton android:id="@+id/sea" style="@style/ThemeChoice"  android:text="바다" android:drawableTop="@drawable/art_sea" android:drawablePadding="8dp"/>
-<RadioButton android:id="@+id/water" style="@style/ThemeChoice"  android:text="강/호수" android:drawableTop="@drawable/art_water" android:drawablePadding="8dp"/>
-<RadioButton android:id="@+id/park" style="@style/ThemeChoice"  android:text="공원" android:drawableTop="@drawable/art_park" android:drawablePadding="8dp"/></RadioGroup>
-<HorizontalScrollView android:layout_width="match_parent" android:layout_height="wrap_content" android:scrollbars="none" android:fillViewport="true" android:layout_marginBottom="20dp" android:background="@drawable/selection_strip">
-<LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:padding="12dp">
-<TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingStart="12dp" android:text="선택한 조건  │" android:textSize="24sp" android:textColor="#365580"/>
-<TextView android:id="@+id/selectedTrip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="16dp" android:paddingStart="20dp" android:paddingEnd="20dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:background="@drawable/selection_chip" android:textColor="#183763" android:textSize="24sp" android:textStyle="bold" android:text="왕복"/><TextView android:id="@+id/selectedTime" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="16dp" android:paddingStart="20dp" android:paddingEnd="20dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:background="@drawable/selection_chip" android:textColor="#183763" android:textSize="24sp" android:textStyle="bold" android:text="60분"/><TextView android:id="@+id/selectedPlace" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="16dp" android:paddingStart="20dp" android:paddingEnd="20dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:background="@drawable/selection_chip" android:textColor="#183763" android:textSize="24sp" android:textStyle="bold" android:text="어디든"/>
-</LinearLayout></HorizontalScrollView>
-<!-- 문구와 화살표를 한 텍스트로 두어 버튼 전체의 중앙에 정렬한다. -->
-<Button android:id="@+id/findRoute" android:layout_width="match_parent" android:layout_height="96dp" android:layout_marginTop="4dp" android:layout_marginBottom="20dp" android:background="@drawable/submit_background" android:backgroundTint="@null" android:stateListAnimator="@null" android:text="이 조건으로 코스 찾기 →" android:textSize="32sp" android:textStyle="bold" android:textColor="#FFFFFF" android:gravity="center" android:paddingStart="24dp" android:paddingEnd="24dp"/>
-</LinearLayout>
-</ScrollView></LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:padding="12dp">
+
+        <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="0.36"
+            android:background="@drawable/scene_card"
+            android:clipToOutline="true">
+
+            <com.example.justgo.ui.RiversideSceneView
+                android:id="@+id/scenery"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"/>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="36dp"
+                android:text="@string/app_name"
+                android:textColor="#FFFFFF"
+                android:textSize="48sp"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="36dp"
+                android:layout_marginTop="160dp"
+                android:layout_marginEnd="28dp"
+                android:shadowColor="#33506F8F"
+                android:shadowDy="2"
+                android:shadowRadius="4"
+                android:text="정하지 않아도\n좋은 길로"
+                android:textColor="#FFFFFF"
+                android:textSize="60sp"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:lineSpacingExtra="6dp"
+                android:padding="36dp"
+                android:text="시간과 목적지 고민 없이\n가볍게 떠날 수 있어요"
+                android:textColor="#F0F8FC"
+                android:textSize="28sp"/>
+        </FrameLayout>
+
+        <!-- 차량 화면에서는 선택 영역을 압축해 검색 버튼까지 한 화면에 이어서 보여준다. -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="16dp"
+            android:layout_weight="0.64"
+            android:background="@drawable/control_panel"
+            android:clipToOutline="true"
+            android:orientation="vertical"
+            android:paddingHorizontal="28dp"
+            android:paddingVertical="12dp">
+
+            <ScrollView
+                android:id="@+id/scroll"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:fillViewport="true"
+                android:scrollbars="none">
+
+                <!-- ①~③ 선택 영역은 차량 화면에서도 한눈에 보이도록 세로 간격을 줄인다. -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:baselineAligned="false"
+                    android:gravity="top"
+                    android:orientation="vertical"
+                    android:paddingBottom="4dp">
+
+                    <include android:id="@+id/eventBanner" layout="@layout/event_banner"/>
+
+                    <Space
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"/>
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="10dp"
+                        android:text="오늘은 어떻게 달릴까요?"
+                        android:textColor="#102D5A"
+                        android:textSize="38sp"
+                        android:textStyle="bold"/>
+
+                    <TextView
+                        android:id="@+id/drivingRestrictionNotice"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="10dp"
+                        android:accessibilityLiveRegion="assertive"
+                        android:background="@drawable/selection_strip"
+                        android:padding="12dp"
+                        android:text="주행 중에는 안전을 위해 코스 탐색을 사용할 수 없습니다."
+                        android:textColor="#183153"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:visibility="gone"/>
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="4dp"
+                        android:text="①  주행 방식"
+                        android:textColor="#162F59"
+                        android:textSize="25sp"
+                        android:textStyle="bold"/>
+
+                    <RadioGroup
+                        android:id="@+id/tripMode"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="10dp"
+                        android:checkedButton="@id/roundTrip"
+                        android:orientation="horizontal">
+                        <RadioButton android:id="@+id/roundTrip" style="@style/LandscapeChoice" android:drawableStart="@drawable/ic_roundtrip" android:drawablePadding="6dp" android:text="왕복\n출발지로 돌아오기"/>
+                        <RadioButton android:id="@+id/oneWay" style="@style/LandscapeChoice" android:drawableStart="@drawable/ic_oneway" android:drawablePadding="6dp" android:text="편도\n새로운 곳으로"/>
+                    </RadioGroup>
+
+                    <Space
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"/>
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="4dp"
+                        android:text="②  드라이브 시간"
+                        android:textColor="#162F59"
+                        android:textSize="25sp"
+                        android:textStyle="bold"/>
+
+                    <RadioGroup
+                        android:id="@+id/duration"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:checkedButton="@id/time60"
+                        android:orientation="horizontal">
+                        <RadioButton android:id="@+id/time30" style="@style/LandscapeTimeChoice" android:text="30분"/>
+                        <RadioButton android:id="@+id/time60" style="@style/LandscapeTimeChoice" android:text="60분"/>
+                        <RadioButton android:id="@+id/time120" style="@style/LandscapeTimeChoice" android:text="120분"/>
+                        <RadioButton android:id="@+id/timeCustom" style="@style/LandscapeTimeChoice" android:text="직접 입력"/>
+                    </RadioGroup>
+
+                    <LinearLayout
+                        android:id="@+id/customTime"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:visibility="gone">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="10~240분 · 5분 단위" android:textColor="#526A85" android:textSize="19sp"/>
+                        <EditText android:id="@+id/customMinutes" android:layout_width="132dp" android:layout_height="64dp" android:hint="시간(분)" android:imeOptions="actionDone" android:inputType="number" android:maxLength="3" android:selectAllOnFocus="true" android:singleLine="true" android:text="90" android:textColor="#183153" android:textSize="28sp"/>
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="분" android:textColor="#183153" android:textSize="26sp" android:textStyle="bold"/>
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/timeHint"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:text="출발지 복귀까지 · 체류 시간 제외"
+                        android:textColor="#657D9B"
+                        android:textSize="18sp"/>
+
+                    <Space
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"/>
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="4dp"
+                        android:text="③  가고 싶은 곳"
+                        android:textColor="#162F59"
+                        android:textSize="25sp"
+                        android:textStyle="bold"/>
+
+                    <RadioGroup
+                        android:id="@+id/theme"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="10dp"
+                        android:checkedButton="@id/anywhere"
+                        android:orientation="horizontal">
+                        <RadioButton android:id="@+id/anywhere" style="@style/LandscapeThemeChoice" android:drawableTop="@drawable/art_anywhere" android:drawablePadding="3dp" android:text="어디든"/>
+                        <RadioButton android:id="@+id/city" style="@style/LandscapeThemeChoice" android:drawableTop="@drawable/art_city" android:drawablePadding="3dp" android:text="도시"/>
+                        <RadioButton android:id="@+id/mountain" style="@style/LandscapeThemeChoice" android:drawableTop="@drawable/art_mountain" android:drawablePadding="3dp" android:text="산"/>
+                        <RadioButton android:id="@+id/sea" style="@style/LandscapeThemeChoice" android:drawableTop="@drawable/art_sea" android:drawablePadding="3dp" android:text="바다"/>
+                        <RadioButton android:id="@+id/water" style="@style/LandscapeThemeChoice" android:drawableTop="@drawable/art_water" android:drawablePadding="3dp" android:text="강/호수"/>
+                        <RadioButton android:id="@+id/park" style="@style/LandscapeThemeChoice" android:drawableTop="@drawable/art_park" android:drawablePadding="3dp" android:text="공원"/>
+                    </RadioGroup>
+
+                    <Space
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"/>
+
+                    <HorizontalScrollView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:background="@drawable/selection_strip"
+                        android:fillViewport="true"
+                        android:scrollbars="none">
+                        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal" android:padding="6dp">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingStart="8dp" android:text="선택한 조건  │" android:textColor="#365580" android:textSize="18sp"/>
+                            <TextView android:id="@+id/selectedTrip" style="@style/LandscapeSelectionChip" android:text="왕복"/>
+                            <TextView android:id="@+id/selectedTime" style="@style/LandscapeSelectionChip" android:text="60분"/>
+                            <TextView android:id="@+id/selectedPlace" style="@style/LandscapeSelectionChip" android:text="어디든"/>
+                        </LinearLayout>
+                    </HorizontalScrollView>
+
+                    <!-- 남는 높이는 각 선택 영역 사이에 균등 배분하고 버튼은 패널 하단에 맞춘다. -->
+                    <Space
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"/>
+
+                    <Button
+                        android:id="@+id/findRoute"
+                        android:layout_width="match_parent"
+                        android:layout_height="72dp"
+                        android:background="@drawable/submit_background"
+                        android:backgroundTint="@null"
+                        android:gravity="center"
+                        android:paddingHorizontal="20dp"
+                        android:stateListAnimator="@null"
+                        android:text="이 조건으로 코스 찾기 →"
+                        android:textColor="#FFFFFF"
+                        android:textSize="26sp"
+                        android:textStyle="bold"/>
+                </LinearLayout>
+            </ScrollView>
+        </LinearLayout>
+    </LinearLayout>
 </FrameLayout>
