@@ -11,6 +11,8 @@ import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -154,7 +156,8 @@ public class TmapRouteClient {
                         throw mapHttpError(upstreamResponse.getStatusCode());
                     })
                     .body(TmapApiResponse.class);
-            TmapRouteSummary summary = validateAndMap(response);
+            TmapRouteSummary summary = validateAndMap(
+                    response, search.waypoints().size());
             cacheRoute(cacheKey, summary);
             return summary;
         } catch (TmapRouteClientException exception) {
@@ -277,7 +280,9 @@ public class TmapRouteClient {
     /**
      * TMAP의 문자열 숫자를 양수 단위값으로 검증한 뒤 내부 결과로 변환합니다.
      */
-    private TmapRouteSummary validateAndMap(TmapApiResponse response) {
+    private TmapRouteSummary validateAndMap(
+            TmapApiResponse response,
+            int waypointCount) {
         if (response == null || !"FeatureCollection".equals(response.type())) {
             throw invalidResponse();
         }
@@ -298,13 +303,74 @@ public class TmapRouteClient {
             return new TmapRouteSummary(
                     distanceMeters,
                     durationSeconds,
-                    calculateRepeatedSegmentPercent(response.features()));
+                    calculateRepeatedSegmentPercent(response.features()),
+                    extractLegSeconds(response.features(), waypointCount, durationSeconds));
         } catch (NumberFormatException exception) {
             throw new TmapRouteClientException(
                     TmapClientErrorType.INVALID_RESPONSE,
                     "TMAP 거리 또는 시간 응답 형식이 올바르지 않습니다.",
                     exception);
         }
+    }
+
+    /** 공식 경유지·도착점의 구간 시간을 순서대로 읽고 전체 시간과 일치할 때만 사용합니다. */
+    private List<Long> extractLegSeconds(
+            List<TmapApiFeature> features,
+            int waypointCount,
+            long durationSeconds) {
+        if (features == null || features.isEmpty()) {
+            return List.of();
+        }
+        List<TmapRouteLeg> legs = new ArrayList<>();
+        try {
+            for (TmapApiFeature feature : features) {
+                TmapApiResponseProperties properties = feature.properties();
+                if (properties == null || !isLegEndPoint(properties.pointType())) {
+                    continue;
+                }
+                if (properties.index() == null || properties.time() == null) {
+                    return List.of();
+                }
+                long seconds = Long.parseLong(properties.time());
+                if (seconds <= 0) {
+                    return List.of();
+                }
+                legs.add(new TmapRouteLeg(properties.index(), seconds));
+            }
+            if (legs.size() != waypointCount + 1) {
+                return List.of();
+            }
+            legs.sort(Comparator.comparingInt(TmapRouteLeg::index));
+            if (new HashSet<>(legs.stream().map(TmapRouteLeg::index).toList()).size()
+                    != legs.size()) {
+                return List.of();
+            }
+            long measuredSeconds = 0L;
+            for (TmapRouteLeg leg : legs) {
+                measuredSeconds = Math.addExact(measuredSeconds, leg.seconds());
+            }
+            if (measuredSeconds != durationSeconds) {
+                return List.of();
+            }
+            return legs.stream().map(TmapRouteLeg::seconds).toList();
+        } catch (NumberFormatException | ArithmeticException exception) {
+            return List.of();
+        }
+    }
+
+    private boolean isLegEndPoint(String pointType) {
+        if ("E".equals(pointType)) {
+            return true;
+        }
+        if (pointType == null || pointType.length() < 2 || pointType.charAt(0) != 'B') {
+            return false;
+        }
+        for (int index = 1; index < pointType.length(); index++) {
+            if (!Character.isDigit(pointType.charAt(index))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** 거리와 시간이 평균 시속 5~130km 범위를 벗어나면 추천용 자동차 경로에서 제외합니다. */
@@ -424,6 +490,14 @@ public class TmapRouteClient {
     private record TmapApiGeometry(String type, JsonNode coordinates) {
     }
 
-    private record TmapApiResponseProperties(String totalDistance, String totalTime) {
+    private record TmapApiResponseProperties(
+            String totalDistance,
+            String totalTime,
+            Integer index,
+            String pointType,
+            String time) {
+    }
+
+    private record TmapRouteLeg(int index, long seconds) {
     }
 }
