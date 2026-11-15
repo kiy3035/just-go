@@ -27,4 +27,5 @@ logs/
 # Android artifacts (최종 제출 APK만 저장소 루트 apk/에서 허용)
 *.apk
 *.aab
+/android-app/release/
 !/apk/*.apk

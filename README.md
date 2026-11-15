@@ -233,7 +233,7 @@ docs/          요구사항, API 계약, 데이터·보안·품질 정책
 
 | 항목 | 값 |
 |---|---|
-| 제출 예정 경로 | `apk/공룡과참새_JustGo_release.apk` |
+| 파일 경로 | `apk/공룡과참새_JustGo_release.apk` |
 | applicationId | `com.kiy3035.justgo` |
 | 버전 | `1.0.0` (`versionCode 1`) |
 | 빌드 종류 | 서명된 Android Release APK |
