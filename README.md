@@ -1,12 +1,13 @@
-# just go
+# Just Go
 
 > 목적지를 정하지 않아도, 원하는 시간과 풍경만 고르면 출발할 수 있는 드라이브 추천 서비스
 
-`just go`는 현대자동차그룹 2026 차량용 앱 개발 공모전을 위해 만든 Pleos Connect 차량용 Android 앱입니다.
+`Just Go`는 현대자동차그룹 2026 차량용 앱 개발 공모전을 위해 만든 Pleos Connect 차량용 Android 앱입니다.
 
 운전은 하고 싶은데 목적지를 고르느라 시간을 쓰고 싶지 않은 순간이 있습니다. 이 앱에서는 왕복·편도, 드라이브 시간, 보고 싶은 풍경만 고르면 됩니다. 현재 위치 주변의 장소를 찾고 실제 자동차 경로를 계산한 뒤, 선택한 코스를 차량 내장 내비게이션으로 넘겨줍니다.
 
-<img width="818" height="696" alt="just go 메인 조건 선택 화면" src="https://github.com/user-attachments/assets/7f438bc3-1cb5-4931-a033-8645bd99c059" />
+<img width="814" height="616" alt="image" src="https://github.com/user-attachments/assets/21a8c1ae-1e8b-42d9-b187-49dafdb4a6d4" />
+
 
 ## 로컬 시연 빠른 시작
 
@@ -52,7 +53,7 @@ adb install -r ".\apk\공룡과참새_JustGo_release.apk"
 
 ## 문제 정의
 
-보통 내비게이션은 목적지를 먼저 물어봅니다. `just go`는 그 순서를 바꿨습니다. 어디로 갈지 정하지 못했더라도 지금 쓸 수 있는 시간과 원하는 풍경부터 고를 수 있습니다.
+보통 내비게이션은 목적지를 먼저 물어봅니다. `Just Go`는 그 순서를 바꿨습니다. 어디로 갈지 정하지 못했더라도 지금 쓸 수 있는 시간과 원하는 풍경부터 고를 수 있습니다.
 
 선택이 끝나면 현재 위치에서 출발하는 코스의 예상 주행시간을 실제 도로 기준으로 계산합니다. 왕복은 출발지로 돌아오는 시간까지 포함하고, 편도는 목적지에 도착하는 시간을 기준으로 삼습니다. 여러 후보를 비교해 코스를 고른 뒤에는 차량 내장 내비게이션이 길 안내를 이어받습니다.
 
@@ -66,7 +67,7 @@ adb install -r ".\apk\공룡과참새_JustGo_release.apk"
 
 ## 서비스 목표
 
-`just go`로 하고 싶은 일은 네 가지입니다.
+`Just Go`로 하고 싶은 일은 네 가지입니다.
 
 1. **목적지 고민 줄이기** — 장소를 잘 몰라도 몇 번의 선택으로 출발할 수 있게 만들기
 2. **시간에 맞는 코스 찾기** — 거리보다 실제로 쓸 수 있는 드라이브 시간을 먼저 보기
@@ -114,14 +115,15 @@ adb install -r ".\apk\공룡과참새_JustGo_release.apk"
 
 추천 카드에는 목적지, 예상 시간과 거리, 목표 시간과의 차이가 표시됩니다. 카드를 누르면 구간별 시간과 내비게이션 시작 버튼을 확인할 수 있습니다. 도시를 선택한 경우에는 예상 도착 시각에 관람할 수 있는 행사를 먼저 보여 주고, 일반 도시 명소는 따로 구분합니다.
 
-<img width="815" height="616" alt="추천 코스 목록 화면" src="https://github.com/user-attachments/assets/e469bb59-489f-484b-8b20-8ba2aa216d5f" />
-<img width="805" height="575" alt="추천 코스 상세 화면" src="https://github.com/user-attachments/assets/d6fa68ae-cd57-4bcc-93d0-6ca725be2960" />
+<img width="798" height="578" alt="image" src="https://github.com/user-attachments/assets/8ad1b38a-177e-4a06-bc7c-ba8f74e3bc0e" />
+<img width="805" height="573" alt="image" src="https://github.com/user-attachments/assets/8f79ab5a-85bf-41fb-a027-7992330f672b" />
+
 
 ### 5. 차량 내비게이션 전달
 
 코스를 고르면 경유지와 목적지를 Pleos NaviHelper에 전달합니다. 그다음 길 안내와 재탐색은 차량 내장 내비게이션이 맡습니다.
 
-<img width="818" height="618" alt="Pleos 차량 내비게이션 전환 화면" src="https://github.com/user-attachments/assets/9bfc48a1-932d-4686-9859-4a61ab181e81" />
+<img width="812" height="566" alt="image" src="https://github.com/user-attachments/assets/d328a5b8-b34f-4dd8-b345-68935dbea12e" />
 
 ## 아키텍처
 
