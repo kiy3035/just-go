@@ -2,12 +2,10 @@ package com.example.justgo.ui;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.LruCache;
 import android.view.View;
-import android.widget.LinearLayout;
 import com.example.justgo.R;
 import com.example.justgo.data.RouteRecommendationClient;
 import com.example.justgo.data.RouteRecommendationClient.BannerEvent;
@@ -25,16 +23,17 @@ import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import javax.net.ssl.HttpsURLConnection;
 
-/** 메인 화면 행사 카드의 조회, 이미지 표시, 자동 전환을 관리한다. */
+/** 오늘 행사 추천 카드의 조회, 자동 전환, 수동 탐색과 내비 전달을 관리한다. */
 final class TodayEventBanner {
     private static final long ROTATE_DELAY = 8_000;
     private static final int MAX_IMAGE_BYTES = 2 * 1024 * 1024;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ExecutorService eventWorker = Executors.newSingleThreadExecutor();
     private final ExecutorService imageWorker = Executors.newSingleThreadExecutor();
-    private final LruCache<String, Bitmap> photos = new LruCache<>(5);
+    private final LruCache<String, Bitmap> photos = new LruCache<>(10);
     private final EventBannerBinding binding;
     private final RouteRecommendationClient client;
+    private final Consumer<BannerEvent> navigate;
     private final Runnable rotate = this::next;
     private List<BannerEvent> events = List.of();
     private int index;
@@ -49,18 +48,20 @@ final class TodayEventBanner {
                      Consumer<BannerEvent> navigate) {
         this.binding = binding;
         this.client = client;
+        this.navigate = navigate;
         binding.eventNavigate.setEnabled(false);
         binding.eventNavigate.setOnFocusChangeListener((view, hasFocus) -> scheduleRotation());
-        binding.eventArtworkPanel.setOnClickListener(view -> {
+        binding.eventNext.setEnabled(false);
+        binding.eventNext.setOnFocusChangeListener((view, hasFocus) -> scheduleRotation());
+        // 포스터와 무관한 명시적 버튼으로 사용자가 다음 행사를 확인한다.
+        binding.eventNext.setOnClickListener(view -> {
             if (canAdvance()) next();
         });
+        binding.eventArtworkPanel.setClickable(false);
+        binding.eventArtworkPanel.setFocusable(false);
+        // 이동하기는 팝업 없이 현재 보이는 행사를 곧바로 차량 내비로 전달한다.
+        binding.eventNavigate.setOnClickListener(view -> navigateToCurrentEvent());
         updateControls();
-        // 클릭 당시 화면에 보이는 카드를 목적지로 고정한다.
-        binding.eventNavigate.setOnClickListener(view -> {
-            if (active && !restricted && !navigationPending && !events.isEmpty()) {
-                navigate.accept(events.get(index));
-            }
-        });
     }
 
     void start() {
@@ -112,12 +113,16 @@ final class TodayEventBanner {
         index = 0;
         if (events.isEmpty()) {
             binding.eventHeading.setText(R.string.event_banner_label);
+            binding.eventRegionBadge.setVisibility(View.GONE);
             binding.eventTitle.setText(result.partial()
                     ? "행사를 불러오지 못했어요" : "오늘은 행사가 없어요");
             binding.eventDetail.setVisibility(View.GONE);
             binding.eventSource.setVisibility(View.GONE);
+            binding.eventRecommendationReason.setVisibility(View.GONE);
+            binding.eventRecommendationRow.setVisibility(View.GONE);
+            binding.eventPageStatus.setVisibility(View.GONE);
+            binding.eventNext.setVisibility(View.GONE);
             binding.eventNavigate.setVisibility(View.GONE);
-            binding.eventPages.setVisibility(View.GONE);
             binding.eventArt.setImageResource(R.drawable.event_art_empty);
             updateControls();
             return;
@@ -143,84 +148,89 @@ final class TodayEventBanner {
         binding.eventDetail.setVisibility(View.VISIBLE);
     }
 
+    /** 자동 또는 수동 전환 후 다음 행사를 같은 표시 시간으로 다시 시작한다. */
     private void next() {
         if (!canAdvance()) return;
-        // 수동으로 넘긴 카드도 같은 시간 동안 표시하도록 render에서 타이머를 다시 시작한다.
         index = (index + 1) % events.size();
         render();
     }
 
+    /** 현재 행사의 분류, 장소, 일정과 추천 이유를 카드에 표시한다. */
     private void render() {
         BannerEvent event = events.get(index);
-        // 배너가 넘어갈 때 제목도 현재 행사 한 장의 지역에 맞춰 갱신한다.
-        binding.eventHeading.setText(switch (event.source()) {
-            case "SEOUL" -> R.string.event_banner_seoul_label;
-            case "TOUR_API" -> R.string.event_banner_gyeonggi_label;
-            default -> R.string.event_banner_label;
-        });
+        binding.eventHeading.setText(R.string.event_banner_label);
+        binding.eventRegionBadge.setText(binding.getRoot().getContext().getString(
+                R.string.event_banner_region_today, event.region()));
+        binding.eventRegionBadge.setVisibility(View.VISIBLE);
         binding.eventTitle.setText(event.title());
-        String detail = event.venue().startsWith(event.region())
-                ? event.venue() : event.region() + " · " + event.venue();
-        binding.eventDetail.setText(event.schedule().isBlank() ? detail : detail + " · " + event.schedule());
-        binding.eventDetail.setVisibility(View.VISIBLE);
-        binding.eventSource.setText(event.source().equals("SEOUL")
-                ? "출처 · 서울특별시" : "출처 · 한국관광공사");
+
+        String detail = event.venue();
+        if (!event.schedule().isBlank()) {
+            detail = detail.isBlank() ? event.schedule() : detail + " · " + event.schedule();
+        }
+        binding.eventDetail.setText(detail);
+        binding.eventDetail.setVisibility(detail.isBlank() ? View.GONE : View.VISIBLE);
+        String category = binding.getRoot().getContext().getString(categoryLabel(event.category()));
+        binding.eventSource.setText(binding.getRoot().getContext().getString(
+                R.string.event_banner_reason, category));
         binding.eventSource.setVisibility(View.VISIBLE);
+        binding.eventRecommendationReason.setText(R.string.event_banner_recommendation);
+        binding.eventRecommendationReason.setVisibility(View.VISIBLE);
+        binding.eventRecommendationRow.setVisibility(View.VISIBLE);
+        binding.eventPageStatus.setText(binding.getRoot().getContext().getString(
+                R.string.event_banner_page, index + 1, events.size()));
+        binding.eventPageStatus.setVisibility(View.VISIBLE);
+        binding.eventNext.setVisibility(events.size() > 1 ? View.VISIBLE : View.GONE);
         binding.eventNavigate.setVisibility(View.VISIBLE);
-        renderPageDots();
+
         binding.eventArt.setImageResource(switch (event.category()) {
             case "PERFORMANCE" -> R.drawable.event_art_performance;
             case "EXHIBITION" -> R.drawable.event_art_exhibition;
             case "FESTIVAL" -> R.drawable.event_art_festival;
             default -> R.drawable.event_art_empty;
         });
-        if (!event.imageUrl().isBlank()) {
-            imageWorker.execute(() -> {
-                Bitmap stored = photos.get(event.imageUrl());
-                Bitmap photo = stored != null ? stored : loadPhoto(event.imageUrl());
-                if (stored == null && photo != null) photos.put(event.imageUrl(), photo);
-                handler.post(() -> {
-                    if (photo == null || closed || events.isEmpty() || events.get(index) != event) return;
-                    // 원본 비율을 유지하면서 대표 이미지가 배너 오른쪽을 채우도록 중앙을 표시한다.
-                    binding.eventArt.setImageBitmap(photo);
-                });
-            });
-        }
+        loadPhoto(event);
         updateControls();
     }
 
-    private void renderPageDots() {
-        binding.eventPages.removeAllViews();
-        binding.eventPages.setVisibility(events.size() > 1 ? View.VISIBLE : View.GONE);
-        if (events.size() <= 1) return;
+    /** 원격 이미지는 크기와 프로토콜을 제한하고 현재 행사일 때만 반영한다. */
+    private void loadPhoto(BannerEvent event) {
+        if (event.imageUrl().isBlank()) return;
+        imageWorker.execute(() -> {
+            Bitmap stored = photos.get(event.imageUrl());
+            Bitmap photo = stored != null ? stored : downloadPhoto(event.imageUrl());
+            if (stored == null && photo != null) photos.put(event.imageUrl(), photo);
+            handler.post(() -> {
+                if (photo == null || closed || events.isEmpty() || events.get(index) != event) return;
+                binding.eventArt.setImageBitmap(photo);
+            });
+        });
+    }
 
-        // 사진 위에 페이지 점을 직접 표시하고 현재 행사만 흰색으로 강조한다.
-        float density = binding.eventPages.getResources().getDisplayMetrics().density;
-        int diameter = Math.round(12 * density);
-        int gap = Math.round(7 * density);
-        for (int page = 0; page < events.size(); page++) {
-            View dot = new View(binding.eventPages.getContext());
-            GradientDrawable circle = new GradientDrawable();
-            circle.setShape(GradientDrawable.OVAL);
-            circle.setColor(page == index ? 0xFFFFFFFF : 0xAAE0E5EE);
-            circle.setStroke(Math.max(1, Math.round(density)), 0x55344256);
-            dot.setBackground(circle);
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(diameter, diameter);
-            if (page > 0) params.setMarginStart(gap);
-            binding.eventPages.addView(dot, params);
+    private void navigateToCurrentEvent() {
+        if (active && !restricted && !navigationPending && !events.isEmpty()) {
+            navigate.accept(events.get(index));
         }
     }
 
+    private int categoryLabel(String category) {
+        return switch (category) {
+            case "PERFORMANCE" -> R.string.event_banner_category_performance;
+            case "EXHIBITION" -> R.string.event_banner_category_exhibition;
+            case "FESTIVAL" -> R.string.event_banner_category_festival;
+            default -> R.string.event_banner_category_default;
+        };
+    }
+
     private void updateControls() {
-        binding.eventNavigate.setEnabled(active && !restricted && !navigationPending);
+        binding.eventNavigate.setEnabled(active && !restricted
+                && !navigationPending && !events.isEmpty());
         boolean advance = canAdvance();
-        binding.eventArtworkPanel.setEnabled(advance);
-        binding.eventArtworkPanel.setClickable(advance);
-        binding.eventArtworkPanel.setFocusable(advance);
-        binding.eventArtworkPanel.setContentDescription(advance
-                ? binding.getRoot().getContext().getString(
-                        R.string.event_banner_next_description, index + 1, events.size())
-                : null);
+        binding.eventNext.setEnabled(advance);
+        binding.eventArtworkPanel.setEnabled(true);
+        binding.eventArtworkPanel.setClickable(false);
+        binding.eventArtworkPanel.setFocusable(false);
+        binding.eventArtworkPanel.setContentDescription(null);
         scheduleRotation();
     }
 
@@ -230,12 +240,13 @@ final class TodayEventBanner {
 
     private void scheduleRotation() {
         handler.removeCallbacks(rotate);
-        if (focused && canAdvance() && !binding.eventNavigate.hasFocus()) {
+        if (focused && canAdvance()
+                && !binding.eventNext.hasFocus() && !binding.eventNavigate.hasFocus()) {
             handler.postDelayed(rotate, ROTATE_DELAY);
         }
     }
 
-    private static Bitmap loadPhoto(String address) {
+    private static Bitmap downloadPhoto(String address) {
         HttpsURLConnection connection = null;
         try {
             URL url = new URL(address);
@@ -244,7 +255,8 @@ final class TodayEventBanner {
             connection.setConnectTimeout(2_500);
             connection.setReadTimeout(3_000);
             connection.setInstanceFollowRedirects(false);
-            if (connection.getResponseCode() != 200 || connection.getContentLength() > MAX_IMAGE_BYTES) return null;
+            if (connection.getResponseCode() != 200
+                    || connection.getContentLength() > MAX_IMAGE_BYTES) return null;
             try (InputStream input = connection.getInputStream();
                  ByteArrayOutputStream output = new ByteArrayOutputStream()) {
                 byte[] buffer = new byte[8192];

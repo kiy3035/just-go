@@ -27,6 +27,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class TodayEventSource {
     private static final Logger LOGGER = LoggerFactory.getLogger(TodayEventSource.class);
+    private static final int MAX_EVENTS = 10;
     private static final int SEOUL_PAGE_SIZE = 1000;
     private static final int TOUR_PAGE_SIZE = 100;
     private static final Pattern CLOCK_RANGE = Pattern.compile(
@@ -65,14 +66,21 @@ public class TodayEventSource {
         }
         List<BannerEvent> seoulEvents = available(cachedSeoul.events(), now.toLocalTime());
         List<BannerEvent> gyeonggiEvents = available(cachedGyeonggi.events(), now.toLocalTime());
+        List<BannerEvent> events = interleave(seoulEvents, gyeonggiEvents);
+        return new Result(events, cachedSeoul.events().isEmpty() || cachedGyeonggi.events().isEmpty());
+    }
+
+    /** 서울과 경기 행사를 번갈아 최대 10건까지 담아 한 지역 편중을 막는다. */
+    static List<BannerEvent> interleave(List<BannerEvent> seoulEvents, List<BannerEvent> gyeonggiEvents) {
         List<BannerEvent> events = new ArrayList<>();
-        // 각 지역의 후보를 번갈아 담아 한 지역만 배너를 차지하지 않도록 한다.
-        for (int index = 0; events.size() < 5
+        for (int index = 0; events.size() < MAX_EVENTS
                 && index < Math.max(seoulEvents.size(), gyeonggiEvents.size()); index++) {
             if (index < seoulEvents.size()) events.add(seoulEvents.get(index));
-            if (events.size() < 5 && index < gyeonggiEvents.size()) events.add(gyeonggiEvents.get(index));
+            if (events.size() < MAX_EVENTS && index < gyeonggiEvents.size()) {
+                events.add(gyeonggiEvents.get(index));
+            }
         }
-        return new Result(List.copyOf(events), cachedSeoul.events().isEmpty() || cachedGyeonggi.events().isEmpty());
+        return List.copyOf(events);
     }
 
     private static Snapshot refresh(Snapshot snapshot, ZonedDateTime now, String keyName, String key,

@@ -88,6 +88,28 @@ public class RouteRecommendationClientTest {
         server.shutdown();
     }
 
+    @Test
+    public void acceptsUpToTenTodayEvents() throws Exception {
+        server.enqueue(jsonResponse(todayEventsJson(10)));
+
+        RouteRecommendationClient.TodayEvents result = client.todayEvents();
+
+        assertEquals(10, result.events().size());
+        assertEquals("행사 10", result.events().get(9).title());
+    }
+
+    @Test
+    public void rejectsMoreThanTenTodayEvents() throws Exception {
+        server.enqueue(jsonResponse(todayEventsJson(11)));
+
+        try {
+            client.todayEvents();
+            fail("행사 응답은 최대 10건이어야 합니다.");
+        } catch (RouteRecommendationClient.InvalidResponse expected) {
+            assertNotNull(expected);
+        }
+    }
+
     /** 목록과 상세에 쓰는 시간과 행사 데이터를 보존하며 별도 장소 선택 토큰 없이 요청한다. */
     @Test
     public void readsRankedRouteLegAndEventWithoutCandidateToken() throws Exception {
@@ -509,5 +531,19 @@ public class RouteRecommendationClientTest {
                 .setResponseCode(200)
                 .setHeader("Content-Type", "application/json; charset=utf-8")
                 .setBody(body);
+    }
+
+    /** 행사 배너 응답 상한을 검증할 개인정보 없는 계약 예시를 만든다. */
+    private static String todayEventsJson(int count) {
+        StringBuilder events = new StringBuilder();
+        for (int index = 1; index <= count; index++) {
+            if (events.length() > 0) events.append(',');
+            events.append("""
+                    {"title":"행사 %d","region":"서울","venue":"테스트 장소",
+                     "category":"EVENT","imageUrl":null,"latitude":37.5,"longitude":127.0,
+                     "source":"TEST","schedule":""}
+                    """.formatted(index));
+        }
+        return "{\"events\":[" + events + "],\"partial\":false}";
     }
 }

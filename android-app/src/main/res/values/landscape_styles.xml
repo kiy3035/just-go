@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 차량 가로 화면에서 ① 주행 방식 카드의 터치 크기를 유지하며 세로 공간만 줄인다. -->
+    <style name="LandscapeChoice" parent="Choice">
+        <item name="android:layout_margin">4dp</item>
+        <item name="android:minHeight">84dp</item>
+        <item name="android:padding">8dp</item>
+        <item name="android:textSize">24sp</item>
+    </style>
+
+    <!-- ② 시간 선택은 한 줄 문구이므로 최소 터치 영역보다 여유 있는 60dp로 맞춘다. -->
+    <style name="LandscapeTimeChoice" parent="TimeChoice">
+        <item name="android:layout_margin">4dp</item>
+        <item name="android:minHeight">60dp</item>
+        <item name="android:padding">6dp</item>
+        <item name="android:textSize">23sp</item>
+    </style>
+
+    <!-- ③ 풍경 아이콘과 문구가 겹치지 않는 범위에서 카드 높이를 줄인다. -->
+    <style name="LandscapeThemeChoice" parent="ThemeChoice">
+        <item name="android:layout_margin">4dp</item>
+        <item name="android:minHeight">96dp</item>
+        <item name="android:paddingLeft">4dp</item>
+        <item name="android:paddingTop">4dp</item>
+        <item name="android:paddingRight">4dp</item>
+        <item name="android:paddingBottom">4dp</item>
+        <item name="android:textSize">21sp</item>
+    </style>
+
+    <style name="LandscapeSelectionChip">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginStart">10dp</item>
+        <item name="android:background">@drawable/selection_chip</item>
+        <item name="android:paddingStart">14dp</item>
+        <item name="android:paddingTop">5dp</item>
+        <item name="android:paddingEnd">14dp</item>
+        <item name="android:paddingBottom">5dp</item>
+        <item name="android:textColor">#183763</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+</resources>

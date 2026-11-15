@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class TodayEventSourceTest {
@@ -47,5 +48,27 @@ class TodayEventSourceTest {
                  "eventenddate":"20261114","mapy":"127.02","mapx":"37.25"}
                 """);
         assertThat(TodayEventSource.parse(row, today, false)).isEmpty();
+    }
+
+    @Test
+    void interleavesRegionsAndLimitsResultToTenEvents() {
+        List<TodayEventSource.BannerEvent> seoul = java.util.stream.IntStream.range(0, 8)
+                .mapToObj(index -> event("서울 " + index, "서울"))
+                .toList();
+        List<TodayEventSource.BannerEvent> gyeonggi = java.util.stream.IntStream.range(0, 8)
+                .mapToObj(index -> event("경기 " + index, "경기"))
+                .toList();
+
+        List<TodayEventSource.BannerEvent> result = TodayEventSource.interleave(seoul, gyeonggi);
+
+        assertThat(result).hasSize(10);
+        assertThat(result).extracting(TodayEventSource.BannerEvent::region)
+                .containsExactly("서울", "경기", "서울", "경기", "서울", "경기", "서울", "경기", "서울", "경기");
+    }
+
+    /** 최대 건수 테스트에 쓰는 개인정보 없는 행사 예시를 만든다. */
+    private static TodayEventSource.BannerEvent event(String title, String region) {
+        return new TodayEventSource.BannerEvent(title, region, "테스트 장소", "EVENT", null,
+                37.5, 127.0, "TEST", "");
     }
 }
