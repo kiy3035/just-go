@@ -7,6 +7,48 @@
 운전하고 싶은 마음은 있지만 목적지를 고르는 과정이 번거로운 순간에 주목했습니다.
 사용자는 현재 위치에서 왕복·편도, 희망 주행 시간, 보고 싶은 풍경만 선택합니다. `just go`는 조건에 맞는 장소 후보와 실제 자동차 경로를 계산하고, 선택한 코스를 차량 내장 내비게이션으로 전달합니다.
 
+## 로컬 시연 빠른 시작
+
+### 준비 환경
+
+- Windows 11, Docker Desktop
+- Android Studio, Android SDK API 34, ADB
+- Pleos Connect Emulator `Pleos_Connect_v2.1.0`
+- 백엔드 직접 빌드 시 Java 21
+- TMAP·공공데이터 API 키가 들어 있는 로컬 `backend/.env`
+
+비밀값이 들어 있는 `.env`, `signing.properties`, 키스토어는 Git에 커밋하지 않습니다. 처음 실행하는 환경에서는 각 `.env.example`을 복사한 뒤 로컬 값으로 교체합니다.
+
+```powershell
+Copy-Item .\infra\.env.example .\infra\.env
+Copy-Item .\backend\.env.example .\backend\.env
+```
+
+### 1. PostgreSQL과 백엔드 실행
+
+저장소 루트에서 다음 명령을 실행합니다.
+
+```powershell
+cd .\infra
+docker compose --env-file .env --profile app up -d --build backend
+```
+
+정상 실행 여부는 다음 주소에서 확인합니다.
+
+```text
+http://127.0.0.1:18080/actuator/health
+```
+
+### 2. 제출 APK 설치
+
+Pleos Connect Emulator를 실행한 뒤 저장소 루트에서 설치합니다.
+
+```powershell
+adb install -r ".\apk\공룡과참새_JustGo_release.apk"
+```
+
+제출 Release APK는 에뮬레이터 호스트 별칭 `http://10.0.2.2:18080`으로 로컬 백엔드에 연결합니다. 평문 HTTP는 해당 로컬 주소에만 허용하며 다른 주소의 평문 통신은 차단합니다. 따라서 APK만 단독 실행하면 화면은 열리지만, 장소·코스 추천과 오늘 행사 조회에는 같은 PC에서 실행 중인 백엔드와 API 키 설정이 필요합니다.
+
 ## 문제 정의
 
 `just go`는 목적지를 정하기 전에 **쓸 수 있는 주행 시간**부터 묻습니다. 운전자가 희망 시간과 왕복·편도를 선택하면 현재 위치에서 출발하는 후보 코스의 예상 주행시간을 실제 도로 기준으로 계산하고, 목표 시간에 가까운 순으로 보여 줍니다. 왕복은 출발지 복귀까지 포함하며, 선택한 코스의 길 안내는 차량 내장 내비게이션이 이어갑니다.
@@ -37,7 +79,7 @@
 - 실제 도로 기준 예상 시간·거리 계산
 - 목표 주행 시간에 가까운 추천 코스 최대 10개 비교 및 선택
 - 도시 테마에서 예상 도착 시각에 관람 가능한 행사 우선 표시
-- 메인 화면에서 오늘 열리는 서울·경기 행사 최대 5개 확인 및 행사장 길 안내
+- 메인 화면에서 오늘 열리는 서울·경기 행사 최대 10개 탐색 및 행사장 길 안내
 - Pleos NaviHelper를 통한 차량 내장 내비게이션 연동
 - 주행 중 복잡한 조작을 제한하는 차량 UX 정책 적용
 
@@ -105,7 +147,7 @@
 
 ## 메인 화면의 오늘 행사
 
-오늘 열리는 행사를 서울과 경기에서 최대 5개 가져와 한 장씩 보여 줍니다. 배너 제목은 현재 행사에 따라 **오늘 서울 행사** 또는 **오늘 경기 행사**로 바뀝니다. 대표 이미지를 불러올 수 있으면 사진을, 없으면 공연·전시·축제 그림을 사용합니다. 행사 1개는 고정해서 보여 줍니다. 두 지역을 정상 조회했는데 결과가 없으면 **오늘은 행사가 없어요**를, 조회에 실패해 보여 줄 행사가 없으면 **행사를 불러오지 못했어요**를 표시합니다.
+오늘 열리는 행사를 서울과 경기에서 번갈아 최대 10개 가져와 한 장씩 보여 줍니다. 대표 이미지를 불러올 수 있으면 포스터를 크게 표시하고, 없으면 공연·전시·축제 그림을 사용합니다. 행사 1개는 고정하고 2개 이상이면 자동 전환과 **다음 행사 보기** 버튼으로 탐색합니다. 두 지역을 정상 조회했는데 결과가 없으면 **오늘은 행사가 없어요**를, 조회에 실패해 보여 줄 행사가 없으면 **행사를 불러오지 못했어요**를 표시합니다.
 
 정차 중 **행사 찾아가기**를 누르면 행사장 좌표를 Pleos 차량 내비게이션에 전달합니다.
 
@@ -166,11 +208,51 @@
 ## 저장소 구성
 
 ```text
+apk/           제출용 서명 Release APK
 android-app/   Pleos Connect 차량용 Android 앱
 backend/       추천 API, 장소 후보 통합, 외부 서비스 연동
 infra/         PostgreSQL 기반 로컬 인프라
 docs/          요구사항, API 계약, 데이터·보안·품질 정책
 ```
+
+## 제출 APK
+
+| 항목 | 값 |
+|---|---|
+| 파일 경로 | `apk/공룡과참새_JustGo_release.apk` |
+| applicationId | `com.kiy3035.justgo` |
+| 버전 | `1.0.0` (`versionCode 1`) |
+| 빌드 종류 | 서명된 Android Release APK |
+| 실행 방식 | Pleos Emulator와 같은 PC에서 로컬 Docker 백엔드 실행 |
+
+Release 서명키와 비밀번호는 저장소에 포함하지 않습니다. 로컬 `android-app/signing.properties`가 설정된 환경에서만 서명된 APK가 만들어집니다. 템플릿은 `android-app/signing.properties.example`을 참고합니다.
+
+## 테스트 환경
+
+| 항목 | 검증 환경 |
+|---|---|
+| 운영체제 | Windows 11 |
+| Pleos Emulator | `Pleos_Connect_v2.1.0` |
+| 에뮬레이터 모델 | `Connect on x86_64 emulator` |
+| 화면 규격 | 가로 `2560 × 1440`, `160 dpi` |
+| Android | API 34, `minSdk 28`, Java 17 바이트코드 |
+| 차량 내비 연동 | NaviHelper `3.0.5` |
+| Backend | Java 21, Spring Boot `3.5.16` |
+| Database | PostgreSQL `17.11`, Flyway |
+| 로컬 인프라 | Docker Compose |
+
+### 소스에서 검증
+
+```powershell
+cd .\backend
+.\gradlew.bat test --no-daemon
+
+cd ..\android-app
+.\gradlew.bat testDebugUnitTest lintDebug assembleDebug --no-daemon
+.\gradlew.bat testReleaseUnitTest lintRelease assembleRelease --no-daemon
+```
+
+`assembleRelease`는 `signing.properties`가 없으면 서명되지 않은 APK를 만듭니다. 공모전 제출에는 로컬 서명 설정으로 생성한 실행 가능한 Release APK만 사용합니다.
 
 ## 현재 구현 범위
 
@@ -178,6 +260,7 @@ docs/          요구사항, API 계약, 데이터·보안·품질 정책
 - 도시공원 데이터, TourAPI, TMAP POI와 수동 보정 DB를 결합한 장소 후보 백엔드
 - TMAP 실제 자동차 경로와 추천 순위 계산
 - 추천 결과 선택 UI와 Pleos NaviHelper 단일 목적지 안내 연결
-- 추천 목록·코스 상세 팝업과 도시 행사 데이터 연동 코드 구현. 도시 행사 실데이터와 변경된 추천 흐름의 Pleos 구동은 검증 필요
-- 메인 행사 배너와 행사장 내비 전달 구현. 실제 키를 설정한 뒤 서울·경기 행사 조회와 Pleos 내비 전환 검증 필요
-- 최종 아키텍처 이미지와 제출용 Release APK는 전체 기능 검증 후 추가 예정
+- 추천 목록·코스 상세 팝업과 도시 행사 데이터 연동
+- 서울·경기 오늘 행사 최대 10건 배너와 행사장 내비 직접 전달
+- Pleos Emulator에서 단일 목적지 NaviHelper 전달과 Navigation 화면 전환 검증 완료
+- 최대 두 경유지 전달과 실제 주행 상태의 제한 전환은 `NOT VERIFIED`

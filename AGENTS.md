@@ -13,7 +13,7 @@
 - 공동: 기능 기획, API 계약, 통합 테스트, 경관 코스 검수, 공모전 제출물.
 - **역할 경계:** JDK, Gradle, Docker, DB 도구뿐 아니라 Android Studio, Android SDK, Pleos Emulator 등 Android 측 도구의 설치와 공통 개발환경 구성도 김인영 담당이다. 정도혜는 준비된 Android 환경에서 화면, 사용자 경험, 프론트 로직과 앱 기능 구현에 집중한다.
 - Codex는 별도 지시가 없으면 **김인영 담당 영역만 작업**한다. 정도혜 담당 영역은 수정하지 않으며, 공동 영역도 사용자가 명시적으로 요청한 경우에만 작업한다.
-- 앱명·프로젝트명은 **`just go`로 확정**한다. Android `app_name` 및 README에 정확히 이 이름을 사용한다. 저장소 명칭은 `just-go`를 사용하고 기존 `origin` 원격 저장소를 유지한다. 별도 원격 저장소 생성은 사용자 명시 지시 없이는 실행하지 않는다. **Android package/applicationId 및 도메인은 미정**이다. 프로젝트 생성에 필요하면 `com.example.justgo`를 임시 개발용으로 사용하고 `PROVISIONAL`이라고 보고한다. 최종 Release/APK 제출 전 고유 applicationId의 사용 가능성을 확인한다. 임시 ID를 제출용 최종 ID로 간주하지 않는다.
+- 앱명·프로젝트명은 **`just go`로 확정**한다. Android `app_name` 및 README에 정확히 이 이름을 사용한다. 저장소 명칭은 `just-go`를 사용하고 기존 `origin` 원격 저장소를 유지한다. 별도 원격 저장소 생성은 사용자 명시 지시 없이는 실행하지 않는다. **최종 Android applicationId는 `com.kiy3035.justgo`로 확정**한다. Java 소스 namespace는 기존 `com.example.justgo`를 유지하며 제출 APK 식별자와 혼동하지 않는다.
 
 ## 2. 결정된 기술 및 금지 사항
 

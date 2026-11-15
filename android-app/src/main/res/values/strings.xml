@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Just Go</string>
+    <string name="app_name">just go</string>
     <string name="event_banner_label">오늘의 행사 추천</string>
     <string name="event_banner_loading">오늘의 행사를 찾고 있어요</string>
     <string name="event_banner_navigate">이동하기  ↗</string>

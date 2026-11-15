@@ -1,27 +1,46 @@
 plugins { id 'com.android.application' version '8.10.1' }
 
+def localDemoRouteApiBaseUrl = 'http://10.0.2.2:18080'
 def releaseRouteApiBaseUrl = providers.gradleProperty('justGoRouteApiBaseUrl')
         .orElse(providers.environmentVariable('JUST_GO_ROUTE_API_BASE_URL'))
-        .getOrElse('')
+        .getOrElse(localDemoRouteApiBaseUrl)
         .trim()
-if (!releaseRouteApiBaseUrl.isEmpty() && !releaseRouteApiBaseUrl.startsWith('https://')) {
-    throw new GradleException('Release 추천 서버 주소는 HTTPS여야 합니다.')
+if (!releaseRouteApiBaseUrl.startsWith('https://')
+        && releaseRouteApiBaseUrl != localDemoRouteApiBaseUrl) {
+    throw new GradleException('Release 추천 서버 주소는 HTTPS 또는 로컬 시연 주소여야 합니다.')
 }
 def quotedReleaseRouteApiBaseUrl = '"' + releaseRouteApiBaseUrl
         .replace('\\', '\\\\')
         .replace('"', '\\"') + '"'
+def signingProperties = new Properties()
+def signingPropertiesFile = rootProject.file('signing.properties')
+if (signingPropertiesFile.exists()) {
+    signingPropertiesFile.withInputStream { signingProperties.load(it) }
+}
+def releaseSigningConfigured = ['storeFile', 'storePassword', 'keyAlias', 'keyPassword']
+        .every { signingProperties.getProperty(it)?.trim() }
 
 android {
     namespace 'com.example.justgo'
     compileSdk 34
     useLibrary 'android.car'
     defaultConfig {
-        applicationId 'com.example.justgo' // PROVISIONAL: 제출 전 고유 ID 확정
+        applicationId 'com.kiy3035.justgo'
         minSdk 28
         targetSdk 34
         versionCode 1
-        versionName '0.1'
+        versionName '1.0.0'
         buildConfigField 'String', 'ROUTE_API_BASE_URL', '""'
+    }
+    if (releaseSigningConfigured) {
+        signingConfigs {
+            release {
+                storeFile rootProject.file(signingProperties.getProperty('storeFile'))
+                storePassword signingProperties.getProperty('storePassword')
+                keyAlias signingProperties.getProperty('keyAlias')
+                keyPassword signingProperties.getProperty('keyPassword')
+            }
+        }
     }
     buildTypes {
         debug {
@@ -29,6 +48,7 @@ android {
         }
         release {
             buildConfigField 'String', 'ROUTE_API_BASE_URL', quotedReleaseRouteApiBaseUrl
+            if (releaseSigningConfigured) signingConfig signingConfigs.release
         }
     }
     buildFeatures {

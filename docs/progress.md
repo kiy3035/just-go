@@ -44,7 +44,7 @@
 | TMAP 추천 Provider 연동 | 완료 | 편도와 왕복 모두 후보당 1회 호출, 왕복은 다중 경유지 구간 시간 보존, 한도 중간 소진 시 앞선 성공 경로 보존 | 변경된 왕복 단일 호출을 Free 한도 초기화 후 LIVE 재확인 필요 |
 | 추천 API 보안 | 완료 | Git 이력 키 비노출 확인, loopback 기본, production 접근 토큰, 공개 기본 분당 4회·로컬 시연 60회 분리, 동시 제한, 길이 헤더가 없는 요청을 포함한 실제 본문 상한, 보안 헤더 적용 | 로컬 DB 예시 비밀번호 교체와 공개 HTTPS 프록시·고정 송신 IP·기기 인증 검증 필요 |
 | 원격 HTTPS 백엔드 | 미착수 | 로컬 개발만 구성 | 제출/시연 방식 확정 후 비용·보안 검토 필요 |
-| Release APK·서명 | 진행 가능 | HTTPS 추천 서버 주소를 환경변수·Gradle 속성으로만 주입하고 HTTP는 빌드에서 차단, unsigned Release 조립·lint 통과. 키 생성·커밋 없음 | 접근 가능한 HTTPS 주소, 고유 applicationId, 서명 방식 결정 후 실제 Release 실행 검증 필요 |
+| Release APK·서명 | 진행 가능 | applicationId `com.kiy3035.justgo`, 버전 1.0.0, 로컬 시연 주소 `10.0.2.2:18080`만 평문 허용, 비밀값 없는 서명 설정 템플릿, Debug·unsigned Release 조립과 lint 통과 | 로컬 서명키를 생성해 `공룡과참새_JustGo_release.apk`를 설치·실행 검증한 뒤 `apk/`에 추가 필요 |
 
 ## 완료된 백엔드 흐름
 
@@ -73,7 +73,7 @@
 3. 앱의 LIVE 왕복·조합 결과에서 NaviHelper 다중 경유지 실제 호출 검증
 4. 동적 원천 후보의 실제 차량 접근성·경관·순환 품질 검수
 5. 실제 경로 기반 왕복 중복률·순환 품질 검수와 대체 조건 정확도 조정
-6. 원격 HTTPS 배포, 고유 applicationId, Release APK와 서명
+6. 로컬 서명키 생성, 서명 Release APK 설치 검증과 `apk/` 제출 파일 추가
 
 ## 바로 이어갈 다음 작업
 

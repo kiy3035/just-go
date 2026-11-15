@@ -16,6 +16,7 @@ Thumbs.db
 !**/.env.example
 *.jks
 *.keystore
+signing.properties
 local.properties
 
 # Logs and local runtime files
@@ -23,6 +24,7 @@ local.properties
 logs/
 /backend/local-data/
 
-# Android artifacts (future work)
+# Android artifacts (최종 제출 APK만 저장소 루트 apk/에서 허용)
 *.apk
 *.aab
+!/apk/*.apk

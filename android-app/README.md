@@ -44,19 +44,18 @@ android run --device=emulator-5554 --apks="build/outputs/apk/debug/just go-debug
 
 ## 연결 상태
 위치 권한 허용 후 기기 현재 위치를 위도·경도로 전송합니다. 좌표 수동 입력은 제공하지 않습니다.
-디버그 앱은 에뮬레이터 호스트 주소 `http://10.0.2.2:18080`의 추천 API를 사용합니다. 서버를 해당 포트에서 실행해야 합니다.
+디버그 앱과 로컬 시연 Release 앱은 에뮬레이터 호스트 주소 `http://10.0.2.2:18080`의 추천 API를 사용합니다. 서버를 해당 포트에서 실행해야 합니다. Release의 평문 통신은 이 로컬 주소에만 허용합니다.
 에뮬레이터는 호스트 PC의 실제 위치가 아니라 에뮬레이터에 설정된 가상 GPS를 제공합니다. 위치를 수신하지 못하면 안내하며 임의 좌표로 대체하지 않습니다.
 어디든은 전체 후보, 강/호수는 강·호수 후보, 공원은 공원 후보를 조회합니다. 검수된 공원 후보가 없으면 빈 결과가 반환됩니다.
 MOCK 응답은 화면에 표시하지만 내비 시작은 허용하지 않습니다. NaviHelper 3.0.5의 단일 목적지 전달과 Navigation 화면 전환은 Pleos Emulator에서 실제 LIVE 코스로 확인했습니다. 다중 경유지 전달과 실제 주행 상태의 `CarUxRestrictions` 전환은 `NOT VERIFIED`입니다.
-`com.example.justgo`는 PROVISIONAL applicationId입니다. Release 서명키는 생성하지 않았습니다.
-Release 추천 서버 주소는 `JUST_GO_ROUTE_API_BASE_URL` 환경변수 또는
-`-PjustGoRouteApiBaseUrl=https://...` Gradle 속성으로만 주입하며, 빈 값은 허용하지만 HTTP 주소는 빌드에서 거부합니다.
+최종 applicationId는 `com.kiy3035.justgo`이며 내부 Java namespace는 기존 `com.example.justgo`를 유지합니다. Release 서명키와 비밀번호는 Git에 저장하지 않습니다.
+Release 서명은 Git 제외 파일인 `signing.properties`에서만 읽으며 `signing.properties.example`을 템플릿으로 사용합니다. 향후 원격 서버를 사용할 때는 `JUST_GO_ROUTE_API_BASE_URL` 환경변수 또는 `-PjustGoRouteApiBaseUrl=https://...` Gradle 속성으로 HTTPS 주소를 주입할 수 있습니다.
 Android와 백엔드의 연결은 `GET /api/v1/places/candidates`와 `POST /api/v1/routes/recommendations` 계약 테스트로 확인합니다.
 
 ## 검증 기준
 단위 테스트와 Lint, 6개 테마 전환, 차·차선 움직임, 사용자 지정 시간 검증, 로딩 해제, 화면 상태 복원.
 웹 스타일 정리는 데스크톱 1600px·좁은 화면 390px에서 정리 전후 위치·크기·색상과 캡처를 비교합니다.
 
-Pleos 환경: Pleos_Connect_v2.1.0 / API 34, NaviHelper 3.0.5.
+Pleos 환경: Pleos_Connect_v2.1.0 / API 34 / 2560×1440 / 160dpi, NaviHelper 3.0.5.
 공식 가이드 확인(2026-11-07): https://document.pleos.ai/docs/connect/guide/getting-started/application-development/setup-connect-sdk-emulator
 단일 목적지 검증 성공을 다중 경유지·실차 운행 제한 검증 성공으로 간주하지 않습니다.

@@ -1,0 +1,5 @@
+# 실제 값은 android-app/signing.properties에 작성하며 Git에 커밋하지 않습니다.
+storeFile=release-keystore.jks
+storePassword=replace-with-local-password
+keyAlias=just-go-release
+keyPassword=replace-with-local-password
