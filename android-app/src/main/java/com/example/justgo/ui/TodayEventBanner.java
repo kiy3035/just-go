@@ -2,7 +2,6 @@ package com.example.justgo.ui;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Paint;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
 import android.os.Looper;
@@ -24,7 +23,6 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
-import java.util.function.IntConsumer;
 import javax.net.ssl.HttpsURLConnection;
 
 /** 메인 화면 행사 카드의 조회, 이미지 표시, 자동 전환을 관리한다. */
@@ -48,18 +46,11 @@ final class TodayEventBanner {
     private boolean closed;
 
     TodayEventBanner(EventBannerBinding binding, RouteRecommendationClient client,
-                     Consumer<BannerEvent> navigate, IntConsumer openSource) {
+                     Consumer<BannerEvent> navigate) {
         this.binding = binding;
         this.client = client;
         binding.eventNavigate.setEnabled(false);
         binding.eventNavigate.setOnFocusChangeListener((view, hasFocus) -> scheduleRotation());
-        binding.eventSource.setPaintFlags(binding.eventSource.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
-        binding.eventSource.setOnFocusChangeListener((view, hasFocus) -> scheduleRotation());
-        binding.eventSource.setOnClickListener(view -> {
-            if (!active || restricted || events.isEmpty()) return;
-            openSource.accept("SEOUL".equals(events.get(index).source())
-                    ? R.string.banner_source_seoul_url : R.string.banner_source_tour_url);
-        });
         binding.eventArtworkPanel.setOnClickListener(view -> {
             if (canAdvance()) next();
         });
@@ -172,8 +163,8 @@ final class TodayEventBanner {
                 ? event.venue() : event.region() + " · " + event.venue();
         binding.eventDetail.setText(event.schedule().isBlank() ? detail : detail + " · " + event.schedule());
         binding.eventDetail.setVisibility(View.VISIBLE);
-        boolean seoul = "SEOUL".equals(event.source());
-        binding.eventSource.setText(seoul ? R.string.banner_source_seoul : R.string.banner_source_tour);
+        binding.eventSource.setText(event.source().equals("SEOUL")
+                ? "출처 · 서울특별시" : "출처 · 한국관광공사");
         binding.eventSource.setVisibility(View.VISIBLE);
         binding.eventNavigate.setVisibility(View.VISIBLE);
         renderPageDots();
@@ -190,6 +181,7 @@ final class TodayEventBanner {
                 if (stored == null && photo != null) photos.put(event.imageUrl(), photo);
                 handler.post(() -> {
                     if (photo == null || closed || events.isEmpty() || events.get(index) != event) return;
+                    // 원본 비율을 유지하면서 대표 이미지가 배너 오른쪽을 채우도록 중앙을 표시한다.
                     binding.eventArt.setImageBitmap(photo);
                 });
             });
@@ -221,7 +213,6 @@ final class TodayEventBanner {
 
     private void updateControls() {
         binding.eventNavigate.setEnabled(active && !restricted && !navigationPending);
-        binding.eventSource.setEnabled(active && !restricted && !events.isEmpty());
         boolean advance = canAdvance();
         binding.eventArtworkPanel.setEnabled(advance);
         binding.eventArtworkPanel.setClickable(advance);
@@ -239,7 +230,7 @@ final class TodayEventBanner {
 
     private void scheduleRotation() {
         handler.removeCallbacks(rotate);
-        if (focused && canAdvance() && !binding.eventNavigate.hasFocus() && !binding.eventSource.hasFocus()) {
+        if (focused && canAdvance() && !binding.eventNavigate.hasFocus()) {
             handler.postDelayed(rotate, ROTATE_DELAY);
         }
     }

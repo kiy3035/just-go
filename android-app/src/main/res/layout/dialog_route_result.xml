@@ -103,21 +103,6 @@
                     android:textColor="#1659AC"
                     android:textSize="16sp"
                     android:visibility="gone" />
-
-                <!-- 실시간 추천 목록과 상세에서 공통 데이터 원천을 확인한다. -->
-                <TextView
-                    android:id="@+id/routeDataSources"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:background="?android:attr/selectableItemBackground"
-                    android:focusable="true"
-                    android:gravity="center_vertical"
-                    android:minHeight="48dp"
-                    android:text="@string/route_sources"
-                    android:textColor="#1659AC"
-                    android:textSize="16sp"
-                    android:visibility="gone" />
             </LinearLayout>
         </ScrollView>
 
